@@ -1,0 +1,37 @@
+project_id = "zgbimzuhrsgvfrhlboxy"
+
+[functions.create-user]
+verify_jwt = true
+
+[functions.update-user]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.create-peer-approval-task]
+verify_jwt = true
+
+[functions.create-peer-evaluation-tasks]
+verify_jwt = true
+
+[functions.create-peer-selection-task-on-participant-add]
+verify_jwt = true
+
+[functions.generate-development-tasks]
+verify_jwt = true
+
+[functions.create-database-dump]
+verify_jwt = true
+
+[functions.generate-johari-report]
+verify_jwt = false
+
+[functions.import-diagnostics-data]
+verify_jwt = true
+
+[functions.import-grades-data]
+verify_jwt = true
+
+[functions.anonymize-comments]
+verify_jwt = false

@@ -1,0 +1,1 @@
+ALTER TABLE public.hard_skill_answer_options DROP COLUMN label;

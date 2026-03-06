@@ -1,0 +1,1 @@
+DELETE FROM tasks WHERE id = 'de7327f3-0e0a-4a5c-b6a3-210374eca07c';

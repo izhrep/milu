@@ -1,0 +1,104 @@
+-- Удаляем старую функцию и создаем улучшенную версию
+DROP FUNCTION IF EXISTS public.admin_delete_all_from_table(text);
+
+-- Создаем улучшенную функцию для удаления всех данных из таблицы
+CREATE OR REPLACE FUNCTION public.admin_delete_all_from_table(table_name text)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  deleted_count integer;
+  sql_query text;
+BEGIN
+  -- Проверяем, что текущий пользователь - администратор
+  IF NOT is_current_user_admin() THEN
+    RAISE EXCEPTION 'Access denied. Admin role required.';
+  END IF;
+  
+  -- Формируем SQL запрос с полным путем к таблице
+  sql_query := format('DELETE FROM public.%I', table_name);
+  
+  -- Выполняем удаление
+  EXECUTE sql_query;
+  
+  -- Получаем количество удаленных строк
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  
+  RETURN deleted_count;
+END;
+$$;
+
+-- Также создаем вспомогательную функцию для удаления в правильном порядке с учетом зависимостей
+CREATE OR REPLACE FUNCTION public.admin_cleanup_all_data()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  result jsonb := '[]'::jsonb;
+  deleted_count integer;
+  table_result jsonb;
+BEGIN
+  -- Проверяем, что текущий пользователь - администратор
+  IF NOT is_current_user_admin() THEN
+    RAISE EXCEPTION 'Access denied. Admin role required.';
+  END IF;
+  
+  -- Удаляем в правильном порядке с учетом внешних ключей
+  
+  -- 1. meeting_decisions (зависит от one_on_one_meetings)
+  DELETE FROM public.meeting_decisions;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'meeting_decisions', 'count', deleted_count);
+  
+  -- 2. one_on_one_meetings (зависит от meeting_stages)
+  DELETE FROM public.one_on_one_meetings;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'one_on_one_meetings', 'count', deleted_count);
+  
+  -- 3. meeting_stage_participants (зависит от meeting_stages)
+  DELETE FROM public.meeting_stage_participants;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'meeting_stage_participants', 'count', deleted_count);
+  
+  -- 4. meeting_stages
+  DELETE FROM public.meeting_stages;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'meeting_stages', 'count', deleted_count);
+  
+  -- 5. diagnostic_stage_participants (зависит от diagnostic_stages)
+  DELETE FROM public.diagnostic_stage_participants;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'diagnostic_stage_participants', 'count', deleted_count);
+  
+  -- 6. diagnostic_stages
+  DELETE FROM public.diagnostic_stages;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'diagnostic_stages', 'count', deleted_count);
+  
+  -- 7. tasks (может иметь зависимости от assignments)
+  DELETE FROM public.tasks;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'tasks', 'count', deleted_count);
+  
+  -- 8. survey_360_results
+  DELETE FROM public.survey_360_results;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'survey_360_results', 'count', deleted_count);
+  
+  -- 9. skill_survey_results
+  DELETE FROM public.skill_survey_results;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'skill_survey_results', 'count', deleted_count);
+  
+  -- 10. career_tracks
+  DELETE FROM public.career_tracks;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  result := result || jsonb_build_object('table', 'career_tracks', 'count', deleted_count);
+  
+  RETURN result;
+END;
+$$;
