@@ -36,7 +36,18 @@ export const useManagerComparison = (managerId: string | undefined) => {
       setLoading(true);
       setError(null);
 
-      // Get subordinates
+      // Get subtree IDs first
+      const { data: subtreeIds, error: subtreeError } = await supabase
+        .rpc('get_management_subtree_ids', { _manager_id: managerId });
+      
+      if (subtreeError) throw subtreeError;
+      if (!subtreeIds || subtreeIds.length === 0) {
+        setEmployees([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get subordinates filtered by subtree
       let query = supabase
         .from('users')
         .select(`
@@ -49,7 +60,7 @@ export const useManagerComparison = (managerId: string | undefined) => {
           positions(name),
           departments(name)
         `)
-        .eq('manager_id', managerId)
+        .in('id', subtreeIds)
         .eq('status', true);
 
       if (filters?.departmentId) {

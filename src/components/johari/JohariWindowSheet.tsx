@@ -13,129 +13,27 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   RefreshCw, 
   AlertTriangle, 
   Loader2, 
   Brain, 
-  Lightbulb, 
-  MessageSquare,
-  MessageSquareText,
   AlertCircle,
   Calendar,
   ShieldCheck,
   Clock,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  Info
 } from 'lucide-react';
 import { JohariQuadrants } from './JohariQuadrants';
-import { useJohariReport, type SkillMetrics, type StructuredQuestion, type RespondentScope, type ExternalCommentsReview, type SummaryCase, type OneToOneQuestion } from '@/hooks/useJohariReport';
+import { JohariCompetencyView } from './JohariCompetencyView';
+import { JohariCommentsClassification } from './JohariCommentsClassification';
+import { useJohariReport, type RespondentScope } from '@/hooks/useJohariReport';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-
-/** Заменяет англоязычные / устаревшие названия зон на русские бизнес-названия */
-const replaceZoneTerms = (text: string): string => {
-  return text
-    .replace(/\bhidden_strength\b/gi, 'Скрытая зона')
-    .replace(/\bblind_spot\b/gi, 'Слепая зона')
-    .replace(/\bgrey_zone\b/gi, 'Серая зона')
-    .replace(/\bgrey\s+zone\b/gi, 'Серая зона')
-    .replace(/\barena\b/gi, 'Открытая зона')
-    .replace(/\bunknown\b/gi, 'Чёрный ящик')
-    .replace(/Арена/g, 'Открытая зона')
-    .replace(/Скрытая сила/g, 'Скрытая зона')
-    .replace(/Неизвестное/g, 'Чёрный ящик')
-    .replace(/серая зона/gi, 'Серая зона');
-};
-
-// --- Validation + fallback for discussion questions ---
-
-const BLIND_TEMPLATES = [
-  'Как сотрудник оценивает свой текущий уровень в навыке «{skill}»? Что именно даёт ему уверенность в этой оценке?',
-  'Какие конкретные ситуации за последний период могли бы проиллюстрировать применение навыка «{skill}»?',
-];
-const HIDDEN_TEMPLATES = [
-  'Что мешает сотруднику чувствовать себя уверенно в навыке «{skill}», несмотря на высокую оценку окружающих?',
-  'Есть ли у сотрудника опыт успешного применения навыка «{skill}», который он мог не замечать?',
-];
-const POLARIZED_TEMPLATE = 'Оценки по навыку «{skill}» заметно расходятся между респондентами. Как сотрудник думает, в каких ситуациях этот навык проявляется по-разному?';
-
-interface ValidatedQuestion {
-  zone: string;
-  skill_name: string;
-  question: string;
-}
-
-function validateAndBuildQuestions(
-  aiQuestions: (StructuredQuestion | string)[] | undefined,
-  skills: SkillMetrics[]
-): ValidatedQuestion[] {
-  const skillNames = new Set(skills.map(s => s.skill_name.toLowerCase()));
-  const validZones = new Set(['blind_spot', 'hidden_strength', 'arena', 'polarized']);
-
-  // Try to validate AI questions
-  if (aiQuestions && aiQuestions.length > 0) {
-    const validated: ValidatedQuestion[] = [];
-    const usedSkills = new Set<string>();
-
-    for (const q of aiQuestions) {
-      if (typeof q === 'string') continue;
-      if (!q.zone || !q.skill_name || !q.question) continue;
-      if (!validZones.has(q.zone)) continue;
-      if (!skillNames.has(q.skill_name.toLowerCase())) continue;
-      const key = q.skill_name.toLowerCase();
-      if (usedSkills.has(key) && skills.length > 3) continue;
-      usedSkills.add(key);
-      validated.push({ zone: q.zone, skill_name: q.skill_name, question: q.question });
-    }
-
-    if (validated.length >= 3) return validated;
-  }
-
-  return generateFallbackQuestions(skills);
-}
-
-function generateFallbackQuestions(skills: SkillMetrics[]): ValidatedQuestion[] {
-  const blind = skills.filter(s => s.zone === 'blind_spot').sort((a, b) => b.delta - a.delta);
-  const hidden = skills.filter(s => s.zone === 'hidden_strength').sort((a, b) => b.delta - a.delta);
-  const arena = skills.filter(s => s.zone === 'arena').sort((a, b) => b.delta - a.delta);
-  const polarized = skills.filter(s => s.is_polarized).sort((a, b) => b.delta - a.delta);
-
-  const result: ValidatedQuestion[] = [];
-  const used = new Set<string>();
-
-  const pick = (pool: SkillMetrics[], zone: string, templates: string[], count: number) => {
-    let added = 0;
-    for (const s of pool) {
-      if (added >= count) break;
-      if (used.has(s.skill_id)) continue;
-      used.add(s.skill_id);
-      result.push({
-        zone,
-        skill_name: s.skill_name,
-        question: templates[added % templates.length].replace('{skill}', s.skill_name),
-      });
-      added++;
-    }
-    return added;
-  };
-
-  let blindPicked = pick(blind, 'blind_spot', BLIND_TEMPLATES, 2);
-  if (blindPicked < 2) pick(hidden, 'blind_spot', BLIND_TEMPLATES, 2 - blindPicked);
-
-  let hiddenPicked = pick(hidden, 'hidden_strength', HIDDEN_TEMPLATES, 2);
-  if (hiddenPicked < 2) pick(arena, 'hidden_strength', HIDDEN_TEMPLATES, 2 - hiddenPicked);
-
-  if (polarized.length > 0) {
-    const s = polarized.find(p => !used.has(p.skill_id)) || polarized[0];
-    result.push({
-      zone: 'polarized',
-      skill_name: s.skill_name,
-      question: POLARIZED_TEMPLATE.replace('{skill}', s.skill_name),
-    });
-  }
-
-  return result;
-}
 
 interface JohariWindowSheetProps {
   open: boolean;
@@ -157,7 +55,6 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
 }) => {
   const {
     snapshot,
-    aiReport,
     loading,
     error,
     dataChanged,
@@ -201,8 +98,8 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
     }
   };
 
-  // AI-текст показывается только если: отчёт утверждён ИЛИ пользователь может утверждать
-  const showAiReport = aiReport && (snapshot?.is_reviewed || canReview);
+  // Comments review is shown only if: report is reviewed OR user can review
+  const showCommentsReview = snapshot && (snapshot.is_reviewed || canReview);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -348,26 +245,56 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
               )}
             </div>
 
-            {/* Legend */}
-            <div className="inline-flex flex-col gap-0.5 text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/30 max-w-md">
-              <span className="font-medium text-foreground text-[11px] mb-0.5">FAQ</span>
-              <span><strong className="font-semibold text-foreground">Δ (Дельта)</strong> — разница между «Я» и «{isExternalOnly ? 'Внешние' : 'Все кроме меня'}»</span>
-              <span className="flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-orange-600 inline shrink-0" />
-                <span><strong className="font-semibold text-foreground">Поляризация</strong> — высокий разброс оценок внутри группы «{isExternalOnly ? 'Внешние' : 'Все кроме меня'}»</span>
-              </span>
-              <span className="text-muted-foreground/80 italic text-[11px] mt-0.5">Большая Δ не всегда означает поляризацию</span>
-            </div>
+            {/* Collapsible help — visible to HR/Lead */}
+            {canReview && (
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
+                    <Info className="w-4 h-4" />
+                    Справка по работе с Окном Джохари
+                    <ChevronDown className="w-3.5 h-3.5 ml-auto transition-transform [[data-state=open]>&]:rotate-180" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="text-xs text-muted-foreground border rounded-md px-4 py-3 bg-muted/30 space-y-2 mt-1">
+                    <p className="font-medium text-foreground">Как читать Окно Джохари</p>
+                    <div className="space-y-1">
+                      <p>🟢 <strong>Открытая зона</strong> — самооценка и внешняя оценка близки. Зона взаимопонимания.</p>
+                      <p>🟠 <strong>Слепая зона</strong> — сотрудник оценивает себя выше, чем окружающие. Возможная переоценка.</p>
+                      <p>🔵 <strong>Скрытая зона</strong> — окружающие оценивают выше, чем сам сотрудник. Возможная недооценка.</p>
+                      <p>⚪ <strong>Чёрный ящик</strong> — недостаточно данных для классификации.</p>
+                    </div>
+                    <div className="border-t border-border/30 pt-2 space-y-1">
+                      <p><strong>Δ (Дельта)</strong> — разница между «Я» и «{isExternalOnly ? 'Внешние' : 'Все кроме меня'}» в баллах. Знак показывает направление.</p>
+                      <p><strong>⚡ Противоречивые оценки</strong> — высокий разброс оценок внутри группы респондентов.</p>
+                      <p><strong>Условные обозначения:</strong> 💪 большинство оценок 1 · 👌 большинство 2 · 🔧 большинство 3 · ❔ мало данных · В↑В↓ внешние vs команда · Л↑Л↓ лид vs коллеги</p>
+                    </div>
+                    <p className="italic text-muted-foreground/80">Большая Δ не всегда означает противоречивые оценки. Это разные явления.</p>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
-            {/* Quadrants */}
-            <JohariQuadrants 
-              skills={snapshot.metrics_json.skills} 
-              scaleMax={snapshot.metrics_json.scale_max}
-              externalOnly={isExternalOnly}
-            />
+            {/* Tabs: Компетенции / Навыки */}
+            <Tabs defaultValue="competencies">
+              <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                <TabsTrigger value="competencies">Компетенции</TabsTrigger>
+                <TabsTrigger value="skills">Навыки</TabsTrigger>
+              </TabsList>
+              <TabsContent value="competencies" className="mt-3">
+                <JohariCompetencyView skills={snapshot.metrics_json.skills} />
+              </TabsContent>
+              <TabsContent value="skills" className="mt-3">
+                <JohariQuadrants 
+                  skills={snapshot.metrics_json.skills} 
+                  scaleMax={snapshot.metrics_json.scale_max}
+                  externalOnly={isExternalOnly}
+                />
+              </TabsContent>
+            </Tabs>
 
             {/* Moderation status banner */}
-            {!snapshot.is_reviewed && canReview && aiReport && (
+            {!snapshot.is_reviewed && canReview && (
               <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
                 <Clock className="h-4 w-4 text-amber-600" />
                 <AlertTitle className="text-amber-800 dark:text-amber-200">
@@ -407,367 +334,32 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
               </div>
             )}
 
-            {/* AI Report */}
-            {showAiReport && (
+            {/* Comments Classification — for both scopes */}
+            {showCommentsReview && (
               <>
                 <Separator />
-                
-                {/* Summary as bullet list */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Brain className="w-4 h-4 text-primary" />
-                      Резюме AI
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-1">
-                      {(() => {
-                        const raw = replaceZoneTerms(aiReport.summary);
-
-                        // Count skills per zone from snapshot for dynamic headers
-                        const zoneCounts: Record<string, number> = {};
-                        if (snapshot?.metrics_json?.skills) {
-                          for (const s of snapshot.metrics_json.skills) {
-                            zoneCounts[s.zone] = (zoneCounts[s.zone] || 0) + 1;
-                          }
-                        }
-                        const blindCount = zoneCounts['blind_spot'] || 0;
-                        const hiddenCount = zoneCounts['hidden_strength'] || 0;
-
-                        /** Build dynamic section header based on actual zone count */
-                        const buildZoneHeader = (zone: 'blind' | 'hidden', count: number): string | null => {
-                          if (count === 0) return null;
-                          const zoneName = zone === 'blind' ? 'Слепая зона' : 'Скрытая зона';
-                          const zoneNamePlural = zone === 'blind' ? 'слепых зон' : 'скрытых зон';
-                          if (count >= 3) return `Топ-3 ${zoneNamePlural}`;
-                          const suffix = count === 1 ? 'навык' : 'навыка';
-                          return `${zoneName} (${count} ${suffix})`;
-                        };
-
-                        // Normalize: strip double markers, stray bullets, formatting artifacts
-                        const normalized = raw
-                          .replace(/^[•–—\-]\s*[•–—\-]\s*/gm, '')
-                          .replace(/^[•–—\-]\s*/gm, '')
-                          .replace(/\*\*/g, '');
-
-                        // Split into lines
-                        let lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-                        // Fallback: if single long paragraph, split by sentences
-                        if (lines.length <= 1 && raw.length > 120) {
-                          lines = normalized
-                            .split(/(?<=[.!?])\s+/)
-                            .map(s => s.trim())
-                            .filter(s => s.length > 0);
-                        }
-
-                        // Protect against header+item glued on one line
-                        const expanded: string[] = [];
-                        for (const line of lines) {
-                          const glueMatch = line.match(/^((?:ТОП-\d+|Топ-\d+)[^:]*:)\s*(1[.)].*)$/i);
-                          if (glueMatch) {
-                            expanded.push(glueMatch[1]);
-                            glueMatch[2].split(/(?=\d+[.)]\s)/).forEach(s => expanded.push(s.trim()));
-                          } else {
-                            expanded.push(line);
-                          }
-                        }
-
-                        // Detect section headers
-                        const isSectionHeader = (l: string) =>
-                          /^(КЛЮЧЕВЫЕ\s+ВЫВОДЫ|ТОП-\d+|Ключевые\s+выводы|Топ-\d+)/i.test(l) ||
-                          (/:\s*$/.test(l) && !(/^\d+[.)]/.test(l)));
-
-                        /** Determine if a header is a blind/hidden zone section */
-                        const getZoneType = (header: string): 'blind' | 'hidden' | null => {
-                          if (/слеп/i.test(header)) return 'blind';
-                          if (/скрыт/i.test(header)) return 'hidden';
-                          return null;
-                        };
-
-                        const elements: React.ReactNode[] = [];
-                        let idx = 0;
-                        while (idx < expanded.length) {
-                          const line = expanded[idx];
-
-                          if (isSectionHeader(line)) {
-                            // Determine zone type for dynamic header replacement
-                            const zoneType = getZoneType(line);
-                            let displayHeader: string | null;
-
-                            if (zoneType === 'blind') {
-                              displayHeader = buildZoneHeader('blind', blindCount);
-                            } else if (zoneType === 'hidden') {
-                              displayHeader = buildZoneHeader('hidden', hiddenCount);
-                            } else if (/КЛЮЧЕВЫЕ\s+ВЫВОДЫ/i.test(line)) {
-                              displayHeader = 'Ключевые выводы';
-                            } else {
-                              displayHeader = line.replace(/:$/, '');
-                            }
-
-                            idx++;
-
-                            // Collect items for this section
-                            const isNumbered = idx < expanded.length && /^\d+[.)]/.test(expanded[idx]);
-                            const items: string[] = [];
-
-                            if (isNumbered) {
-                              while (idx < expanded.length && /^\d+[.)]/.test(expanded[idx])) {
-                                items.push(expanded[idx].replace(/^\d+[.)]\s*/, ''));
-                                idx++;
-                              }
-                            } else {
-                              while (idx < expanded.length && !isSectionHeader(expanded[idx])) {
-                                items.push(expanded[idx]);
-                                idx++;
-                              }
-                            }
-
-                            // Skip entire section if header is null (count=0) or no items
-                            if (!displayHeader || items.length === 0) continue;
-
-                            // For zone sections, limit items to count (max 3)
-                            const maxItems = zoneType
-                              ? Math.min(items.length, zoneType === 'blind' ? Math.min(blindCount, 3) : Math.min(hiddenCount, 3))
-                              : items.length;
-                            const visibleItems = items.slice(0, maxItems);
-
-                            elements.push(
-                              <p key={`h-${idx}`} className="font-semibold text-sm mt-3 first:mt-0">
-                                {displayHeader}
-                              </p>
-                            );
-
-                            if (isNumbered) {
-                              elements.push(
-                                <ol key={`ol-${idx}`} className="list-decimal list-inside space-y-0.5 ml-1">
-                                  {visibleItems.map((item, i) => (
-                                    <li key={i} className="text-sm">{item}</li>
-                                  ))}
-                                </ol>
-                              );
-                            } else {
-                              elements.push(
-                                <ul key={`ul-${idx}`} className="space-y-1 ml-1">
-                                  {visibleItems.map((item, i) => (
-                                    <li key={i} className="flex items-start gap-2 text-sm">
-                                      <span className="text-primary mt-0.5">•</span>
-                                      <span>{item}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              );
-                            }
-                          } else {
-                            elements.push(
-                              <div key={`f-${idx}`} className="flex items-start gap-2 text-sm">
-                                <span className="text-primary mt-0.5">•</span>
-                                <span>{line}</span>
-                              </div>
-                            );
-                            idx++;
-                          }
-                        }
-                        return elements;
-                      })()}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Recommendations as bullets */}
-                {aiReport.recommendations && aiReport.recommendations.length > 0 && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Lightbulb className="w-4 h-4 text-yellow-500" />
-                        Рекомендации для Unit-lead
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
-                        {aiReport.recommendations.map((rec, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-sm">
-                            <span className="text-primary font-medium">•</span>
-                            <span>{replaceZoneTerms(rec)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Discussion questions — data-driven with validation + fallback */}
-                {(() => {
-                  const skills = snapshot.metrics_json.skills;
-                  const validatedQuestions = validateAndBuildQuestions(
-                    aiReport.discussion_questions,
-                    skills
-                  );
-
-                  if (validatedQuestions.length === 0) return null;
-
-                  const zoneLabelMap: Record<string, string> = {
-                    blind_spot: 'Слепая зона',
-                    hidden_strength: 'Скрытая зона',
-                    arena: 'Открытая зона',
-                    polarized: 'Поляризация',
-                  };
-                   const zoneColorMap: Record<string, string> = {
-                    blind_spot: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-                    hidden_strength: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                    arena: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                    polarized: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-                  };
-
-                  return (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <MessageSquare className="w-4 h-4 text-blue-500" />
-                          Вопросы для обсуждения на 1:1 (для Unit-lead)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-3">
-                          {validatedQuestions.map((q, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 mt-0.5 ${zoneColorMap[q.zone] || ''}`}>
-                                {zoneLabelMap[q.zone] || q.zone}
-                              </Badge>
-                              <span>{replaceZoneTerms(q.question)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  );
-                })()}
-
-                {/* External Comments Case-Based Review — only for external_only scope */}
-                {isExternalOnly && (
-                  (() => {
-                    const review = snapshot.external_comments_review as ExternalCommentsReview | null | undefined;
-                    
-                    if (!review) {
-                      return (
-                        <Alert className="bg-muted/50">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertTitle>Нет данных для AI-обзора комментариев</AlertTitle>
-                          <AlertDescription>
-                            Нет комментариев внешних респондентов для ревью.
-                          </AlertDescription>
-                        </Alert>
-                      );
-                    }
-
-                    const strengthCases = review.summary_cases?.filter(c => c.type === 'strength') || [];
-                    const attentionCases = review.summary_cases?.filter(c => c.type === 'attention') || [];
-                    const questions = review.one_to_one_questions || [];
-
-                    const zoneLabelMap: Record<string, string> = {
-                      open: 'Открытая зона',
-                      blind: 'Слепая зона',
-                      hidden: 'Скрытая зона',
-                      unknown: 'Чёрный ящик',
-                    };
-                    const zoneColorMap: Record<string, string> = {
-                      open: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                      blind: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-                      hidden: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                      unknown: 'bg-muted text-muted-foreground',
-                    };
-
-                    const renderCase = (c: SummaryCase) => (
-                      <div key={c.id} className="space-y-1.5 p-3 rounded-lg bg-muted/30 border">
-                        <p className="font-semibold text-sm">{c.title}</p>
-                        <p className="text-sm text-muted-foreground">{c.insight}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>Подтверждено комментариями: {c.evidence_count}</span>
-                        </div>
-                        {c.example_signals && c.example_signals.length > 0 && (
-                          <ul className="space-y-0.5 ml-1">
-                            {c.example_signals.map((sig, i) => (
-                              <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                <span className="mt-0.5">→</span>
-                                <span>{sig}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        {c.related_skills && c.related_skills.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                            <span className="text-xs text-muted-foreground/70">Связанные навыки (гипотеза):</span>
-                            {c.related_skills.map((rs, i) => (
-                              <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">
-                                {rs.skill_name}{rs.relation === 'secondary' ? ' (↓)' : ''}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-
-                    return (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="flex items-center gap-2 text-base">
-                            <MessageSquareText className="w-4 h-4 text-primary" />
-                            Краткое ревью комментариев внешних
-                          </CardTitle>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>Только внешние респонденты</span>
-                            {review.notes?.comments_used > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                💬 {review.notes.comments_used} комментариев
-                              </Badge>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {/* Strength cases */}
-                          {strengthCases.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="font-semibold text-sm">Сильные кейсы по комментариям внешних</p>
-                              {strengthCases.map(renderCase)}
-                            </div>
-                          )}
-
-                          {/* Attention cases */}
-                          {attentionCases.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="font-semibold text-sm">Кейсы внимания</p>
-                              {attentionCases.map(renderCase)}
-                            </div>
-                          )}
-
-                          {/* 1:1 Questions */}
-                          {questions.length > 0 && (
-                            <div>
-                              <p className="font-semibold text-sm mb-1.5">Что обсудить на 1:1 (для Unit-lead)</p>
-                              <ol className="space-y-2">
-                                {questions.map((q, idx) => (
-                                  <li key={idx} className="flex items-start gap-2 text-sm">
-                                    <span className="text-muted-foreground font-medium shrink-0">{idx + 1}.</span>
-                                    <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 mt-0.5 ${zoneColorMap[q.zone] || ''}`}>
-                                      {zoneLabelMap[q.zone] || q.zone}
-                                    </Badge>
-                                    <span>{q.question}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })()
+                {snapshot.comments_classification ? (
+                  <JohariCommentsClassification
+                    data={snapshot.comments_classification}
+                    canReview={canReview}
+                    isExternalOnly={isExternalOnly}
+                  />
+                ) : (
+                  <Alert className="bg-muted/50">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Нет данных для AI-классификации комментариев</AlertTitle>
+                    <AlertDescription>
+                      {isExternalOnly
+                        ? 'Нет комментариев внешних респондентов для классификации.'
+                        : 'Нет комментариев респондентов для классификации.'}
+                    </AlertDescription>
+                  </Alert>
                 )}
               </>
             )}
 
             {/* Hidden AI report notice for non-reviewers */}
-            {aiReport && !snapshot.is_reviewed && !canReview && (
+            {!snapshot.is_reviewed && !canReview && (
               <Alert>
                 <Clock className="h-4 w-4" />
                 <AlertTitle>AI-анализ ожидает проверки</AlertTitle>

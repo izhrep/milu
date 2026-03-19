@@ -120,7 +120,7 @@ export const UnifiedStagesManager = () => {
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="gap-1">
                         <Calendar className="h-3 w-3" />
-                        Встречи 1:1
+                        Встречи one-to-one
                       </Badge>
                       <Badge variant={stage.is_active ? "default" : "secondary"} className="text-xs">
                         {stage.is_active ? 'Активен' : 'Завершен'}
@@ -142,7 +142,7 @@ export const UnifiedStagesManager = () => {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Управление этапами</h2>
           <p className="text-muted-foreground">
-            Создание и управление этапами диагностики и встреч 1:1
+            Создание и управление этапами диагностики и встреч one-to-one
           </p>
         </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useSurvey360, type Survey360Answer } from '@/hooks/useSurvey360';
 import { useAuth } from '@/contexts/AuthContext';
 import { decryptUserData, getFullName, type DecryptedUserData } from '@/lib/userDataDecryption';
 import { useTasks } from '@/hooks/useTasks';
+import { useStageTemplateConfig } from '@/hooks/useStageTemplateConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -25,6 +26,17 @@ const Survey360QuestionsPage = () => {
   const [assignmentData, setAssignmentData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [evaluatorType, setEvaluatorType] = useState<'self' | 'manager' | 'peer'>('self');
+  const [diagnosticStageId, setDiagnosticStageId] = useState<string | undefined>(undefined);
+
+  const { config: stageConfig } = useStageTemplateConfig(diagnosticStageId);
+
+  // Filter answer options by frozen scale bounds for template-based stages
+  const filteredAnswerOptions = useMemo(() => {
+    if (stageConfig.isLegacy) return answerOptions;
+    return answerOptions.filter(opt =>
+      opt.numeric_value >= stageConfig.softScaleMin && opt.numeric_value <= stageConfig.softScaleMax
+    );
+  }, [answerOptions, stageConfig]);
 
   // Загружаем данные о назначении и оцениваемом пользователе
   useEffect(() => {
@@ -58,6 +70,7 @@ const Survey360QuestionsPage = () => {
       }
 
       setAssignmentData(assignment);
+      setDiagnosticStageId(assignment.diagnostic_stage_id ?? undefined);
 
       // Определяем тип оценивающего
       const isSelf = assignment.evaluated_user_id === currentUser?.id;
@@ -252,17 +265,21 @@ const Survey360QuestionsPage = () => {
       }
 
       // Сохраняем результаты с assignment_id и diagnostic_stage_id
-      const results = Object.values(answers).map(answer => ({
-        evaluated_user_id: assignmentData.evaluated_user_id,
-        evaluating_user_id: currentUser.id,
-        question_id: answer.question_id,
-        answer_option_id: answer.answer_option_id,
-        comment: answer.comment || null,
-        is_anonymous_comment: answer.is_anonymous_comment ?? false,
-        assignment_id: assignmentId,
-        diagnostic_stage_id: assignmentData.diagnostic_stage_id,
-        is_draft: false
-      }));
+      const results = Object.values(answers).map(answer => {
+        const matchedOption = answerOptions.find(o => o.id === answer.answer_option_id);
+        return {
+          evaluated_user_id: assignmentData.evaluated_user_id,
+          evaluating_user_id: currentUser.id,
+          question_id: answer.question_id,
+          answer_option_id: answer.answer_option_id,
+          raw_numeric_value: matchedOption?.numeric_value ?? null,
+          comment: answer.comment || null,
+          is_anonymous_comment: answer.is_anonymous_comment ?? false,
+          assignment_id: assignmentId,
+          diagnostic_stage_id: assignmentData.diagnostic_stage_id,
+          is_draft: false
+        };
+      });
 
       console.log('Inserting results:', results.length);
 
@@ -466,28 +483,28 @@ const Survey360QuestionsPage = () => {
             <input
               type="range"
               min="0"
-              max={answerOptions.length - 1}
+              max={filteredAnswerOptions.length - 1}
               step="1"
               value={answers[currentQuestion.id] ? 
-                answerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) 
+                filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) 
                 : 0
               }
               onChange={(e) => {
                 const index = parseInt(e.target.value);
-                const option = answerOptions[index];
+                const option = filteredAnswerOptions[index];
                 if (option) {
                   updateAnswer(currentQuestion.id, option.id, answers[currentQuestion.id]?.comment);
                 }
               }}
               className="w-full h-2 bg-surface-secondary rounded-lg appearance-none cursor-pointer slider"
               style={{
-                background: `linear-gradient(to right, hsl(var(--brand-orange)) 0%, hsl(var(--brand-orange)) ${answers[currentQuestion.id] ? (answerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (answerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) ${answers[currentQuestion.id] ? (answerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (answerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) 100%)`
+                background: `linear-gradient(to right, hsl(var(--brand-orange)) 0%, hsl(var(--brand-orange)) ${answers[currentQuestion.id] ? (filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (filteredAnswerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) ${answers[currentQuestion.id] ? (filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (filteredAnswerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) 100%)`
               }}
             />
             
             {/* Scale markers */}
             <div className="flex justify-between mt-2">
-              {answerOptions.map((option, index) => (
+              {filteredAnswerOptions.map((option, index) => (
                 <div key={option.id} className="flex flex-col items-center">
                   <div className="w-3 h-3 bg-surface-tertiary rounded-full border-2 border-surface-primary"></div>
                   <span className="text-xs text-text-secondary mt-1">{index}</span>
@@ -498,7 +515,7 @@ const Survey360QuestionsPage = () => {
           
           {/* Scale labels */}
           <div className="space-y-1 text-xs text-text-secondary mb-4">
-              {answerOptions.map((option, index) => (
+              {filteredAnswerOptions.map((option, index) => (
               <div key={option.id}>
                 <span className="font-medium">{index}.</span> {option.title}
               </div>
@@ -513,11 +530,11 @@ const Survey360QuestionsPage = () => {
                   Выбранная оценка:
                 </span>
                 <span className="text-lg font-bold text-brand-orange">
-                  {answerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id)}
+                  {filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id)}
                 </span>
               </div>
               <p className="text-sm text-text-secondary mt-1">
-                {answerOptions.find(opt => opt.id === answers[currentQuestion.id].answer_option_id)?.title} - {answerOptions.find(opt => opt.id === answers[currentQuestion.id].answer_option_id)?.description}
+                {filteredAnswerOptions.find(opt => opt.id === answers[currentQuestion.id].answer_option_id)?.title} - {filteredAnswerOptions.find(opt => opt.id === answers[currentQuestion.id].answer_option_id)?.description}
               </p>
             </div>
           )}

@@ -22,18 +22,26 @@ export const DataCleanupWidget = () => {
   const [showReloadLoader, setShowReloadLoader] = useState(false);
 
   const tables = [
+    'meeting_artifacts',
+    'meeting_private_notes',
     'meeting_decisions',
+    'meeting_status_current',
     'one_on_one_meetings',
     'meeting_stage_participants',
     'meeting_stages',
+    'development_plan_tasks',
+    'development_plans',
     'development_tasks',
     'tasks',
     'user_assessment_results',
     'hard_skill_results',
     'soft_skill_results',
     'survey_360_assignments',
+    'employee_stage_snapshots',
+    'johari_ai_snapshots',
     'diagnostic_stage_participants',
     'diagnostic_stages',
+    'diagnostic_config_templates',
     'user_qualities',
     'user_skills'
   ];

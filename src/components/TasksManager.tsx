@@ -966,7 +966,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                       </>
                     )}
                     
-                    {(taskType === 'meeting' || taskType === 'assessment' || ('assignment_type' in task && task.assignment_type)) && (
+                    {(taskType === 'meeting' || taskType === 'assessment' || ('assignment_type' in task && task.assignment_type)) && taskType !== 'peer_selection' && taskType !== 'peer_approval' && (
                       <>
                         {task.status === 'pending' && (
                           <Button

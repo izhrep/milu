@@ -84,7 +84,7 @@ export const StageFilter: React.FC<StageFilterProps> = ({
         onValueChange={handleValueChange}
         disabled={disabled || sortedStages.length === 0}
       >
-        <SelectTrigger className="w-full min-w-[200px]">
+        <SelectTrigger className="w-full min-w-0 [&>span]:truncate [&>span]:whitespace-nowrap">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent className="bg-background border shadow-lg z-50">
@@ -93,12 +93,12 @@ export const StageFilter: React.FC<StageFilterProps> = ({
           )}
           {sortedStages.map((stage) => (
             <SelectItem key={stage.id} value={stage.id}>
-              <div className="flex items-center gap-2">
-                <span>{stage.period}</span>
+              <span className="inline-flex max-w-full items-center gap-2">
+                <span className="truncate">{stage.period}</span>
                 {stage.is_active && (
-                  <span className="text-xs text-primary font-medium">(активный)</span>
+                  <span className="shrink-0 text-xs text-primary font-medium">(активный)</span>
                 )}
-              </div>
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

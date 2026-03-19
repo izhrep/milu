@@ -34,7 +34,8 @@ export const CleanupDiagnosticsData = () => {
     'sub_category_hard_skills',
     'sub_category_soft_skills',
     'category_hard_skills',
-    'category_soft_skills'
+    'category_soft_skills',
+    'diagnostic_config_templates'
   ];
 
   const handleCleanup = async () => {

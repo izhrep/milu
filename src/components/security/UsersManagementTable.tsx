@@ -302,9 +302,8 @@ const UsersManagementTable = () => {
         if (error) throw error;
       }
 
-      // Clear manager_id if role changed from employee to something else
-      // Only employees should have managers
-      if (oldRole === 'employee' && newRole !== 'employee') {
+      // Clear manager_id if role changed to admin or hr_bp (employees and managers can have managers)
+      if ((oldRole === 'employee' || oldRole === 'manager') && newRole !== 'employee' && newRole !== 'manager') {
         await supabase
           .from('users')
           .update({ manager_id: null })
@@ -939,7 +938,7 @@ const UsersManagementTable = () => {
               <Select
                 value={newUser.role}
                 onValueChange={(value: any) => {
-                  setNewUser({ ...newUser, role: value, manager_id: value === 'employee' ? newUser.manager_id : '' });
+                  setNewUser({ ...newUser, role: value, manager_id: (value === 'employee' || value === 'manager') ? newUser.manager_id : '' });
                 }}
               >
                 <SelectTrigger>
@@ -1024,8 +1023,8 @@ const UsersManagementTable = () => {
                 </SelectContent>
               </Select>
             </div>
-            {/* Only employees can have managers */}
-            {newUser.role === 'employee' && (
+            {/* Employees and managers can have managers */}
+            {(newUser.role === 'employee' || newUser.role === 'manager') && (
               <div className="space-y-2">
                 <Label htmlFor="manager">Руководитель</Label>
                 <Select
@@ -1113,7 +1112,7 @@ const UsersManagementTable = () => {
               <Select
                 value={editUser?.role || 'employee'}
                 onValueChange={(value: any) => {
-                  setEditUser({ ...editUser, role: value, manager_id: value === 'employee' ? editUser?.manager_id : null });
+                  setEditUser({ ...editUser, role: value, manager_id: (value === 'employee' || value === 'manager') ? editUser?.manager_id : null });
                 }}
               >
                 <SelectTrigger className="h-9">
@@ -1202,8 +1201,8 @@ const UsersManagementTable = () => {
               </Select>
             </div>
 
-            {/* Only employees can have managers */}
-            {editUser?.role === 'employee' && (
+            {/* Employees and managers can have managers */}
+            {(editUser?.role === 'employee' || editUser?.role === 'manager') && (
               <div className="space-y-1">
                 <Label htmlFor="edit-manager" className="text-sm">Руководитель</Label>
                 <Select

@@ -1,17 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isUUID, badRequest, unauthorized, serverError } from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PROMPT_VERSION = "2.3.0";
+const PROMPT_VERSION = "4.0.0";
 const AI_MODEL = "google/gemini-2.5-flash";
 
 interface SkillMetrics {
   skill_id: string;
   skill_name: string;
+  skill_description?: string;
   category?: string;
   subcategory?: string;
   zone: 'arena' | 'blind_spot' | 'hidden_strength' | 'unknown';
@@ -20,9 +22,16 @@ interface SkillMetrics {
   peers_avg: number | null;
   others_avg: number | null;
   delta: number;
+  signed_delta: number;
   others_raters_cnt: number;
   grey_zone: boolean;
   is_polarized: boolean;
+  is_contradictory: boolean;
+  confidence_tier: 'insufficient' | 'preliminary' | 'confident';
+  manager_scores: number[];
+  peer_scores: number[];
+  external_scores: number[];
+  others_individual_scores: number[];
 }
 
 interface ExcludedSkill {
@@ -44,7 +53,6 @@ interface JohariMetrics {
 
 type RespondentScope = 'all' | 'external_only';
 
-// Calculate SHA256 hash
 async function calculateHash(data: string): Promise<string> {
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
@@ -54,11 +62,87 @@ async function calculateHash(data: string): Promise<string> {
     .join('');
 }
 
+// ── Snapshot context loading ──
+interface SnapshotContext {
+  diagnosticId: string;
+  questionToSkillMap: Map<string, string>; // question entity_id → skill entity_id
+  skillMetaMap: Map<string, { name: string; description?: string; category?: string; subcategory?: string }>;
+  assignmentTypeMap: Map<string, string>; // assignment entity_id → assignment_type
+  externalPeerIds: Set<string>; // evaluating_user_ids that are external
+}
+
+async function loadSnapshotContext(
+  supabaseAdmin: any,
+  stageId: string,
+  evaluatedUserId: string
+): Promise<SnapshotContext | null> {
+  // Check if a current snapshot exists
+  const { data: snapshotHeader } = await supabaseAdmin
+    .from('diagnostic_result_snapshots')
+    .select('id')
+    .eq('stage_id', stageId)
+    .eq('evaluated_user_id', evaluatedUserId)
+    .eq('is_current', true)
+    .maybeSingle();
+
+  if (!snapshotHeader) return null;
+
+  const diagnosticId = snapshotHeader.id;
+
+  // Load all snapshot data in parallel
+  const [questionsRes, skillsRes, assignmentsRes] = await Promise.all([
+    supabaseAdmin
+      .from('soft_skill_question_snapshots')
+      .select('entity_id, quality_id')
+      .eq('diagnostic_id', diagnosticId),
+    supabaseAdmin
+      .from('soft_skill_snapshots')
+      .select('entity_id, name, description, category_name, subcategory_name')
+      .eq('diagnostic_id', diagnosticId),
+    supabaseAdmin
+      .from('survey_assignment_snapshots')
+      .select('entity_id, assignment_type, evaluating_user_id, evaluator_position_category_name')
+      .eq('diagnostic_id', diagnosticId),
+  ]);
+
+  const questionToSkillMap = new Map<string, string>();
+  for (const q of (questionsRes.data || [])) {
+    if (q.quality_id) {
+      questionToSkillMap.set(q.entity_id, q.quality_id);
+    }
+  }
+
+  const skillMetaMap = new Map<string, { name: string; description?: string; category?: string; subcategory?: string }>();
+  for (const s of (skillsRes.data || [])) {
+    skillMetaMap.set(s.entity_id, {
+      name: s.name,
+      description: s.description || undefined,
+      category: s.category_name || undefined,
+      subcategory: s.subcategory_name || undefined,
+    });
+  }
+
+  const assignmentTypeMap = new Map<string, string>();
+  const externalPeerIds = new Set<string>();
+  for (const a of (assignmentsRes.data || [])) {
+    if (a.assignment_type) {
+      assignmentTypeMap.set(a.entity_id, a.assignment_type);
+    }
+    // Detect external peers from snapshot
+    if (a.assignment_type === 'peer' && a.evaluating_user_id && a.evaluator_position_category_name) {
+      if (a.evaluator_position_category_name.toLowerCase().includes('(внешний)')) {
+        externalPeerIds.add(a.evaluating_user_id);
+      }
+    }
+  }
+
+  return { diagnosticId, questionToSkillMap, skillMetaMap, assignmentTypeMap, externalPeerIds };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Check authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error('Missing authorization header');
@@ -70,14 +154,15 @@ serve(async (req) => {
 
     const { stage_id, evaluated_user_id, force_regenerate = false, respondent_scope = 'all' } = await req.json();
     
-    if (!stage_id || !evaluated_user_id) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters: stage_id, evaluated_user_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!isUUID(stage_id)) {
+      console.error("Invalid stage_id format");
+      return badRequest("Invalid input");
+    }
+    if (!isUUID(evaluated_user_id)) {
+      console.error("Invalid evaluated_user_id format");
+      return badRequest("Invalid input");
     }
 
-    // Validate respondent_scope
     const scope: RespondentScope = respondent_scope === 'external_only' ? 'external_only' : 'all';
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -88,15 +173,11 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Create Supabase client with user's auth token for permission checks
     const supabaseUser = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } }
     });
-
-    // Create admin client for database operations
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user's ID from auth token
     const { data: { user: currentUser }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !currentUser) {
       return new Response(
@@ -105,11 +186,10 @@ serve(async (req) => {
       );
     }
 
-    // Check permissions - must be HR/admin OR manager of the evaluated user
+    // Permission checks
     const { data: hasViewAll, error: permError1 } = await supabaseUser.rpc('has_permission', {
       _permission_name: 'assessment_results.view_all'
     });
-
     const { data: hasViewTeam, error: permError2 } = await supabaseUser.rpc('has_permission', {
       _permission_name: 'assessment_results.view_team'
     });
@@ -136,29 +216,58 @@ serve(async (req) => {
 
     console.log(`Generating Johari report for stage=${stage_id}, user=${evaluated_user_id}, force=${force_regenerate}, scope=${scope}`);
 
-    // 1. Get all soft skill results for this stage and user
-    const { data: results, error: resultsError } = await supabaseAdmin
-      .from('soft_skill_results')
-      .select(`
-        id,
-        evaluating_user_id,
-        question_id,
-        answer_option_id,
-        assignment_id,
-        soft_skill_answer_options!inner(numeric_value),
-        soft_skill_questions!inner(quality_id, soft_skills!fk_survey_360_questions_soft_skill(id, name, category_id, sub_category_id, category_soft_skills(name), sub_category_soft_skills(name)))
-      `)
-      .eq('diagnostic_stage_id', stage_id)
-      .eq('evaluated_user_id', evaluated_user_id)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false');
+    // ── Load snapshot context (null if no snapshot exists = live mode) ──
+    const snapshotCtx = await loadSnapshotContext(supabaseAdmin, stage_id, evaluated_user_id);
+    const isHistorical = snapshotCtx !== null;
+    console.log(`Data mode: ${isHistorical ? 'SNAPSHOT (historical)' : 'LIVE'}`);
 
-    if (resultsError) {
-      console.error('Error fetching results:', resultsError);
-      throw resultsError;
+    // ── 1. Get results ──
+    let rawResults: any[];
+
+    if (isHistorical) {
+      // Historical mode: read results without JOINs, use raw_numeric_value
+      const { data, error: resultsError } = await supabaseAdmin
+        .from('soft_skill_results')
+        .select('id, evaluating_user_id, question_id, assignment_id, comment, raw_numeric_value, is_skip')
+        .eq('diagnostic_stage_id', stage_id)
+        .eq('evaluated_user_id', evaluated_user_id)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false');
+
+      if (resultsError) {
+        console.error('Error fetching results (historical):', resultsError);
+        throw resultsError;
+      }
+      rawResults = data || [];
+    } else {
+      // Live mode: use JOINs to reference tables
+      const { data, error: resultsError } = await supabaseAdmin
+        .from('soft_skill_results')
+        .select(`
+          id,
+          evaluating_user_id,
+          question_id,
+          answer_option_id,
+          assignment_id,
+          comment,
+          raw_numeric_value,
+          is_skip,
+          soft_skill_answer_options!inner(numeric_value),
+          soft_skill_questions!inner(quality_id, soft_skills!fk_survey_360_questions_soft_skill(id, name, description, category_id, sub_category_id, category_soft_skills(name), sub_category_soft_skills(name)))
+        `)
+        .eq('diagnostic_stage_id', stage_id)
+        .eq('evaluated_user_id', evaluated_user_id)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false');
+
+      if (resultsError) {
+        console.error('Error fetching results (live):', resultsError);
+        throw resultsError;
+      }
+      rawResults = data || [];
     }
 
-    if (!results || results.length === 0) {
+    if (!rawResults || rawResults.length === 0) {
       return new Response(
         JSON.stringify({ 
           error: 'insufficient_data',
@@ -168,59 +277,69 @@ serve(async (req) => {
       );
     }
 
-    // 2. Get assignment types for each result
-    const assignmentIds = [...new Set(results.filter(r => r.assignment_id).map(r => r.assignment_id))];
-    const { data: assignments } = await supabaseAdmin
-      .from('survey_360_assignments')
-      .select('id, assignment_type, evaluating_user_id')
-      .in('id', assignmentIds);
+    // ── 2. Build assignment type map & external peer IDs ──
+    let assignmentTypeMap: Map<string, string>;
+    let externalPeerIds: Set<string>;
 
-    const assignmentTypeMap = new Map(assignments?.map(a => [a.id, a.assignment_type]) || []);
+    if (isHistorical) {
+      assignmentTypeMap = snapshotCtx!.assignmentTypeMap;
+      externalPeerIds = snapshotCtx!.externalPeerIds;
+      console.log(`Historical: ${assignmentTypeMap.size} assignments from snapshot, ${externalPeerIds.size} external peers`);
+    } else {
+      // Live: fetch from live tables
+      const assignmentIds = [...new Set(rawResults.filter(r => r.assignment_id).map(r => r.assignment_id))];
+      const { data: assignments } = await supabaseAdmin
+        .from('survey_360_assignments')
+        .select('id, assignment_type, evaluating_user_id')
+        .in('id', assignmentIds);
 
-    // 2b. Get position categories for all peer evaluators to determine "external"
-    const peerEvaluatorIds = [...new Set(
-      (assignments || [])
-        .filter(a => a.assignment_type === 'peer')
-        .map(a => a.evaluating_user_id)
-        .filter(Boolean)
-    )];
+      assignmentTypeMap = new Map(assignments?.map((a: any) => [a.id, a.assignment_type]) || []);
 
-    const externalPeerIds = new Set<string>();
-    if (peerEvaluatorIds.length > 0) {
-      const { data: evaluatorUsers } = await supabaseAdmin
-        .from('users')
-        .select('id, position_id')
-        .in('id', peerEvaluatorIds);
+      // Detect external peers from live tables
+      const peerEvaluatorIds = [...new Set(
+        (assignments || [])
+          .filter((a: any) => a.assignment_type === 'peer')
+          .map((a: any) => a.evaluating_user_id)
+          .filter(Boolean)
+      )];
 
-      const positionIds = [...new Set((evaluatorUsers || []).map(u => u.position_id).filter(Boolean))];
-      
-      if (positionIds.length > 0) {
-        const { data: positions } = await supabaseAdmin
-          .from('positions')
-          .select('id, position_category_id')
-          .in('id', positionIds);
+      externalPeerIds = new Set<string>();
+      if (peerEvaluatorIds.length > 0) {
+        const { data: evaluatorUsers } = await supabaseAdmin
+          .from('users')
+          .select('id, position_id')
+          .in('id', peerEvaluatorIds);
 
-        const categoryIds = [...new Set((positions || []).map(p => p.position_category_id).filter(Boolean))];
+        const positionIds = [...new Set((evaluatorUsers || []).map((u: any) => u.position_id).filter(Boolean))];
         
-        if (categoryIds.length > 0) {
-          const { data: categories } = await supabaseAdmin
-            .from('position_categories')
-            .select('id, name')
-            .in('id', categoryIds);
+        if (positionIds.length > 0) {
+          const { data: positions } = await supabaseAdmin
+            .from('positions')
+            .select('id, position_category_id')
+            .in('id', positionIds);
 
-          const externalCategoryIds = new Set(
-            (categories || []).filter(c => c.name && c.name.toLowerCase().includes('(внешний)')).map(c => c.id)
-          );
+          const categoryIds = [...new Set((positions || []).map((p: any) => p.position_category_id).filter(Boolean))];
+          
+          if (categoryIds.length > 0) {
+            const { data: categories } = await supabaseAdmin
+              .from('position_categories')
+              .select('id, name')
+              .in('id', categoryIds);
 
-          const positionToCategoryMap = new Map((positions || []).map(p => [p.id, p.position_category_id]));
-          const userToPositionMap = new Map((evaluatorUsers || []).map(u => [u.id, u.position_id]));
+            const externalCategoryIds = new Set(
+              (categories || []).filter((c: any) => c.name && c.name.toLowerCase().includes('(внешний)')).map((c: any) => c.id)
+            );
 
-          for (const userId of peerEvaluatorIds) {
-            const posId = userToPositionMap.get(userId);
-            if (posId) {
-              const catId = positionToCategoryMap.get(posId);
-              if (catId && externalCategoryIds.has(catId)) {
-                externalPeerIds.add(userId);
+            const positionToCategoryMap = new Map((positions || []).map((p: any) => [p.id, p.position_category_id]));
+            const userToPositionMap = new Map((evaluatorUsers || []).map((u: any) => [u.id, u.position_id]));
+
+            for (const userId of peerEvaluatorIds) {
+              const posId = userToPositionMap.get(userId);
+              if (posId) {
+                const catId = positionToCategoryMap.get(posId);
+                if (catId && externalCategoryIds.has(catId)) {
+                  externalPeerIds.add(userId);
+                }
               }
             }
           }
@@ -228,46 +347,124 @@ serve(async (req) => {
       }
     }
 
-    console.log(`External peer evaluators: ${externalPeerIds.size} out of ${peerEvaluatorIds.length} peers`);
+    console.log(`External peer evaluators: ${externalPeerIds.size}`);
 
-    // 3. Calculate scale from answer options
-    const { data: scaleData } = await supabaseAdmin
-      .from('soft_skill_answer_options')
-      .select('numeric_value');
+    // ── 3. Calculate scale from frozen_config ──
+    const { data: stageData } = await supabaseAdmin
+      .from('diagnostic_stages')
+      .select('frozen_config')
+      .eq('id', stage_id)
+      .single();
 
-    const numericValues = scaleData?.map(s => s.numeric_value) || [0, 1, 2, 3, 4, 5];
-    const scaleMin = Math.min(...numericValues);
-    const scaleMax = Math.max(...numericValues);
+    const frozenConfig = (stageData as any)?.frozen_config;
+    const hasJohariRules = frozenConfig?.johari_rules && frozenConfig.johari_rules.open_delta_pct !== undefined;
+    const softScaleReversed = frozenConfig?.soft_scale_reversed ?? false;
+
+    let scaleMin: number;
+    let scaleMax: number;
+
+    if (frozenConfig && frozenConfig.soft_scale_min !== undefined) {
+      scaleMin = frozenConfig.soft_scale_min;
+      scaleMax = frozenConfig.soft_scale_max;
+      console.log(`Using frozen_config scale: ${scaleMin}–${scaleMax}, reversed: ${softScaleReversed}`);
+    } else {
+      const { data: scaleData } = await supabaseAdmin
+        .from('soft_skill_answer_options')
+        .select('numeric_value');
+
+      const numericValues = scaleData?.map((s: any) => s.numeric_value) || [0, 1, 2, 3, 4, 5];
+      scaleMin = Math.min(...numericValues);
+      scaleMax = Math.max(...numericValues);
+      console.log(`Using legacy answer options scale: ${scaleMin}–${scaleMax}`);
+    }
+
     const scaleRange = scaleMax - scaleMin;
 
-    // Thresholds as fractions of range
-    const tArena = 0.125 * scaleRange;
-    const tHi = 0.15 * scaleRange;
+    // Zone thresholds
+    let OPEN_DELTA_PCT: number;
+    let BLIND_HIDDEN_DELTA_PCT: number;
 
-    // Polarization thresholds
+    if (hasJohariRules) {
+      OPEN_DELTA_PCT = frozenConfig.johari_rules.open_delta_pct;
+      BLIND_HIDDEN_DELTA_PCT = frozenConfig.johari_rules.blind_hidden_delta_pct;
+      console.log(`Using frozen johari_rules: open=${OPEN_DELTA_PCT}, bh=${BLIND_HIDDEN_DELTA_PCT}`);
+    } else {
+      OPEN_DELTA_PCT = 0.20;
+      BLIND_HIDDEN_DELTA_PCT = 0.25;
+      console.log('Using legacy hardcoded thresholds (no frozen johari_rules)');
+    }
+
+    const tArena = OPEN_DELTA_PCT * scaleRange;
+    const tHi = BLIND_HIDDEN_DELTA_PCT * scaleRange;
+
+    const NOT_OBSERVED_VALUE = 0;
+    const CONFIDENT_MIN = 5;
+    const PRELIMINARY_MIN = 3;
+
+    function getConfidenceTier(cnt: number): 'insufficient' | 'preliminary' | 'confident' {
+      if (cnt >= CONFIDENT_MIN) return 'confident';
+      if (cnt >= PRELIMINARY_MIN) return 'preliminary';
+      return 'insufficient';
+    }
+
     const lowerBucketThreshold = scaleMin + scaleRange * 0.33;
     const upperBucketThreshold = scaleMax - scaleRange * 0.33;
 
-    // 4. Group results by skill and evaluator type
+    // ── 4. Group results by skill ──
     type SkillGroup = {
       skillName: string;
+      skillDescription?: string;
       category?: string;
       subcategory?: string;
       selfScores: number[];
-      managerScores: Map<string, number[]>;  // evaluator_id -> scores
-      peerScores: Map<string, number[]>;     // evaluator_id -> scores (all peers)
-      externalPeerScores: Map<string, number[]>; // evaluator_id -> scores (external peers only)
+      managerScores: Map<string, number[]>;
+      peerScores: Map<string, number[]>;
+      externalPeerScores: Map<string, number[]>;
+      internalPeerScores: Map<string, number[]>;
     };
 
     const skillGroups = new Map<string, SkillGroup>();
 
-    for (const result of results) {
-      const softSkill = (result.soft_skill_questions as any)?.soft_skills;
-      if (!softSkill?.id) continue;
+    for (const result of rawResults) {
+      let skillId: string;
+      let skillName: string;
+      let skillDescription: string | undefined;
+      let categoryName: string | undefined;
+      let subcategoryName: string | undefined;
+      let numericValue: number | null;
 
-      const skillId = softSkill.id;
-      const numericValue = (result.soft_skill_answer_options as any)?.numeric_value;
+      if (isHistorical) {
+        // Historical: resolve from snapshot maps
+        skillId = snapshotCtx!.questionToSkillMap.get(result.question_id) || '';
+        if (!skillId) continue;
+        
+        const skillMeta = snapshotCtx!.skillMetaMap.get(skillId);
+        if (!skillMeta) continue;
+        
+        skillName = skillMeta.name;
+        skillDescription = skillMeta.description;
+        categoryName = skillMeta.category;
+        subcategoryName = skillMeta.subcategory;
+        numericValue = result.raw_numeric_value;
+      } else {
+        // Live: resolve from JOINed data
+        const softSkill = (result.soft_skill_questions as any)?.soft_skills;
+        if (!softSkill?.id) continue;
+        
+        skillId = softSkill.id;
+        skillName = softSkill.name;
+        skillDescription = softSkill.description || undefined;
+        categoryName = softSkill.category_soft_skills?.name;
+        subcategoryName = softSkill.sub_category_soft_skills?.name;
+        numericValue = (result.soft_skill_answer_options as any)?.numeric_value ?? result.raw_numeric_value;
+      }
+
       if (numericValue === null || numericValue === undefined) continue;
+
+      // Apply reverse if needed
+      if (softScaleReversed) {
+        numericValue = scaleMax + scaleMin - numericValue;
+      }
 
       // Determine assignment type
       let assignmentType = 'peer';
@@ -279,13 +476,15 @@ serve(async (req) => {
 
       if (!skillGroups.has(skillId)) {
         skillGroups.set(skillId, {
-          skillName: softSkill.name,
-          category: softSkill.category_soft_skills?.name,
-          subcategory: softSkill.sub_category_soft_skills?.name,
+          skillName,
+          skillDescription,
+          category: categoryName,
+          subcategory: subcategoryName,
           selfScores: [],
           managerScores: new Map(),
           peerScores: new Map(),
-          externalPeerScores: new Map()
+          externalPeerScores: new Map(),
+          internalPeerScores: new Map()
         });
       }
 
@@ -295,186 +494,186 @@ serve(async (req) => {
         group.selfScores.push(numericValue);
       } else if (assignmentType === 'manager') {
         const evaluatorId = result.evaluating_user_id!;
-        if (!group.managerScores.has(evaluatorId)) {
-          group.managerScores.set(evaluatorId, []);
-        }
+        if (!group.managerScores.has(evaluatorId)) group.managerScores.set(evaluatorId, []);
         group.managerScores.get(evaluatorId)!.push(numericValue);
       } else {
         const evaluatorId = result.evaluating_user_id!;
-        if (!group.peerScores.has(evaluatorId)) {
-          group.peerScores.set(evaluatorId, []);
-        }
+        if (!group.peerScores.has(evaluatorId)) group.peerScores.set(evaluatorId, []);
         group.peerScores.get(evaluatorId)!.push(numericValue);
         
-        // Also track external peers separately
         if (externalPeerIds.has(evaluatorId)) {
-          if (!group.externalPeerScores.has(evaluatorId)) {
-            group.externalPeerScores.set(evaluatorId, []);
-          }
+          if (!group.externalPeerScores.has(evaluatorId)) group.externalPeerScores.set(evaluatorId, []);
           group.externalPeerScores.get(evaluatorId)!.push(numericValue);
+        } else {
+          if (!group.internalPeerScores.has(evaluatorId)) group.internalPeerScores.set(evaluatorId, []);
+          group.internalPeerScores.get(evaluatorId)!.push(numericValue);
         }
       }
     }
 
-    // 5. Calculate metrics per skill — branching by scope
+    // Helpers
+    function avgExcludingZeros(scores: number[]): number | null {
+      const nonZero = scores.filter(s => s !== NOT_OBSERVED_VALUE);
+      if (nonZero.length === 0) return null;
+      return nonZero.reduce((a, b) => a + b, 0) / nonZero.length;
+    }
+
+    function flattenEvaluatorScores(evalMap: Map<string, number[]>): number[] {
+      const result: number[] = [];
+      for (const scores of evalMap.values()) {
+        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+        result.push(avg);
+      }
+      return result;
+    }
+
+    function flattenEvaluatorAvgsNoZero(evalMap: Map<string, number[]>): number[] {
+      const result: number[] = [];
+      for (const scores of evalMap.values()) {
+        const nonZero = scores.filter(s => s !== NOT_OBSERVED_VALUE);
+        if (nonZero.length > 0) {
+          result.push(nonZero.reduce((a, b) => a + b, 0) / nonZero.length);
+        }
+      }
+      return result;
+    }
+
+    // ── 5. Calculate metrics per skill ──
     const skills: SkillMetrics[] = [];
     const excludedSkills: ExcludedSkill[] = [];
 
     for (const [skillId, group] of skillGroups) {
       if (scope === 'external_only') {
-        // For external_only: others = only external peers, no manager
+        const nonZeroExternalRaters = flattenEvaluatorAvgsNoZero(group.externalPeerScores).length;
         const externalRatersCnt = group.externalPeerScores.size;
+        const confidenceTier = getConfidenceTier(nonZeroExternalRaters);
 
-        if (externalRatersCnt < 3) {
-          excludedSkills.push({
-            skill_id: skillId,
-            skill_name: group.skillName,
-            reason: `Недостаточно внешних респондентов (${externalRatersCnt} из 3 требуемых)`
-          });
+        if (externalRatersCnt === 0) {
+          excludedSkills.push({ skill_id: skillId, skill_name: group.skillName, reason: `Нет внешних респондентов` });
           continue;
         }
 
-        // Self average
-        const selfAvg = group.selfScores.length > 0
-          ? group.selfScores.reduce((a, b) => a + b, 0) / group.selfScores.length
+        const selfAvg = avgExcludingZeros(group.selfScores);
+        const externalAvgsNoZero = flattenEvaluatorAvgsNoZero(group.externalPeerScores);
+        const externalAvg = externalAvgsNoZero.length > 0
+          ? externalAvgsNoZero.reduce((a, b) => a + b, 0) / externalAvgsNoZero.length
           : null;
 
-        // External peers average (avg of avgs per evaluator)
-        let externalAvg: number | null = null;
-        if (group.externalPeerScores.size > 0) {
-          const peerAvgs = Array.from(group.externalPeerScores.values()).map(
-            scores => scores.reduce((a, b) => a + b, 0) / scores.length
-          );
-          externalAvg = peerAvgs.reduce((a, b) => a + b, 0) / peerAvgs.length;
-        }
+        const externalRawScores = flattenEvaluatorScores(group.externalPeerScores);
+        const signedDelta = (selfAvg !== null && externalAvg !== null) ? selfAvg - externalAvg : 0;
+        const delta = Math.abs(signedDelta);
 
-        // Delta = |self - external|
-        const delta = (selfAvg !== null && externalAvg !== null)
-          ? Math.abs(selfAvg - externalAvg)
-          : 0;
-
-        // Zone
         let zone: SkillMetrics['zone'] = 'unknown';
         let greyZone = false;
 
-        if (selfAvg === null || externalAvg === null) {
+        if (confidenceTier === 'insufficient') {
           zone = 'unknown';
-        } else if (delta < tArena) {
+        } else if (selfAvg === null || externalAvg === null) {
+          zone = 'unknown';
+        } else if (delta <= tArena) {
           zone = 'arena';
-        } else if (delta < tHi) {
+        } else if (delta <= tHi) {
           zone = 'arena';
           greyZone = true;
         } else {
-          zone = selfAvg > externalAvg ? 'blind_spot' : 'hidden_strength';
+          zone = signedDelta > 0 ? 'blind_spot' : 'hidden_strength';
         }
 
-        // Polarization — only among external peers
-        let isPolarized = false;
-        if (externalRatersCnt >= 3) {
-          const extScores: number[] = [];
-          for (const scores of group.externalPeerScores.values()) {
-            extScores.push(scores.reduce((a, b) => a + b, 0) / scores.length);
-          }
-          const hasLower = extScores.some(s => s <= lowerBucketThreshold);
-          const hasUpper = extScores.some(s => s >= upperBucketThreshold);
-          isPolarized = hasLower && hasUpper;
+        let isContradictory = false;
+        if (nonZeroExternalRaters >= 3) {
+          const hasLower = externalRawScores.some(s => s <= lowerBucketThreshold);
+          const hasUpper = externalRawScores.some(s => s >= upperBucketThreshold);
+          isContradictory = hasLower && hasUpper;
         }
 
         skills.push({
           skill_id: skillId,
           skill_name: group.skillName,
+          skill_description: group.skillDescription,
           category: group.category,
           subcategory: group.subcategory,
           zone,
           self_avg: selfAvg !== null ? Math.round(selfAvg * 100) / 100 : null,
-          manager_avg: null, // not used in external_only
+          manager_avg: null,
           peers_avg: externalAvg !== null ? Math.round(externalAvg * 100) / 100 : null,
           others_avg: externalAvg !== null ? Math.round(externalAvg * 100) / 100 : null,
           delta: Math.round(delta * 100) / 100,
+          signed_delta: Math.round(signedDelta * 100) / 100,
           others_raters_cnt: externalRatersCnt,
           grey_zone: greyZone,
-          is_polarized: isPolarized
+          is_polarized: isContradictory,
+          is_contradictory: isContradictory,
+          confidence_tier: confidenceTier,
+          manager_scores: [],
+          peer_scores: [],
+          external_scores: externalRawScores,
+          others_individual_scores: externalRawScores,
         });
       } else {
-        // scope === 'all': original logic
+        // scope === 'all'
+        const nonZeroManagerRaters = flattenEvaluatorAvgsNoZero(group.managerScores).length;
+        const nonZeroPeerRaters = flattenEvaluatorAvgsNoZero(group.peerScores).length;
+        const nonZeroOthersRatersCnt = nonZeroManagerRaters + nonZeroPeerRaters;
+        const confidenceTier = getConfidenceTier(nonZeroOthersRatersCnt);
         const othersRatersCnt = group.managerScores.size + group.peerScores.size;
 
-        if (othersRatersCnt < 3) {
-          excludedSkills.push({
-            skill_id: skillId,
-            skill_name: group.skillName,
-            reason: `Недостаточно респондентов (${othersRatersCnt} из 3 требуемых)`
-          });
+        if (othersRatersCnt === 0) {
+          excludedSkills.push({ skill_id: skillId, skill_name: group.skillName, reason: `Нет респондентов` });
           continue;
         }
 
-        const selfAvg = group.selfScores.length > 0
-          ? group.selfScores.reduce((a, b) => a + b, 0) / group.selfScores.length
+        const selfAvg = avgExcludingZeros(group.selfScores);
+        const managerAvgsNoZero = flattenEvaluatorAvgsNoZero(group.managerScores);
+        const managerAvg = managerAvgsNoZero.length > 0
+          ? managerAvgsNoZero.reduce((a, b) => a + b, 0) / managerAvgsNoZero.length
           : null;
 
-        let managerAvg: number | null = null;
-        if (group.managerScores.size > 0) {
-          const managerAvgs = Array.from(group.managerScores.values()).map(
-            scores => scores.reduce((a, b) => a + b, 0) / scores.length
-          );
-          managerAvg = managerAvgs.reduce((a, b) => a + b, 0) / managerAvgs.length;
-        }
+        const peerAvgsNoZero = flattenEvaluatorAvgsNoZero(group.peerScores);
+        const peersAvg = peerAvgsNoZero.length > 0
+          ? peerAvgsNoZero.reduce((a, b) => a + b, 0) / peerAvgsNoZero.length
+          : null;
 
-        let peersAvg: number | null = null;
-        if (group.externalPeerScores.size > 0) {
-          const peerAvgs = Array.from(group.externalPeerScores.values()).map(
-            scores => scores.reduce((a, b) => a + b, 0) / scores.length
-          );
-          peersAvg = peerAvgs.reduce((a, b) => a + b, 0) / peerAvgs.length;
-        }
+        const allOthersAvgsNoZero = [...managerAvgsNoZero, ...peerAvgsNoZero];
+        const othersAvg = allOthersAvgsNoZero.length > 0
+          ? allOthersAvgsNoZero.reduce((a, b) => a + b, 0) / allOthersAvgsNoZero.length
+          : null;
 
-        let othersAvg: number | null = null;
-        const allOthersAvgs: number[] = [];
-        for (const scores of group.managerScores.values()) {
-          allOthersAvgs.push(scores.reduce((a, b) => a + b, 0) / scores.length);
-        }
-        for (const scores of group.peerScores.values()) {
-          allOthersAvgs.push(scores.reduce((a, b) => a + b, 0) / scores.length);
-        }
-        if (allOthersAvgs.length > 0) {
-          othersAvg = allOthersAvgs.reduce((a, b) => a + b, 0) / allOthersAvgs.length;
-        }
+        const managerRawScores = flattenEvaluatorScores(group.managerScores);
+        const internalPeerRawScores = flattenEvaluatorScores(group.internalPeerScores);
+        const externalRawScores = flattenEvaluatorScores(group.externalPeerScores);
+        const allPeerRawScores = flattenEvaluatorScores(group.peerScores);
+        const allOthersRawScores = [...managerRawScores, ...allPeerRawScores];
 
-        const delta = (selfAvg !== null && othersAvg !== null)
-          ? Math.abs(selfAvg - othersAvg)
-          : 0;
+        const signedDelta = (selfAvg !== null && othersAvg !== null) ? selfAvg - othersAvg : 0;
+        const delta = Math.abs(signedDelta);
 
         let zone: SkillMetrics['zone'] = 'unknown';
         let greyZone = false;
 
-        if (selfAvg === null || othersAvg === null) {
+        if (confidenceTier === 'insufficient') {
           zone = 'unknown';
-        } else if (delta < tArena) {
+        } else if (selfAvg === null || othersAvg === null) {
+          zone = 'unknown';
+        } else if (delta <= tArena) {
           zone = 'arena';
-        } else if (delta < tHi) {
+        } else if (delta <= tHi) {
           zone = 'arena';
           greyZone = true;
         } else {
-          zone = selfAvg > othersAvg ? 'blind_spot' : 'hidden_strength';
+          zone = signedDelta > 0 ? 'blind_spot' : 'hidden_strength';
         }
 
-        let isPolarized = false;
-        if (othersRatersCnt >= 3) {
-          const allOthersScores: number[] = [];
-          for (const scores of group.managerScores.values()) {
-            allOthersScores.push(scores.reduce((a, b) => a + b, 0) / scores.length);
-          }
-          for (const scores of group.peerScores.values()) {
-            allOthersScores.push(scores.reduce((a, b) => a + b, 0) / scores.length);
-          }
-          const hasLowerBucket = allOthersScores.some(s => s <= lowerBucketThreshold);
-          const hasUpperBucket = allOthersScores.some(s => s >= upperBucketThreshold);
-          isPolarized = hasLowerBucket && hasUpperBucket;
+        let isContradictory = false;
+        if (nonZeroOthersRatersCnt >= 3) {
+          const hasLowerBucket = allOthersRawScores.some(s => s <= lowerBucketThreshold);
+          const hasUpperBucket = allOthersRawScores.some(s => s >= upperBucketThreshold);
+          isContradictory = hasLowerBucket && hasUpperBucket;
         }
 
         skills.push({
           skill_id: skillId,
           skill_name: group.skillName,
+          skill_description: group.skillDescription,
           category: group.category,
           subcategory: group.subcategory,
           zone,
@@ -483,18 +682,58 @@ serve(async (req) => {
           peers_avg: peersAvg !== null ? Math.round(peersAvg * 100) / 100 : null,
           others_avg: othersAvg !== null ? Math.round(othersAvg * 100) / 100 : null,
           delta: Math.round(delta * 100) / 100,
+          signed_delta: Math.round(signedDelta * 100) / 100,
           others_raters_cnt: othersRatersCnt,
           grey_zone: greyZone,
-          is_polarized: isPolarized
+          is_polarized: isContradictory,
+          is_contradictory: isContradictory,
+          confidence_tier: confidenceTier,
+          manager_scores: managerRawScores,
+          peer_scores: internalPeerRawScores,
+          external_scores: externalRawScores,
+          others_individual_scores: allOthersRawScores,
         });
       }
+    }
+
+    // ── Server-side borderline rounding ──
+    const borderlinePolicy = hasJohariRules && frozenConfig.johari_rules.borderline_rounding_enabled
+      ? {
+          enabled: true,
+          threshold: frozenConfig.johari_rules.borderline_threshold_delta,
+          round_down: frozenConfig.johari_rules.borderline_round_down_to,
+          round_up: frozenConfig.johari_rules.borderline_round_up_to,
+        }
+      : { enabled: false, threshold: 0, round_down: 0, round_up: 0 };
+
+    if (borderlinePolicy.enabled) {
+      for (const skill of skills) {
+        if (skill.confidence_tier === 'insufficient' || skill.zone === 'unknown') continue;
+        const absDelta = Math.abs(skill.signed_delta);
+        if (absDelta < borderlinePolicy.round_down || absDelta >= borderlinePolicy.round_up) continue;
+        
+        if (absDelta >= borderlinePolicy.threshold) {
+          const sign = skill.signed_delta >= 0 ? 1 : -1;
+          skill.delta = Math.round(borderlinePolicy.round_up * 100) / 100;
+          skill.signed_delta = Math.round(sign * borderlinePolicy.round_up * 100) / 100;
+          if (skill.zone === 'arena') {
+            skill.zone = sign > 0 ? 'blind_spot' : 'hidden_strength';
+            skill.grey_zone = false;
+          }
+        } else {
+          const sign = skill.signed_delta >= 0 ? 1 : -1;
+          skill.delta = Math.round(borderlinePolicy.round_down * 100) / 100;
+          skill.signed_delta = Math.round(sign * borderlinePolicy.round_down * 100) / 100;
+        }
+      }
+      console.log(`Applied borderline rounding: threshold=${borderlinePolicy.threshold}, down=${borderlinePolicy.round_down}, up=${borderlinePolicy.round_up}`);
     }
 
     // Check if we have enough data
     if (skills.length === 0) {
       const insufficientMsg = scope === 'external_only'
-        ? 'Недостаточно внешних оценок для расчёта Окна Джохари. По всем навыкам менее 3 внешних респондентов.'
-        : 'Недостаточно данных для построения отчёта. По всем навыкам менее 3 респондентов.';
+        ? 'Недостаточно внешних оценок для расчёта Окна Джохари. Ни по одному навыку нет внешних респондентов.'
+        : 'Недостаточно данных для построения отчёта. Ни по одному навыку нет респондентов.';
       return new Response(
         JSON.stringify({ 
           error: 'insufficient_data',
@@ -505,12 +744,11 @@ serve(async (req) => {
       );
     }
 
-    // 6. Calculate data hash — scope-aware
+    // ── 6. Calculate data hash ──
     let canonicalString: string;
     if (scope === 'external_only') {
-      // Hash only self + external peer answers
-      const relevantResults = results.filter(r => {
-        if (r.evaluating_user_id === evaluated_user_id) return true; // self
+      const relevantResults = rawResults.filter(r => {
+        if (r.evaluating_user_id === evaluated_user_id) return true;
         if (!r.assignment_id) return false;
         const aType = assignmentTypeMap.get(r.assignment_id);
         return aType === 'peer' && externalPeerIds.has(r.evaluating_user_id!);
@@ -522,29 +760,35 @@ serve(async (req) => {
           return (a.question_id || '').localeCompare(b.question_id || '');
         })
         .map(r => {
+          const numVal = isHistorical
+            ? r.raw_numeric_value
+            : ((r.soft_skill_answer_options as any)?.numeric_value ?? r.raw_numeric_value);
           const assignmentType = r.assignment_id ? (assignmentTypeMap.get(r.assignment_id) || 'peer') : 
             (r.evaluating_user_id === evaluated_user_id ? 'self' : 'peer');
-          return `${r.evaluating_user_id}|${r.question_id}|${(r.soft_skill_answer_options as any).numeric_value}|${assignmentType}`;
+          return `${r.evaluating_user_id}|${r.question_id}|${numVal}|${assignmentType}`;
         })
         .join('\n');
     } else {
-      canonicalString = results
+      canonicalString = rawResults
         .sort((a, b) => {
           const cmp1 = (a.evaluating_user_id || '').localeCompare(b.evaluating_user_id || '');
           if (cmp1 !== 0) return cmp1;
           return (a.question_id || '').localeCompare(b.question_id || '');
         })
         .map(r => {
+          const numVal = isHistorical
+            ? r.raw_numeric_value
+            : ((r.soft_skill_answer_options as any)?.numeric_value ?? r.raw_numeric_value);
           const assignmentType = r.assignment_id ? (assignmentTypeMap.get(r.assignment_id) || 'peer') : 
             (r.evaluating_user_id === evaluated_user_id ? 'self' : 'peer');
-          return `${r.evaluating_user_id}|${r.question_id}|${(r.soft_skill_answer_options as any).numeric_value}|${assignmentType}`;
+          return `${r.evaluating_user_id}|${r.question_id}|${numVal}|${assignmentType}`;
         })
         .join('\n');
     }
 
     const dataHash = await calculateHash(canonicalString);
 
-    // 7. Check for existing snapshot — filtered by scope
+    // ── 7. Check for existing snapshot ──
     const { data: existingSnapshots } = await supabaseAdmin
       .from('johari_ai_snapshots')
       .select('*')
@@ -556,226 +800,27 @@ serve(async (req) => {
 
     const existingSnapshot = existingSnapshots?.[0];
 
-    // If snapshot exists and hash matches and not force regenerate, return existing
     if (existingSnapshot && existingSnapshot.data_hash === dataHash && !force_regenerate) {
       return new Response(
-        JSON.stringify({
-          snapshot: existingSnapshot,
-          data_changed: false
-        }),
+        JSON.stringify({ snapshot: existingSnapshot, data_changed: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // If snapshot exists with different hash, indicate data changed
     const dataChanged = existingSnapshot && existingSnapshot.data_hash !== dataHash;
 
-    // If not force regenerate and data changed, return existing with flag
     if (existingSnapshot && dataChanged && !force_regenerate) {
       return new Response(
-        JSON.stringify({
-          snapshot: existingSnapshot,
-          data_changed: true,
-          current_hash: dataHash
-        }),
+        JSON.stringify({ snapshot: existingSnapshot, data_changed: true, current_hash: dataHash }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 8. Generate AI report
-    const metricsForAI = {
-      scale_min: scaleMin,
-      scale_max: scaleMax,
-      t_arena: tArena,
-      t_hi: tHi,
-      respondent_scope: scope,
-      skills: skills.map(s => ({
-        skill_name: s.skill_name,
-        category: s.category,
-        zone: s.zone,
-        self_avg: s.self_avg,
-        others_avg: s.others_avg,
-        delta: s.delta,
-        others_raters_cnt: s.others_raters_cnt,
-        grey_zone: s.grey_zone,
-        is_polarized: s.is_polarized
-      })),
-      excluded_skills_count: excludedSkills.length
-    };
-
-    // Scope-aware evaluator groups description
-    const evaluatorGroupsDescription = scope === 'external_only'
-      ? `ГРУППЫ ОЦЕНЩИКОВ:
-- Self (От себя): самооценка сотрудника
-- Others (Внешние): оценки только внешних коллег (без руководителя и внутренних сотрудников)
-
-ВАЖНО: В режиме external_only данные руководителя и внутренних коллег НЕ учитываются. Все метрики рассчитаны исключительно по внешним оценщикам. Не упоминай руководителя, менеджера или внутренних коллег в анализе.`
-      : `ГРУППЫ ОЦЕНЩИКОВ:
-- Self (От себя): самооценка сотрудника
-- Manager (Unit-lead): оценка руководителя
-- Peers (Внешние): оценка только внешних коллег
-- Others (Все кроме сотрудника): manager + все peers (внутренние + внешние)`;
-
-    const systemPrompt = `Ты — эксперт по HR-аналитике. Твоя задача — интерпретировать результаты «Окна Джохари» на основе 360-градусной оценки soft skills.
-
-ЦЕЛЕВАЯ АУДИТОРИЯ: Unit-lead (непосредственный руководитель сотрудника).
-Весь текст адресован Unit-lead для подготовки и проведения 1:1 со сотрудником.
-НЕ обращайся к сотруднику как к читателю. НЕ используй «Вам стоит…», «Вы можете…», «Как вы могли бы…».
-
-ПРАВИЛА:
-1. Используй только предоставленные метрики. Не добавляй новые факты или навыки.
-2. Тон: нейтрально-деловой, без диагнозов и категоричных суждений.
-3. При недостатке данных (excluded_skills) — укажи это явно.
-4. Рекомендации — управленческие действия для подготовки и проведения 1:1.
-5. Вопросы для 1:1 — открытые вопросы, которые задаются сотруднику. Нейтральный деловой тон, без оценочных и обвинительных формулировок.
-6. Каждый пункт — 1 мысль, короткая формулировка.
-7. НЕ используй английские коды зон (blind_spot, hidden_strength, arena, unknown, grey_zone). Используй русские названия: «Открытая зона», «Слепая зона», «Скрытая зона», «Чёрный ящик», «Серая зона».
-
-СТИЛЬ РЕКОМЕНДАЦИЙ:
-- НЕ начинай более двух пунктов подряд с одного и того же слова или фразы.
-- Разнообразь формулировки. Допустимые варианты начала:
-  «На 1:1 стоит уточнить…», «Полезно обсудить…», «Имеет смысл зафиксировать…», «В фокусе встречи — …», «Стоит обратить внимание на…», «Рекомендуется проговорить…», «Важно уточнить у сотрудника…».
-- НЕ злоупотребляй префиксом «Unit-lead». Он уже подразумевается контекстом.
-
-ФОРМАТ РЕЗЮМЕ (поле summary):
-Используй СТРОГО следующую структуру с секциями-маркерами (заглавными буквами):
-
-КЛЮЧЕВЫЕ ВЫВОДЫ:
-тезис 1
-тезис 2
-тезис 3
-
-ТОП-3 СЛЕПЫХ ЗОН:
-1. Навык (Δ = X.XX)
-2. Навык (Δ = X.XX)
-3. Навык (Δ = X.XX)
-
-ТОП-3 СКРЫТЫХ ЗОН:
-1. Навык (Δ = X.XX)
-2. Навык (Δ = X.XX)
-3. Навык (Δ = X.XX)
-
-Правила формата:
-- Каждая секция начинается с заголовка ЗАГЛАВНЫМИ БУКВАМИ и двоеточием.
-- Тезисы — без маркеров (без «-», «•», «—»). Маркеры добавит фронтенд.
-- Нумерованные пункты — цифра с точкой: «1. ...»
-- НЕ смешивай заголовок и первый пункт в одну строку.
-- Если слепых или скрытых зон меньше 3 — указывай сколько есть.
-
-${evaluatorGroupsDescription}
-
-ЗОНЫ:
-- arena: Открытая зона — взаимопонимание
-- blind_spot: Слепая зона — возможная переоценка себя
-- hidden_strength: Скрытая зона — возможная недооценка себя
-- unknown: Чёрный ящик — нет данных
-
-ВОПРОСЫ ДЛЯ 1:1 (discussion_questions):
-Генерируй 4-5 вопросов строго привязанных к конкретным навыкам из предоставленных данных:
-- 2 вопроса по навыкам из Слепой зоны (с максимальной Δ). Если слепых <2, добери из Скрытой.
-- 2 вопроса по навыкам из Скрытой зоны (с максимальной Δ). Если скрытых <2, добери из Открытой зоны по max Δ.
-- 1 вопрос по поляризованному навыку (is_polarized=true), ТОЛЬКО если такой есть.
-Каждый вопрос — объект с полями zone (blind_spot / hidden_strength / arena / polarized), skill_name (точное название из данных), question (текст вопроса).
-В тексте вопроса ОБЯЗАТЕЛЬНО упомяни конкретный навык по названию. Не дублируй один навык в нескольких вопросах (кроме случая нехватки данных).
-
-СТРУКТУРА ОТВЕТА:
-- summary: строго по формату выше (секции КЛЮЧЕВЫЕ ВЫВОДЫ + ТОП-3). Упомяни поляризацию если есть.
-- recommendations: 3-5 пунктов, управленческие действия для подготовки 1:1. Разнообразный синтаксис.
-- discussion_questions: 4-5 структурированных вопросов (объекты с zone, skill_name, question).`;
-
-    const userPrompt = `Проанализируй результаты Окна Джохари и сгенерируй отчёт.
-${scope === 'external_only' ? '\nРЕЖИМ: Только внешние оценщики. В анализе опирайся исключительно на данные внешних коллег.\n' : ''}
-Метрики:
-${JSON.stringify(metricsForAI, null, 2)}`;
-
-    console.log('Calling AI for Johari report...');
-
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_johari_report",
-              description: "Генерация отчёта Окна Джохари",
-              parameters: {
-                type: "object",
-                properties: {
-                  summary: { 
-                    type: "string", 
-                    description: "Резюме в строгом формате: секции КЛЮЧЕВЫЕ ВЫВОДЫ, ТОП-3 СЛЕПЫХ ЗОН, ТОП-3 СКРЫТЫХ ЗОН. Заголовки заглавными с двоеточием. Тезисы без маркеров. Нумерованные пункты с цифрой и точкой. Заголовок и первый пункт на разных строках." 
-                  },
-                  recommendations: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "3-5 управленческих рекомендаций для подготовки 1:1. Разнообразь начало фраз, не начинай более двух пунктов подряд одинаково. Не злоупотребляй словом «Unit-lead»." 
-                  },
-                  discussion_questions: { 
-                    type: "array", 
-                    items: { 
-                      type: "object",
-                      properties: {
-                        zone: { type: "string", enum: ["blind_spot", "hidden_strength", "arena", "polarized"], description: "Зона навыка: blind_spot, hidden_strength, arena или polarized" },
-                        skill_name: { type: "string", description: "Точное название навыка из предоставленных данных" },
-                        question: { type: "string", description: "Открытый вопрос для сотрудника на 1:1, содержащий название навыка" }
-                      },
-                      required: ["zone", "skill_name", "question"],
-                      additionalProperties: false
-                    },
-                    description: "4-5 вопросов для 1:1, каждый привязан к конкретному навыку и зоне из данных Джохари." 
-                  }
-                },
-                required: ["summary", "recommendations"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "generate_johari_report" } }
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Превышен лимит запросов, попробуйте позже." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Требуется пополнение баланса Lovable AI." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      throw new Error("AI service error");
-    }
-
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices[0]?.message?.tool_calls?.[0];
-
-    let aiText: any = { summary: '', recommendations: [], discussion_questions: [] };
-    if (toolCall) {
-      aiText = JSON.parse(toolCall.function.arguments);
-    }
-
-    // Calculate total unique others raters across INCLUDED skills only (scope-aware)
+    // Calculate total unique others raters across INCLUDED skills only
     const includedSkillIds = new Set(skills.map(s => s.skill_id));
     const allOthersRaterIds = new Set<string>();
     for (const [skillId, group] of skillGroups) {
-      if (!includedSkillIds.has(skillId)) continue; // skip excluded skills
+      if (!includedSkillIds.has(skillId)) continue;
       if (scope === 'external_only') {
         for (const evaluatorId of group.externalPeerScores.keys()) {
           allOthersRaterIds.add(evaluatorId);
@@ -798,21 +843,47 @@ ${JSON.stringify(metricsForAI, null, 2)}`;
       skills,
       excluded_skills: excludedSkills,
       generated_at: new Date().toISOString(),
-      total_others_raters_cnt: allOthersRaterIds.size
-    };
+      total_others_raters_cnt: allOthersRaterIds.size,
+      ...(hasJohariRules ? { johari_rules: frozenConfig.johari_rules } : {}),
+      borderline_policy: borderlinePolicy,
+      soft_scale_reversed: softScaleReversed,
+    } as JohariMetrics;
 
-    // ===== External Comments Review (only for external_only scope) =====
-    let externalCommentsReview = null;
+    // ── 8. Comments Classification ──
+    let commentsClassification = null;
+
+    const commentEvaluatorFilter = scope === 'external_only' ? externalPeerIds : null;
+
+    console.log('Collecting comments for zone-based classification...');
     
-    if (scope === 'external_only' && externalPeerIds.size > 0) {
-      console.log('Collecting external comments for case-based review...');
+    // For comments, we need skill_name per result. In historical mode we resolve from snapshot.
+    // Fetch comments from soft_skill_results
+    let commentResults: any[];
+    
+    if (isHistorical) {
+      const { data: cData, error: commentError } = await supabaseAdmin
+        .from('soft_skill_results')
+        .select('id, evaluating_user_id, question_id, assignment_id, comment')
+        .eq('diagnostic_stage_id', stage_id)
+        .eq('evaluated_user_id', evaluated_user_id)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false')
+        .not('comment', 'is', null);
       
-      // Fetch soft_skill_results with comments from external peers
-      const { data: commentResults, error: commentError } = await supabaseAdmin
+      if (commentError) {
+        console.error('Error fetching comments (historical):', commentError);
+        commentResults = [];
+      } else {
+        commentResults = cData || [];
+      }
+    } else {
+      const { data: cData, error: commentError } = await supabaseAdmin
         .from('soft_skill_results')
         .select(`
+          id,
           evaluating_user_id,
           comment,
+          assignment_id,
           soft_skill_questions!inner(quality_id, soft_skills!fk_survey_360_questions_soft_skill(id, name))
         `)
         .eq('diagnostic_stage_id', stage_id)
@@ -820,165 +891,244 @@ ${JSON.stringify(metricsForAI, null, 2)}`;
         .eq('is_draft', false)
         .or('is_skip.is.null,is_skip.eq.false')
         .not('comment', 'is', null);
-
+      
       if (commentError) {
         console.error('Error fetching comments:', commentError);
+        commentResults = [];
       } else {
-        // Filter: only peer assignments from external peers, non-empty comments
-        const externalComments: { skill_name: string; comment: string }[] = [];
-        
-        for (const cr of (commentResults || [])) {
-          const trimmed = (cr.comment || '').trim();
-          if (!trimmed) continue;
-          if (!cr.evaluating_user_id) continue;
-          if (!externalPeerIds.has(cr.evaluating_user_id)) continue;
-          
-          const matchingAssignment = (assignments || []).find(
-            a => a.evaluating_user_id === cr.evaluating_user_id && a.assignment_type === 'peer'
-          );
-          if (!matchingAssignment) continue;
-          
-          const skillName = (cr.soft_skill_questions as any)?.soft_skills?.name;
-          if (!skillName) continue;
-          
-          externalComments.push({ skill_name: skillName, comment: trimmed });
-        }
-        
-        console.log(`Found ${externalComments.length} external comments`);
-        
-        if (externalComments.length >= 1) {
-          const isSmallSample = externalComments.length <= 2;
-          const languageGuide = isSmallSample
-            ? `ВАЖНО: Выборка очень мала (${externalComments.length} комментариев). Используй нейтральный язык без обобщений. ЗАПРЕЩЕНЫ формулировки: «большинство», «системно», «в целом», «как правило», «преимущественно». Каждый вывод привязывай к конкретному наблюдению.`
-            : `Выборка: ${externalComments.length} комментариев. Можно делать осторожные обобщения, но каждый кейс должен быть подтверждён комментариями.`;
-
-          // Build zone info for skills (from computed metrics)
-          const skillZoneMap: Record<string, string> = {};
-          for (const s of skills) {
-            skillZoneMap[s.skill_name] = s.zone;
-          }
-          
-          const commentsPrompt = `Ты — HR-аналитик. Проанализируй комментарии внешних респондентов из 360-оценки и подготовь case-based обзор для Unit-lead.
-
-ФОРМАТ: Каждый вывод — это КЕЙС (наблюдаемый паттерн/тема), а НЕ описание одного навыка.
-
-ПРАВИЛА:
-1. Основная сущность — кейс (наблюдение/тема), а не навык.
-2. Каждый кейс подтверждён минимум 1 комментарием (evidence_count >= 1).
-3. related_skills — только как ГИПОТЕЗА связи, не более 2 навыков на кейс. Если связь слабая — оставь пустой массив.
-4. Вопросы для 1:1 формируй от кейсов и их сигналов, а не от skill-label.
-5. Тон: нейтрально-деловой, без диагнозов личности.
-6. Без деанонимизации, без цитирования, по которым можно идентифицировать автора.
-7. ${languageGuide}
-
-ЗОНЫ НАВЫКОВ (для related_zones):
-${JSON.stringify(skillZoneMap, null, 2)}
-
-ДАННЫЕ (навык → комментарий):
-${JSON.stringify(externalComments.map(c => ({ skill_name: c.skill_name, comment: c.comment })), null, 2)}`;
-
-          try {
-            const commentsAiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: AI_MODEL,
-                messages: [
-                  { role: "system", content: commentsPrompt }
-                ],
-                tools: [
-                  {
-                    type: "function",
-                    function: {
-                      name: "generate_case_review",
-                      description: "Case-based ревью комментариев внешних респондентов",
-                      parameters: {
-                        type: "object",
-                        properties: {
-                          summary_cases: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                id: { type: "string", description: "Уникальный ID кейса, например case_1" },
-                                type: { type: "string", enum: ["strength", "attention"], description: "Тип кейса: сильная сторона или зона внимания" },
-                                title: { type: "string", description: "Краткий заголовок кейса (3-7 слов)" },
-                                insight: { type: "string", description: "1-2 предложения по сути кейса" },
-                                evidence_count: { type: "number", description: "Количество комментариев, подтверждающих кейс" },
-                                example_signals: { type: "array", items: { type: "string" }, description: "1-2 сигнала из комментариев (перефразированные, без цитат)" },
-                                related_zones: { type: "array", items: { type: "string", enum: ["open", "blind", "hidden", "unknown"] }, description: "Зоны Джохари, к которым может относиться кейс" },
-                                related_skills: {
-                                  type: "array",
-                                  items: {
-                                    type: "object",
-                                    properties: {
-                                      skill_name: { type: "string" },
-                                      relation: { type: "string", enum: ["primary", "secondary"] }
-                                    },
-                                    required: ["skill_name", "relation"],
-                                    additionalProperties: false
-                                  },
-                                  description: "0-2 навыка как гипотеза связи. Пустой массив если связь неочевидна."
-                                }
-                              },
-                              required: ["id", "type", "title", "insight", "evidence_count", "example_signals", "related_zones", "related_skills"],
-                              additionalProperties: false
-                            },
-                            description: "3-5 кейсов (strength или attention)"
-                          },
-                          one_to_one_questions: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                case_id: { type: "string", description: "ID связанного кейса" },
-                                zone: { type: "string", enum: ["open", "blind", "hidden", "unknown"], description: "Зона Джохари" },
-                                question: { type: "string", description: "Вопрос для обсуждения Unit-lead с сотрудником" }
-                              },
-                              required: ["case_id", "zone", "question"],
-                              additionalProperties: false
-                            },
-                            description: "3-5 вопросов для 1:1, привязанных к кейсам"
-                          }
-                        },
-                        required: ["summary_cases", "one_to_one_questions"],
-                        additionalProperties: false
-                      }
-                    }
-                  }
-                ],
-                tool_choice: { type: "function", function: { name: "generate_case_review" } }
-              }),
-            });
-
-            if (commentsAiResponse.ok) {
-              const commentsAiData = await commentsAiResponse.json();
-              const commentsToolCall = commentsAiData.choices[0]?.message?.tool_calls?.[0];
-              if (commentsToolCall) {
-                const parsed = JSON.parse(commentsToolCall.function.arguments);
-                externalCommentsReview = {
-                  summary_cases: parsed.summary_cases || [],
-                  one_to_one_questions: parsed.one_to_one_questions || [],
-                  notes: {
-                    comments_used: externalComments.length
-                  }
-                };
-                console.log('External comments case-based review generated successfully');
-              }
-            } else {
-              console.error('Comments AI call failed:', commentsAiResponse.status);
-            }
-          } catch (aiErr) {
-            console.error('Error generating comments review:', aiErr);
-          }
-        }
+        commentResults = cData || [];
       }
     }
 
-    // 10. Insert new snapshot with safe version increment (scope-aware)
+    // Filter and resolve skill names for comments
+    const filteredComments: { comment_id: string; skill_name: string; comment: string }[] = [];
+    
+    for (const cr of commentResults) {
+      const trimmed = (cr.comment || '').trim();
+      if (!trimmed) continue;
+      if (!cr.evaluating_user_id) continue;
+      if (cr.evaluating_user_id === evaluated_user_id) continue;
+      
+      if (commentEvaluatorFilter && !commentEvaluatorFilter.has(cr.evaluating_user_id)) continue;
+      
+      if (!commentEvaluatorFilter) {
+        // For 'all' scope, verify assignment exists
+        if (isHistorical) {
+          if (!cr.assignment_id || !assignmentTypeMap.has(cr.assignment_id)) continue;
+        } else {
+          // Live: check in live assignments array (already loaded above for live mode)
+          // We need the assignments array - reconstruct it
+          if (!cr.assignment_id || !assignmentTypeMap.has(cr.assignment_id)) continue;
+        }
+      } else {
+        // For external_only scope, verify peer assignment
+        if (!cr.assignment_id) continue;
+        const aType = assignmentTypeMap.get(cr.assignment_id);
+        if (aType !== 'peer') continue;
+      }
+      
+      let skillName: string | undefined;
+      if (isHistorical) {
+        const skillId = snapshotCtx!.questionToSkillMap.get(cr.question_id);
+        if (skillId) {
+          skillName = snapshotCtx!.skillMetaMap.get(skillId)?.name;
+        }
+      } else {
+        skillName = (cr.soft_skill_questions as any)?.soft_skills?.name;
+      }
+      
+      if (!skillName) continue;
+      
+      filteredComments.push({ comment_id: cr.id, skill_name: skillName, comment: trimmed });
+    }
+    
+    console.log(`Found ${filteredComments.length} comments for classification (scope: ${scope})`);
+    
+    if (filteredComments.length >= 1) {
+      const isSmallSample = filteredComments.length <= 2;
+      const languageGuide = isSmallSample
+        ? `ВАЖНО: Выборка очень мала (${filteredComments.length} комментариев). Используй нейтральный язык без обобщений. ЗАПРЕЩЕНЫ формулировки: «большинство», «системно», «в целом», «как правило», «преимущественно». Каждый вывод привязывай к конкретному наблюдению.`
+        : `Выборка: ${filteredComments.length} комментариев. Можно делать осторожные обобщения.`;
+
+      const skillsMatrix = skills.map(s => ({
+        skill_name: s.skill_name,
+        skill_description: s.skill_description || '',
+        zone: s.zone
+      }));
+
+      const respondentDescription = scope === 'external_only'
+        ? 'внешних респондентов'
+        : 'всех респондентов (руководитель, внутренние и внешние коллеги)';
+      
+      const commentsPrompt = `Ты — HR-аналитик. Классифицируй комментарии ${respondentDescription} из 360-оценки по зонам Окна Джохари.
+
+ЗАДАЧА: Каждый комментарий размещается в зоне навыка, под которым он был оставлен (source_skill_name). Если считаешь, что комментарий больше относится к другому навыку — заполни reassignment_suggestion, но НЕ перемещай комментарий.
+
+ПРАВИЛА:
+1. Комментарий остаётся под source_skill_name в зоне этого навыка. reassignment_suggestion — только рекомендация, не влияет на размещение.
+2. Конструктивная обратная связь (включая жёсткую, но содержательную) → размещай в зоне навыка. НЕ в problem_comments.
+3. problem_comments — ТОЛЬКО для неконструктивного контента (оскорбления без сути, пустые жалобы).
+4. gratitude_comments — чистые благодарности без содержательной обратной связи по навыку.
+5. out_of_matrix_comments — комментарий не связан ни с одним навыком из матрицы.
+6. НЕ создавай пустых зон или групп навыков в выходных данных.
+7. Без деанонимизации, без цитирования позволяющего идентифицировать автора.
+8. Работай с комментариями целиком, не сегментируй.
+9. zone_summary: строго 1-2 коротких предложения, синтезирующих доминирующий паттерн зоны. НЕ пересказывай отдельные комментарии.
+10. ${languageGuide}
+
+МАТРИЦА НАВЫКОВ И ЗОН:
+${JSON.stringify(skillsMatrix, null, 2)}
+
+КОММЕНТАРИИ:
+${JSON.stringify(filteredComments.map(c => ({ comment_id: c.comment_id, source_skill_name: c.skill_name, comment: c.comment })), null, 2)}`;
+
+      try {
+        const commentsAiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: AI_MODEL,
+            messages: [
+              { role: "system", content: commentsPrompt }
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "classify_comments",
+                  description: "Классификация комментариев по зонам Окна Джохари",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      zone_comment_groups: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            zone: { type: "string", enum: ["arena", "blind_spot", "hidden_strength", "unknown", "grey"], description: "Зона Джохари" },
+                            zone_summary: { type: "string", description: "1-2 коротких предложения о доминирующем паттерне зоны, без пересказа комментариев" },
+                            skills: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  skill_name: { type: "string" },
+                                  comments: {
+                                    type: "array",
+                                    items: {
+                                      type: "object",
+                                      properties: {
+                                        comment_id: { type: "string" },
+                                        comment_text: { type: "string" },
+                                        source_skill_name: { type: "string" },
+                                        reassignment_suggestion: {
+                                          type: ["object", "null"],
+                                          properties: {
+                                            suggested_skill_name: { type: "string" },
+                                            suggested_zone: { type: "string" },
+                                            confidence: { type: "string", enum: ["high", "medium", "low"] },
+                                            reason: { type: "string" }
+                                          },
+                                          required: ["suggested_skill_name", "suggested_zone", "confidence", "reason"],
+                                          additionalProperties: false
+                                        }
+                                      },
+                                      required: ["comment_id", "comment_text", "source_skill_name"],
+                                      additionalProperties: false
+                                    }
+                                  }
+                                },
+                                required: ["skill_name", "comments"],
+                                additionalProperties: false
+                              }
+                            }
+                          },
+                          required: ["zone", "zone_summary", "skills"],
+                          additionalProperties: false
+                        }
+                      },
+                      out_of_matrix_comments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            comment_id: { type: "string" },
+                            comment_text: { type: "string" },
+                            source_skill_name: { type: "string" },
+                            inferred_topic: { type: "string" },
+                            suggested_skill_theme: { type: "string" }
+                          },
+                          required: ["comment_id", "comment_text", "source_skill_name", "inferred_topic", "suggested_skill_theme"],
+                          additionalProperties: false
+                        }
+                      },
+                      gratitude_comments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            comment_id: { type: "string" },
+                            comment_text: { type: "string" },
+                            source_skill_name: { type: "string" },
+                            reason: { type: "string" }
+                          },
+                          required: ["comment_id", "comment_text", "source_skill_name", "reason"],
+                          additionalProperties: false
+                        }
+                      },
+                      problem_comments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            comment_id: { type: "string" },
+                            comment_text: { type: "string" },
+                            source_skill_name: { type: "string" },
+                            reason: { type: "string" }
+                          },
+                          required: ["comment_id", "comment_text", "source_skill_name", "reason"],
+                          additionalProperties: false
+                        }
+                      }
+                    },
+                    required: ["zone_comment_groups", "out_of_matrix_comments", "gratitude_comments", "problem_comments"],
+                    additionalProperties: false
+                  }
+                }
+              }
+            ],
+            tool_choice: { type: "function", function: { name: "classify_comments" } }
+          }),
+        });
+
+        if (commentsAiResponse.ok) {
+          const commentsAiData = await commentsAiResponse.json();
+          const commentsToolCall = commentsAiData.choices[0]?.message?.tool_calls?.[0];
+          if (commentsToolCall) {
+            const parsed = JSON.parse(commentsToolCall.function.arguments);
+            commentsClassification = {
+              zone_comment_groups: parsed.zone_comment_groups || [],
+              out_of_matrix_comments: parsed.out_of_matrix_comments || [],
+              gratitude_comments: parsed.gratitude_comments || [],
+              problem_comments: parsed.problem_comments || [],
+              notes: {
+                comments_used: filteredComments.length
+              }
+            };
+            console.log('Comments zone-based classification generated successfully');
+          }
+        } else {
+          console.error('Comments AI call failed:', commentsAiResponse.status);
+        }
+      } catch (aiErr) {
+        console.error('Error generating comments classification:', aiErr);
+      }
+    }
+
+    // ── 10. Insert new snapshot ──
     const newVersion = existingSnapshot ? existingSnapshot.version + 1 : 1;
 
     let insertedSnapshot = null;
@@ -995,11 +1145,11 @@ ${JSON.stringify(externalComments.map(c => ({ skill_name: c.skill_name, comment:
           version: currentVersion,
           created_by: currentUser.id,
           metrics_json: metricsJson,
-          ai_text: JSON.stringify(aiText),
+          ai_text: null,
           data_hash: dataHash,
           prompt_version: PROMPT_VERSION,
           model: AI_MODEL,
-          external_comments_review: externalCommentsReview
+          comments_classification: commentsClassification
         })
         .select()
         .single();
@@ -1029,7 +1179,7 @@ ${JSON.stringify(externalComments.map(c => ({ skill_name: c.skill_name, comment:
       throw new Error('Failed to insert snapshot after retries');
     }
 
-    console.log(`Johari report generated successfully, version=${insertedSnapshot.version}, scope=${scope}`);
+    console.log(`Johari report generated successfully, version=${insertedSnapshot.version}, scope=${scope}, mode=${isHistorical ? 'snapshot' : 'live'}`);
 
     return new Response(
       JSON.stringify({
@@ -1041,9 +1191,6 @@ ${JSON.stringify(externalComments.map(c => ({ skill_name: c.skill_name, comment:
 
   } catch (error) {
     console.error("Error in generate-johari-report:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return serverError("Внутренняя ошибка сервера");
   }
 });

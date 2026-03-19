@@ -80,7 +80,7 @@ export const AdminSidebar = ({ activeTable, onTableSelect }: AdminSidebarProps) 
       ]
     },
     {
-      label: 'Встречи 1:1',
+      label: 'Встречи one-to-one',
       items: [
         { id: 'meeting_stages', name: 'Этапы встреч', icon: Calendar, table: 'meeting_stages' },
         { id: 'meeting_stage_participants', name: 'Участники этапов', icon: Users2, table: 'meeting_stage_participants' },

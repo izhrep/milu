@@ -153,9 +153,10 @@ serve(async (req) => {
       .eq("id", user_id);
 
     if (deleteUserError) {
-      console.error("User deletion failed:", deleteUserError);
+      console.error("User deletion failed:", JSON.stringify(deleteUserError));
+      const userLabel = existingUser.email || `${existingUser.first_name ?? ""} ${existingUser.last_name ?? ""}`.trim() || user_id;
       return new Response(
-        JSON.stringify({ error: `Ошибка удаления пользователя: ${deleteUserError.message}` }),
+        JSON.stringify({ error: `Ошибка удаления пользователя: ${userLabel}. Обратитесь к администратору.` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -190,7 +191,7 @@ serve(async (req) => {
     console.error("Error:", error);
     console.error("Stack:", error.stack);
     return new Response(
-      JSON.stringify({ error: `Внутренняя ошибка сервера: ${error.message}` }),
+      JSON.stringify({ error: "Внутренняя ошибка сервера. Обратитесь к администратору." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

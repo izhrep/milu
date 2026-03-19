@@ -7,6 +7,7 @@ export type RespondentScope = 'all' | 'external_only';
 export interface SkillMetrics {
   skill_id: string;
   skill_name: string;
+  skill_description?: string;
   category?: string;
   subcategory?: string;
   zone: 'arena' | 'blind_spot' | 'hidden_strength' | 'unknown';
@@ -15,9 +16,16 @@ export interface SkillMetrics {
   peers_avg: number | null;
   others_avg: number | null;
   delta: number;
+  signed_delta: number;
   others_raters_cnt: number;
   grey_zone: boolean;
   is_polarized: boolean;
+  is_contradictory: boolean;
+  confidence_tier: 'insufficient' | 'preliminary' | 'confident';
+  manager_scores: number[];
+  peer_scores: number[];
+  external_scores: number[];
+  others_individual_scores: number[];
 }
 
 export interface ExcludedSkill {
@@ -37,46 +45,64 @@ export interface JohariMetrics {
   total_others_raters_cnt?: number;
 }
 
-export interface StructuredQuestion {
-  zone: 'blind_spot' | 'hidden_strength' | 'arena' | 'polarized';
+// === Comments Classification Types ===
+
+export interface ReassignmentSuggestion {
+  suggested_skill_name: string;
+  suggested_zone: string;
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+}
+
+export interface ClassifiedComment {
+  comment_id: string;
+  comment_text: string;
+  source_skill_name: string;
+  reassignment_suggestion: ReassignmentSuggestion | null;
+  hidden?: boolean;
+  override_skill?: string;
+  override_zone?: string;
+}
+
+export interface ZoneSkillComments {
   skill_name: string;
-  question: string;
+  comments: ClassifiedComment[];
 }
 
-export interface AIReport {
-  summary: string;
-  recommendations: string[];
-  discussion_questions?: (StructuredQuestion | string)[];
+export interface ZoneCommentGroup {
+  zone: 'arena' | 'blind_spot' | 'hidden_strength' | 'unknown' | 'grey';
+  zone_summary: string;
+  skills: ZoneSkillComments[];
 }
 
-export interface CaseRelatedSkill {
-  skill_name: string;
-  relation: 'primary' | 'secondary';
+export interface OutOfMatrixComment {
+  comment_id: string;
+  comment_text: string;
+  source_skill_name: string;
+  inferred_topic: string;
+  suggested_skill_theme: string;
 }
 
-export interface SummaryCase {
-  id: string;
-  type: 'strength' | 'attention';
-  title: string;
-  insight: string;
-  evidence_count: number;
-  example_signals: string[];
-  related_zones: ('open' | 'blind' | 'hidden' | 'unknown')[];
-  related_skills: CaseRelatedSkill[];
+export interface GratitudeComment {
+  comment_id: string;
+  comment_text: string;
+  source_skill_name: string;
+  reason: string;
 }
 
-export interface OneToOneQuestion {
-  case_id: string;
-  zone: 'open' | 'blind' | 'hidden' | 'unknown';
-  question: string;
+export interface ProblemComment {
+  comment_id: string;
+  comment_text: string;
+  source_skill_name: string;
+  reason: string;
 }
 
-export interface ExternalCommentsReview {
-  summary_cases: SummaryCase[];
-  one_to_one_questions: OneToOneQuestion[];
-  notes: {
-    comments_used: number;
-  };
+export interface CommentsClassification {
+  zone_comment_groups: ZoneCommentGroup[];
+  out_of_matrix_comments: OutOfMatrixComment[];
+  gratitude_comments: GratitudeComment[];
+  problem_comments: ProblemComment[];
+  notes: { comments_used: number };
 }
 
 export interface JohariSnapshot {
@@ -95,12 +121,11 @@ export interface JohariSnapshot {
   reviewed_by: string | null;
   reviewed_at: string | null;
   respondent_scope?: RespondentScope;
-  external_comments_review?: ExternalCommentsReview | null;
+  comments_classification?: CommentsClassification | null;
 }
 
 interface UseJohariReportResult {
   snapshot: JohariSnapshot | null;
-  aiReport: AIReport | null;
   loading: boolean;
   error: string | null;
   dataChanged: boolean;
@@ -116,7 +141,6 @@ interface UseJohariReportResult {
 
 export function useJohariReport(): UseJohariReportResult {
   const [snapshot, setSnapshot] = useState<JohariSnapshot | null>(null);
-  const [aiReport, setAiReport] = useState<AIReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dataChanged, setDataChanged] = useState(false);
@@ -132,15 +156,6 @@ export function useJohariReport(): UseJohariReportResult {
       ? JSON.parse(snapshotData.metrics_json) 
       : snapshotData.metrics_json
   });
-
-  const parseAiText = (aiText: any): AIReport | null => {
-    if (!aiText) return null;
-    try {
-      return typeof aiText === 'string' ? JSON.parse(aiText) : aiText;
-    } catch {
-      return null;
-    }
-  };
 
   const fetchReport = useCallback(async (stageId: string, evaluatedUserId: string, scope: RespondentScope = 'all') => {
     setLoading(true);
@@ -168,7 +183,6 @@ export function useJohariReport(): UseJohariReportResult {
         setInsufficientDataMessage(data.message);
         setExcludedSkills(data.excluded_skills || []);
         setSnapshot(null);
-        setAiReport(null);
         return;
       }
 
@@ -178,7 +192,6 @@ export function useJohariReport(): UseJohariReportResult {
       setSnapshot(parsedSnapshot);
       setDataChanged(data.data_changed || false);
       setExcludedSkills(parsedSnapshot.metrics_json.excluded_skills || []);
-      setAiReport(parseAiText(data.snapshot.ai_text));
     } catch (err) {
       console.error('Error fetching Johari report:', err);
       const message = err instanceof Error ? err.message : 'Ошибка загрузки отчёта';
@@ -211,7 +224,6 @@ export function useJohariReport(): UseJohariReportResult {
         setInsufficientDataMessage(data.message);
         setExcludedSkills(data.excluded_skills || []);
         setSnapshot(null);
-        setAiReport(null);
         return;
       }
 
@@ -221,7 +233,6 @@ export function useJohariReport(): UseJohariReportResult {
       setSnapshot(parsedSnapshot);
       setDataChanged(false);
       setExcludedSkills(parsedSnapshot.metrics_json.excluded_skills || []);
-      setAiReport(parseAiText(data.snapshot.ai_text));
       toast.success('Отчёт успешно обновлён');
     } catch (err) {
       console.error('Error regenerating Johari report:', err);
@@ -263,7 +274,6 @@ export function useJohariReport(): UseJohariReportResult {
 
   return {
     snapshot,
-    aiReport,
     loading,
     error,
     dataChanged,

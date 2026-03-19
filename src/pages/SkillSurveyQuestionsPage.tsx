@@ -9,6 +9,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CommentField } from '@/components/assessment/CommentField';
+import { useStageTemplateConfig } from '@/hooks/useStageTemplateConfig';
 
 interface SkillSurveyQuestion {
   id: string;
@@ -49,14 +50,26 @@ const SkillSurveyQuestionsPage = () => {
   const [evaluatedUser, setEvaluatedUser] = useState<any>(null);
   const [assignmentData, setAssignmentData] = useState<any>(null);
   const [evaluatorType, setEvaluatorType] = useState<'self' | 'manager' | 'peer'>('self');
+  const [diagnosticStageId, setDiagnosticStageId] = useState<string | undefined>(undefined);
+
+  // Single source of truth for stage config
+  const { config: stageConfig, loading: stageConfigLoading } = useStageTemplateConfig(diagnosticStageId);
 
   useEffect(() => {
     if (assignmentId && currentUser) {
-      fetchData();
+      fetchAssignment();
     }
   }, [assignmentId, currentUser]);
 
-  const fetchData = async () => {
+  // Check hard_skills_enabled after stageConfig resolves
+  useEffect(() => {
+    if (diagnosticStageId && !stageConfigLoading && !stageConfig.hardSkillsEnabled) {
+      toast.error('Оценка hard-навыков отключена в текущем шаблоне');
+      navigate('/my-assignments');
+    }
+  }, [diagnosticStageId, stageConfigLoading, stageConfig.hardSkillsEnabled, navigate]);
+
+  const fetchAssignment = async () => {
     try {
       setLoading(true);
 
@@ -69,6 +82,7 @@ const SkillSurveyQuestionsPage = () => {
 
       if (assignmentError) throw assignmentError;
       setAssignmentData(assignment);
+      setDiagnosticStageId(assignment.diagnostic_stage_id ?? undefined);
 
       // Определяем тип оценивающего
       const isSelf = assignment.evaluated_user_id === currentUser?.id;
@@ -161,12 +175,11 @@ const SkillSurveyQuestionsPage = () => {
       }
 
       // Фильтруем вопросы по типу респондента
+      // visibility_restriction_type указывает, от какой роли СКРЫТЬ вопрос
       const filteredQuestions = allQuestions.filter((q: any) => {
-        // Если ограничение не включено, показываем всем
         if (!q.visibility_restriction_enabled) return true;
-        
-        // Если ограничение включено, проверяем соответствие типу
-        return q.visibility_restriction_type === respondentType;
+        if (!q.visibility_restriction_type) return true;
+        return q.visibility_restriction_type !== respondentType;
       });
 
       console.log('Filtered questions by respondent type:', filteredQuestions.length);
@@ -184,6 +197,7 @@ const SkillSurveyQuestionsPage = () => {
 
       if (optionsError) throw optionsError;
       setQuestions(filteredQuestions);
+      // Answer options will be scale-filtered after stageConfig resolves
       setAnswerOptions(optionsData || []);
 
       // Загружаем ранее сохраненные ответы если они есть
@@ -285,17 +299,21 @@ const SkillSurveyQuestionsPage = () => {
       }
 
       // Сохраняем результаты с assignment_id и diagnostic_stage_id
-      const results = Object.values(answers).map(answer => ({
-        evaluated_user_id: (assignmentData as any).evaluated_user_id,
-        evaluating_user_id: currentUser.id,
-        question_id: answer.question_id,
-        answer_option_id: answer.answer_option_id,
-        comment: answer.comment || null,
-        is_anonymous_comment: answer.is_anonymous_comment ?? false,
-        assignment_id: assignmentId,
-        diagnostic_stage_id: (assignmentData as any).diagnostic_stage_id,
-        is_draft: false
-      }));
+      const results = Object.values(answers).map(answer => {
+        const matchedOption = answerOptions.find(o => o.id === answer.answer_option_id);
+        return {
+          evaluated_user_id: (assignmentData as any).evaluated_user_id,
+          evaluating_user_id: currentUser.id,
+          question_id: answer.question_id,
+          answer_option_id: answer.answer_option_id,
+          raw_numeric_value: matchedOption?.numeric_value ?? null,
+          comment: answer.comment || null,
+          is_anonymous_comment: answer.is_anonymous_comment ?? false,
+          assignment_id: assignmentId,
+          diagnostic_stage_id: (assignmentData as any).diagnostic_stage_id,
+          is_draft: false
+        };
+      });
 
       console.log('Inserting results:', results.length);
 
@@ -381,6 +399,10 @@ const SkillSurveyQuestionsPage = () => {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
+  // Filter answer options by frozen scale bounds for template-based stages
+  const filteredAnswerOptions = !stageConfig.isLegacy
+    ? answerOptions.filter(opt => opt.numeric_value >= stageConfig.hardScaleMin && opt.numeric_value <= stageConfig.hardScaleMax)
+    : answerOptions;
   const progress = Math.round(((currentQuestionIndex + 1) / questions.length) * 100);
   const isSelfAssessment = assignmentData.evaluated_user_id === currentUser?.id;
 
@@ -460,7 +482,7 @@ const SkillSurveyQuestionsPage = () => {
 
         {/* Answer Options */}
         <div className="space-y-3 mb-8">
-          {answerOptions.map((option) => (
+          {filteredAnswerOptions.map((option) => (
             <button
               key={option.id}
               onClick={() => updateAnswer(currentQuestion.id, option.id, answers[currentQuestion.id]?.comment)}

@@ -166,7 +166,7 @@ export const CreateStageDialog: React.FC<CreateStageDialogProps> = ({ open, onOp
                   </p>
                   {approvedTemplates.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-sm">Шаблон конфигурации</Label>
+                      <Label className="text-sm">Шаблон шкал и правил диагностики</Label>
                       <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите шаблон" />
@@ -196,7 +196,7 @@ export const CreateStageDialog: React.FC<CreateStageDialogProps> = ({ open, onOp
                   onCheckedChange={(checked) => setCreateMeetings(checked as boolean)}
                 />
                 <Label htmlFor="meetings" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Создать подэтап "Встречи 1:1"
+                  Создать подэтап «Встречи one-to-one»
                 </Label>
               </div>
 

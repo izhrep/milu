@@ -60,7 +60,7 @@ const NavigationMenu = () => {
     },
     { 
       icon: Users, 
-      label: 'Встречи 1:1', 
+      label: 'Встречи one-to-one', 
       path: '/meetings',
     },
   ];

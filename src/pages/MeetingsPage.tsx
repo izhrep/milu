@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Plus, FileText, Clock, CheckCircle, AlertCircle, RotateCcw, History } from 'lucide-react';
+import { Calendar, Plus, Clock, CheckCircle, FileText, History } from 'lucide-react';
 import { useOneOnOneMeetings } from '@/hooks/useOneOnOneMeetings';
 import { useSubordinates } from '@/hooks/useSubordinates';
+import { useSubordinateTree } from '@/hooks/useSubordinateTree';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MeetingForm } from '@/components/MeetingForm';
@@ -22,14 +23,12 @@ const formatUserName = (u: { first_name: string | null; last_name: string | null
   [u.last_name, u.first_name].filter(Boolean).join(' ') || 'Без имени';
 
 const getStatusBadge = (status: string) => {
-  const statusMap = {
-    draft: { label: 'Черновик', variant: 'secondary' as const, icon: FileText },
-    submitted: { label: 'На утверждении', variant: 'default' as const, icon: Clock },
-    returned: { label: 'Возврат на доработку', variant: 'destructive' as const, icon: AlertCircle },
-    approved: { label: 'Утверждено', variant: 'default' as const, icon: CheckCircle },
-    expired: { label: 'Просрочено', variant: 'warning' as const, icon: RotateCcw },
+  const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: React.ElementType }> = {
+    scheduled: { label: 'Запланирована', variant: 'secondary', icon: Clock },
+    awaiting_summary: { label: 'Ожидает итогов', variant: 'destructive', icon: FileText },
+    recorded: { label: 'Зафиксирована', variant: 'default', icon: CheckCircle },
   };
-  const config = statusMap[status as keyof typeof statusMap] || statusMap.draft;
+  const config = statusMap[status] || statusMap.scheduled;
   const Icon = config.icon;
   return (
     <Badge variant={config.variant} className="flex items-center gap-1">
@@ -43,12 +42,22 @@ const MeetingsPage = () => {
   const { user } = useAuth();
   const { hasPermission: canViewSubordinateMeetings, isLoading: permLoading } = usePermission('team.view');
   const { subordinates, isManager } = useSubordinates();
+  const { allSubtreeUsers, isDirect } = useSubordinateTree();
   const [activeTab, setActiveTab] = useState<string>('my-meetings');
-
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 
-  // Fetch latest meeting activity per subordinate for smart auto-selection
-  const subordinateIds = subordinates.map(s => s.id);
+  const selectorUsers = allSubtreeUsers.map(u => ({
+    id: u.id,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    isDirect: isDirect(u.id),
+    managerName: !isDirect(u.id) ? (() => {
+      const mgr = allSubtreeUsers.find(m => m.id === u.manager_id);
+      return mgr ? `${mgr.last_name || ''} ${mgr.first_name || ''}`.trim() : '';
+    })() : '',
+  }));
+  const subordinateIds = selectorUsers.map(s => s.id);
+  
   const { data: latestActivity } = useQuery({
     queryKey: ['subordinate-meeting-activity', subordinateIds],
     queryFn: async () => {
@@ -64,51 +73,36 @@ const MeetingsPage = () => {
     enabled: subordinateIds.length > 0,
   });
 
-  // Auto-select subordinate by most recent meeting activity
   useEffect(() => {
-    if (subordinates.length === 0 || selectedEmployeeId) return;
-
+    if (selectorUsers.length === 0 || selectedEmployeeId) return;
     if (latestActivity && latestActivity.length > 0) {
-      // Build map: employee_id -> max updated_at
       const activityMap = new Map<string, string>();
       for (const row of latestActivity) {
         if (!activityMap.has(row.employee_id)) {
           activityMap.set(row.employee_id, row.updated_at);
         }
       }
-
-      // Sort subordinates: by latest activity desc, then alphabetically
-      const sorted = [...subordinates].sort((a, b) => {
+      const sorted = [...selectorUsers].sort((a, b) => {
         const aTime = activityMap.get(a.id) || '';
         const bTime = activityMap.get(b.id) || '';
         if (aTime && !bTime) return -1;
         if (!aTime && bTime) return 1;
-        if (aTime && bTime) {
-          const cmp = bTime.localeCompare(aTime);
-          if (cmp !== 0) return cmp;
-        }
-        const aName = [a.last_name, a.first_name].filter(Boolean).join(' ');
-        const bName = [b.last_name, b.first_name].filter(Boolean).join(' ');
-        return aName.localeCompare(bName);
+        if (aTime && bTime) { const cmp = bTime.localeCompare(aTime); if (cmp !== 0) return cmp; }
+        return [a.last_name, a.first_name].filter(Boolean).join(' ').localeCompare([b.last_name, b.first_name].filter(Boolean).join(' '));
       });
-
       setSelectedEmployeeId(sorted[0].id);
     } else if (latestActivity !== undefined) {
-      // No meetings at all — first by alphabet
-      setSelectedEmployeeId(subordinates[0].id);
+      setSelectedEmployeeId(selectorUsers[0].id);
     }
-  }, [subordinates, selectedEmployeeId, latestActivity]);
+  }, [selectorUsers, selectedEmployeeId, latestActivity]);
 
-  // Switch to subordinate tab once permission loads
   useEffect(() => {
     if (!permLoading && canViewSubordinateMeetings) {
       setActiveTab('subordinate-meetings');
     }
   }, [permLoading, canViewSubordinateMeetings]);
 
-  // My meetings (as employee or manager on my own meetings)
   const { meetings: myMeetingsRaw, isLoading, createMeetingAsync } = useOneOnOneMeetings();
-  // Subordinate meetings (filtered by selected employee)
   const { meetings: subordinateMeetings } = useOneOnOneMeetings(
     selectedEmployeeId ? { employeeId: selectedEmployeeId } : undefined
   );
@@ -118,7 +112,7 @@ const MeetingsPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newMeetingId, setNewMeetingId] = useState<string | null>(null);
 
-  const handleCreateMeeting = async (params: { employee_id: string; manager_id: string; stage_id?: string | null }) => {
+  const handleCreateMeeting = async (params: { employee_id: string; manager_id: string; stage_id?: string | null; meeting_date: string }) => {
     const result = await createMeetingAsync(params);
     if (result?.id) {
       setNewMeetingId(result.id);
@@ -135,14 +129,22 @@ const MeetingsPage = () => {
 
   const myMeetings = myMeetingsRaw?.filter(m => m.employee_id === user?.id);
 
+  const getButtonLabel = (status: string, isHistorical: boolean) => {
+    if (isHistorical) return 'Просмотр';
+    switch (status) {
+      case 'awaiting_summary': return 'Заполнить итоги';
+      default: return 'Открыть';
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <Breadcrumbs />
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Встречи 1:1</h1>
-          <p className="text-text-secondary mt-1">Планирование и история встреч с unit-лидом</p>
+          <h1 className="text-3xl font-bold text-foreground">Встречи one-to-one</h1>
+          <p className="text-muted-foreground mt-1">Планирование и история встреч с unit-лидом</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -159,7 +161,7 @@ const MeetingsPage = () => {
       <Dialog open={isFormOpen && newMeetingId !== null} onOpenChange={handleCloseDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Новая встреча 1:1</DialogTitle>
+            <DialogTitle>Новая встреча one-to-one</DialogTitle>
           </DialogHeader>
           {newMeetingId && (
             <MeetingForm meetingId={newMeetingId} onClose={handleCloseDialog} />
@@ -183,10 +185,10 @@ const MeetingsPage = () => {
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-text-primary mb-2">
+                        <h3 className="font-semibold text-foreground mb-2">
                           Встреча {myMeetings.length - index}
                           {meeting.meeting_date && (
-                            <span className="font-normal text-text-secondary ml-2">
+                            <span className="font-normal text-muted-foreground ml-2">
                               — {format(new Date(meeting.meeting_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
                             </span>
                           )}
@@ -201,12 +203,12 @@ const MeetingsPage = () => {
                       }}>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" onClick={() => setSelectedMeeting(meeting.id)}>
-                            {meeting.status === 'expired' ? 'Возобновить' : 'Открыть'}
+                            {getButtonLabel(meeting.status, false)}
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Встреча 1:1</DialogTitle>
+                            <DialogTitle>Встреча one-to-one</DialogTitle>
                           </DialogHeader>
                           <MeetingForm meetingId={meeting.id} onClose={() => setIsFormOpen(false)} />
                         </DialogContent>
@@ -218,7 +220,7 @@ const MeetingsPage = () => {
             </div>
           ) : (
             <Card className="border-0 shadow-card">
-              <CardContent className="pt-6 text-center text-text-secondary">
+              <CardContent className="pt-6 text-center text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Нет созданных встреч</p>
                 <Button onClick={() => setIsCreateOpen(true)} className="mt-4 gap-2">
@@ -232,18 +234,20 @@ const MeetingsPage = () => {
 
         {canViewSubordinateMeetings && (
           <TabsContent value="subordinate-meetings" className="space-y-4">
-            {/* Employee selector */}
-            {subordinates.length > 0 && (
+            {selectorUsers.length > 0 && (
               <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-text-secondary whitespace-nowrap">Сотрудник:</label>
+                <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Сотрудник:</label>
                 <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                  <SelectTrigger className="w-64">
+                  <SelectTrigger className="w-80">
                     <SelectValue placeholder="Выберите сотрудника" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subordinates.map(sub => (
+                    {selectorUsers.map(sub => (
                       <SelectItem key={sub.id} value={sub.id}>
                         {formatUserName(sub)}
+                        {!sub.isDirect && sub.managerName && (
+                          <span className="text-muted-foreground ml-1">(через {sub.managerName})</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -260,10 +264,10 @@ const MeetingsPage = () => {
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-text-primary mb-2">
+                            <h3 className="font-semibold text-foreground mb-2">
                               Встреча {subordinateMeetings.length - index}
                               {meeting.meeting_date && (
-                                <span className="font-normal text-text-secondary ml-2">
+                                <span className="font-normal text-muted-foreground ml-2">
                                   — {format(new Date(meeting.meeting_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
                                 </span>
                               )}
@@ -284,12 +288,12 @@ const MeetingsPage = () => {
                           }}>
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm" onClick={() => setSelectedMeeting(meeting.id)}>
-                                {isHistorical ? 'Просмотр' : meeting.status === 'submitted' ? 'Рассмотреть' : meeting.status === 'expired' ? 'Возобновить' : 'Открыть'}
+                                {getButtonLabel(meeting.status, isHistorical)}
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>Встреча 1:1 — Сотрудник</DialogTitle>
+                                <DialogTitle>Встреча one-to-one — Сотрудник</DialogTitle>
                               </DialogHeader>
                               <MeetingForm meetingId={meeting.id} isManager onClose={() => setIsFormOpen(false)} />
                             </DialogContent>
@@ -302,7 +306,7 @@ const MeetingsPage = () => {
               </div>
             ) : (
               <Card className="border-0 shadow-card">
-                <CardContent className="pt-6 text-center text-text-secondary">
+                <CardContent className="pt-6 text-center text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>{selectedEmployeeId ? 'Нет встреч у выбранного сотрудника' : 'Выберите сотрудника'}</p>
                 </CardContent>

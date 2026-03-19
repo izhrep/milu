@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Edit2, Trash2, GripVertical, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import { CreateAnswerCategoryDialog } from './CreateAnswerCategoryDialog';
 import { QuestionAnswerOptionsManager, TemplateContext } from './QuestionAnswerOptionsManager';
 import { OpenQuestionsManagement } from './OpenQuestionsManagement';
+import { buildTemplateSummary } from '@/lib/templateViewModel';
+import type { DiagnosticConfigTemplate } from '@/hooks/useDiagnosticConfigTemplates';
 
 interface Question {
   id: string;
@@ -251,8 +253,8 @@ export const SurveyQuestionsManagement = () => {
 
   const currentQuestions = filteredQuestions;
 
-  // Read template context from sessionStorage (set by "Шкалы и правила" CTA)
-  const [templateContext] = useState<TemplateContext | null>(() => {
+  // Read template context: prefer sessionStorage (from CTA), fallback to fetching approved template
+  const [templateContext, setTemplateContext] = useState<TemplateContext | null>(() => {
     try {
       const raw = sessionStorage.getItem('activeTemplateContext');
       if (raw) {
@@ -263,18 +265,62 @@ export const SurveyQuestionsManagement = () => {
     return null;
   });
 
+  React.useEffect(() => {
+    if (templateContext) return;
+    const fetchApprovedTemplate = async () => {
+      try {
+        const { data } = await supabase
+          .from('diagnostic_config_templates')
+          .select('id, name, version, hard_scale_min, hard_scale_max, soft_scale_min, soft_scale_max, hard_skills_enabled, hard_scale_reversed, soft_scale_reversed')
+          .eq('status', 'approved')
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) setTemplateContext(data as TemplateContext);
+      } catch { /* ignore */ }
+    };
+    fetchApprovedTemplate();
+  }, [templateContext]);
+
   return (
     <div className="space-y-6">
       {/* Template context header */}
-      {templateContext && (
-        <Alert className="border-primary/30 bg-primary/5">
-          <Info className="h-4 w-4 text-primary" />
-          <AlertDescription className="text-sm">
-            Шаблон: <strong>{templateContext.name}</strong> v{templateContext.version}
-            {templateContext.hard_skills_enabled && (
-              <span className="ml-3">Hard: [{templateContext.hard_scale_min}..{templateContext.hard_scale_max}]</span>
-            )}
-            <span className="ml-3">Soft: [{templateContext.soft_scale_min}..{templateContext.soft_scale_max}]</span>
+      {templateContext ? (() => {
+        const summary = buildTemplateSummary({
+          ...templateContext,
+          hard_scale_reversed: (templateContext as any).hard_scale_reversed ?? false,
+          soft_scale_reversed: (templateContext as any).soft_scale_reversed ?? false,
+          comment_rules: (templateContext as any).comment_rules ?? {},
+          open_questions_config: (templateContext as any).open_questions_config ?? [],
+          status: (templateContext as any).status ?? 'approved',
+          version: templateContext.version ?? 1,
+          created_by: '', created_at: '', updated_at: '', id: (templateContext as any).id ?? '',
+        } as DiagnosticConfigTemplate);
+
+        return (
+          <Alert className="border-primary/30 bg-primary/5">
+            <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+            <AlertDescription className="text-sm ml-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span>Действующий шаблон опросника: <strong>{templateContext.name}</strong> v{templateContext.version}</span>
+                {templateContext.hard_skills_enabled ? (
+                  <span className="text-muted-foreground">Шкала Hard: {summary.hardScaleLabel}</span>
+                ) : (
+                  <span className="text-muted-foreground">Hard-навыки: выключены</span>
+                )}
+                <span className="text-muted-foreground">Шкала Soft: {summary.softScaleLabel}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Все изменения вопросов и вариантов ответа сейчас проверяются относительно этого шаблона.
+              </p>
+            </AlertDescription>
+          </Alert>
+        );
+      })() : (
+        <Alert className="border-border bg-muted/40">
+          <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <AlertDescription className="text-sm text-muted-foreground ml-2">
+            Шаблон опросника не выбран. Проверка диапазонов и правил отключена.
           </AlertDescription>
         </Alert>
       )}

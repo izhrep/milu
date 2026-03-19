@@ -113,7 +113,7 @@ export const AddSubStageDialog = ({ open, onOpenChange, parentStageId, hasDiagno
                   onCheckedChange={(checked) => setCreateMeetings(checked as boolean)}
                 />
                 <Label htmlFor="meetings" className="cursor-pointer">
-                  Создать этап встреч 1:1
+                  Создать этап встреч one-to-one
                 </Label>
               </div>
             )}

@@ -50,20 +50,31 @@ export const useHRAnalytics = (filters?: AnalyticsFilters) => {
       setError(null);
 
       // Build user filter query
-      let userQuery = supabase.from('users').select('id').eq('status', true);
-
-      if (filters?.departmentId) {
-        userQuery = userQuery.eq('department_id', filters.departmentId);
-      }
-      if (filters?.positionId) {
-        userQuery = userQuery.eq('position_id', filters.positionId);
-      }
+      let userIds: string[] = [];
+      
       if (filters?.managerId) {
-        userQuery = userQuery.eq('manager_id', filters.managerId);
+        // Use subtree to get all subordinates of the selected manager
+        const { data: subtreeIds, error: subtreeError } = await supabase
+          .rpc('get_management_subtree_ids', { _manager_id: filters.managerId });
+        if (subtreeError) throw subtreeError;
+        userIds = subtreeIds || [];
+        
+        // Further filter by department/position if set
+        if (userIds.length > 0 && (filters?.departmentId || filters?.positionId)) {
+          let refinedQuery = supabase.from('users').select('id').eq('status', true).in('id', userIds);
+          if (filters?.departmentId) refinedQuery = refinedQuery.eq('department_id', filters.departmentId);
+          if (filters?.positionId) refinedQuery = refinedQuery.eq('position_id', filters.positionId);
+          const { data: refined } = await refinedQuery;
+          userIds = refined?.map(u => u.id) || [];
+        }
+      } else {
+        let userQuery = supabase.from('users').select('id').eq('status', true);
+        if (filters?.departmentId) userQuery = userQuery.eq('department_id', filters.departmentId);
+        if (filters?.positionId) userQuery = userQuery.eq('position_id', filters.positionId);
+        const { data: users } = await userQuery;
+        userIds = users?.map(u => u.id) || [];
       }
 
-      const { data: users } = await userQuery;
-      const userIds = users?.map(u => u.id) || [];
 
       if (userIds.length === 0) {
         setProgress({ total_participants: 0, completed_skill: 0, completed_360: 0, completion_percentage: 0 });

@@ -78,8 +78,9 @@ export const useTasks = (userId?: string) => {
           if (deadlineDate < today) return false;
         }
         
-        // Задачи без diagnostic_stage_id показываем всегда (manual tasks)
+        // Meeting tasks and tasks without diagnostic_stage_id — always show
         if (!task.diagnostic_stage_id) return true;
+        if (['meeting_scheduled', 'meeting_fill_summary', 'meeting_review_summary', 'meeting_plan_new'].includes(task.task_type || '')) return true;
         
         // КРИТИЧНО: задачи связанные с этапом показываем ТОЛЬКО если этап активен
         // Это исключает задачи из закрытых этапов (is_active=false)

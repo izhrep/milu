@@ -26,7 +26,7 @@
 
 ### Назначение
 
-MILU — внутренняя HR-платформа для проведения оценки компетенций сотрудников (360°, hard skills, soft skills), карьерного планирования, управления встречами 1:1 между сотрудником и руководителем, и планирования развития.
+MILU — внутренняя HR-платформа для проведения оценки компетенций сотрудников (360°, hard skills, soft skills), карьерного планирования, управления встречами one-to-one между сотрудником и руководителем, и планирования развития.
 
 ### Пользовательские роли (из БД, enum `app_role`)
 
@@ -150,7 +150,8 @@ bun run build
 | `/` | `Index` | AuthGuard | Главная страница (дашборд) |
 | `/profile` | `ProfilePage` | AuthGuard | Профиль пользователя |
 | `/tasks` | `TasksPage` | AuthGuard | Мои задачи |
-| `/meetings` | `MeetingsPage` | AuthGuard | Встречи 1:1 |
+| `/meetings` | `MeetingsPage` | AuthGuard | Встречи one-to-one |
+| `/meetings-monitoring` | `MeetingsMonitoringPage` | AuthGuard | Мониторинг встреч one-to-one |
 | `/team` | `TeamPage` | AuthGuard | Моя команда |
 | `/feed` | `FeedPage` | AuthGuard | Лента событий |
 | `/questionnaires` | `DevelopmentQuestionnairesPage` | AuthGuard | Обратная связь 360 |
@@ -189,7 +190,7 @@ bun run build
 
 | Флаг | Значение | Назначение |
 |---|---|---|
-| `VITE_MEETINGS_STAGE_UI_ENABLED` | `false` | Скрывает UI создания подэтапов встреч 1:1 |
+| `VITE_MEETINGS_STAGE_UI_ENABLED` | `false` | Скрывает UI создания подэтапов встреч one-to-one (legacy) |
 
 ### Sidebar (навигация)
 
@@ -204,7 +205,8 @@ bun run build
 | Мои задачи | Всегда |
 | Карьерный трек | `gradeLevel > 0` (для employee) или `team.view` |
 | Обратная связь 360 | Всегда |
-| Встречи 1:1 | Участие в `meeting_stage_participants` (employee) или `team.view` |
+| Встречи | Участие в diagnostic stage, наличие встреч, или наличие `manager_id` (employee); `team.view` (manager) |
+| Мониторинг встреч | `team.view` или `meetings.manage` |
 | Моя команда | `team.view` |
 | Мониторинг диагностики | `security.view_admin_panel` ИЛИ `diagnostics.manage_participants` ИЛИ `diagnostics.view_results` |
 | Справочники | `security.view_admin_panel` |
@@ -408,16 +410,17 @@ app_role (enum) → user_roles (таблица) → role_permissions → permiss
 | `parent_stages` | Родительские этапы (период, даты) |
 | `employee_stage_snapshots` | Снапшоты результатов на конец этапа |
 
-#### Встречи 1:1
+#### Встречи one-to-one
 
 | Таблица | Назначение |
 |---|---|
-| `one_on_one_meetings` | Встречи 1:1. `stage_id` nullable (stage-less режим) |
-| `meeting_decisions` | Решения после встречи |
+| `one_on_one_meetings` | Встречи one-to-one. `stage_id` nullable (stage-less режим по умолчанию) |
+| `meeting_manager_fields` | Поля руководителя (отдельная таблица для RLS-безопасности) |
+| `meeting_decisions` | Договорённости (action items) после встречи |
+| `meeting_artifacts` | Вложения к встрече (до 10 файлов, 25MB каждый) |
 | `meeting_private_notes` | Приватные заметки руководителя |
 | `meeting_stages` | Подэтапы встреч (legacy, UI скрыт за feature flag) |
-| `meeting_stage_participants` | Участники подэтапов встреч |
-| `meeting_status_current` | Текущий статус встречи (denormalized) |
+| `meeting_stage_participants` | Участники подэтапов встреч (legacy) |
 
 #### Грейды и карьерные треки
 
@@ -480,7 +483,7 @@ app_role (enum) → user_roles (таблица) → role_permissions → permiss
 ### Ключевые инварианты
 
 1. **`user_roles`**: unique(user_id, role) — один пользователь = одна роль
-2. **`one_on_one_meetings`**: partial unique index `idx_one_open_meeting_per_pair` на (employee_id, manager_id) WHERE status IN ('draft','submitted','returned') — не более одной открытой встречи на пару
+2. **`one_on_one_meetings`**: Constraint — не более одной будущей `scheduled` встречи на пару employee+manager (валидация через триггер `compute_meeting_status_and_validate`)
 3. **`survey_360_assignments`**: unique(evaluated_user_id, evaluating_user_id, diagnostic_stage_id) — дедупликация назначений
 4. **`diagnostic_stage_participants`**: unique(stage_id, user_id) — один участник на этап
 
@@ -489,8 +492,9 @@ app_role (enum) → user_roles (таблица) → role_permissions → permiss
 | Триггер | Таблица | Назначение |
 |---|---|---|
 | `on_participant_added` | `diagnostic_stage_participants` | При добавлении участника создаёт assignments и tasks |
-| `update_meeting_status_current_trigger` | `one_on_one_meetings` | UPSERT в `meeting_status_current` при изменении статуса |
-| `create_stageless_meeting_task_trigger` | `one_on_one_meetings` | Создаёт task при INSERT stage-less встречи |
+| `trg_compute_meeting_status` | `one_on_one_meetings` | Вычисляет статус (`scheduled`/`awaiting_summary`/`recorded`) и валидирует уникальность scheduled-встречи |
+| `create_meeting_scheduled_task` | `one_on_one_meetings` | Создаёт task `meeting_scheduled` при INSERT |
+| `trg_create_review_summary_task` | `one_on_one_meetings` | Создаёт task `meeting_review_summary` для второй стороны при сохранении итогов |
 | `encrypt_user_data_trigger` | `users` | **УСТАРЕВШИЙ** — отправка PII на внешний endpoint |
 
 ### Миграции
@@ -595,28 +599,46 @@ app_role (enum) → user_roles (таблица) → role_permissions → permiss
 - `src/pages/UnifiedAssessmentPage.tsx` — единая форма оценки
 - `supabase/functions/create-peer-evaluation-tasks/` — создание задач
 
-### 10.2. Встреча 1:1 (stage-less)
+### 10.2. Встреча one-to-one
+
+**Модель:** Stage-less цифровой контейнер встречи с тремя статусами.
+
+**Статусы (вычисляются автоматически в БД):**
+- `scheduled` — дата встречи в будущем, итогов нет
+- `awaiting_summary` — дата встречи прошла, итогов нет
+- `recorded` — итоги (meeting_summary) заполнены
 
 **Шаги:**
 
-1. **Сотрудник/Руководитель/HR создаёт встречу** (`CreateMeetingDialog`) → INSERT в `one_on_one_meetings` с `stage_id = null`
-2. **Триггер `create_stageless_meeting_task_trigger`** создаёт задачу в `tasks`
-3. **Сотрудник заполняет форму** (`MeetingForm`): дата/время, цель, энергия, стопперы, идеи, решения
-4. **Сотрудник отправляет на утверждение** → status: `draft` → `submitted`
-5. **Руководитель рассматривает**: утверждает (`approved`) или возвращает (`returned` + reason)
-6. **При возврате** сотрудник видит комментарий и дорабатывает
-7. **При утверждении** — руководитель может добавлять решения и приватные заметки
+1. **Сотрудник/Руководитель/HR создаёт встречу** (`CreateMeetingDialog`) → INSERT в `one_on_one_meetings`
+2. **Триггер `create_meeting_scheduled_task`** создаёт задачу `meeting_scheduled` для обоих участников
+3. **Триггер `trg_compute_meeting_status`** автоматически определяет статус на основе `meeting_date` и `meeting_summary`
+4. **Участники заполняют форму** (`MeetingForm`):
+   - Блок сотрудника: настроение, успехи, проблемы, новости, вопросы
+   - Блок руководителя (хранится в `meeting_manager_fields`): заметки руководителя
+5. **Сохранение итогов** — любой участник сохраняет `meeting_summary` → статус `recorded`
+6. **Триггер `trg_create_review_summary_task`** создаёт задачу `meeting_review_summary` для второй стороны
 
-**Статусы:** `draft` → `submitted` → `approved` | `returned` → `draft/submitted` | `expired`
+**Автоматические задачи (pg_cron `process_meeting_tasks` каждые 15 мин):**
+- `meeting_fill_summary` — назначается руководителю, если дата прошла, а итоги не записаны
+- `meeting_plan_new` — назначается руководителю, если сотрудник активный, внутренний, уже участвовал в цикле встреч, но >35 дней без `recorded` встречи
 
-**Expiration:** Функция `expire_stageless_meetings()` (pg_cron каждые 30 мин) переводит просроченные stage-less встречи в `expired`. Допускается reopen: `expired` → `draft`.
+**Историчность:** История встреч привязана к `employee_id`. Текущий руководитель (из `users.manager_id`) видит всю историю подчинённого. Для «исторических» встреч (где `manager_id` ≠ текущий пользователь) форма открывается в read-only режиме.
+
+**Subtree-доступ:** Вышестоящие руководители видят встречи непрямых подчинённых через RLS (`is_in_management_subtree`), в read-only режиме.
+
+**Вложения:** До 10 файлов по 25MB на встречу. Хранятся в bucket `meeting-artifacts`. JS/EXE запрещены. Доступ через signed URLs (300с).
 
 **Где в коде:**
 - `src/hooks/useOneOnOneMeetings.ts` — CRUD и мутации
+- `src/hooks/useMeetingManagerFields.ts` — поля руководителя
+- `src/hooks/useMeetingArtifacts.ts` — вложения
+- `src/hooks/useMeetingTasks.ts` — acknowledgement задач ревью
 - `src/components/MeetingForm.tsx` — форма
 - `src/components/CreateMeetingDialog.tsx` — диалог создания
 - `src/pages/MeetingsPage.tsx` — страница списка
-- `src/hooks/useMeetingDecisions.ts` — решения
+- `src/pages/MeetingsMonitoringPage.tsx` — мониторинг встреч one-to-one
+- `src/hooks/useMeetingDecisions.ts` — договорённости
 - `src/hooks/useMeetingPrivateNotes.ts` — приватные заметки
 
 ### 10.3. Создание пользователя
@@ -680,8 +702,9 @@ app_role (enum) → user_roles (таблица) → role_permissions → permiss
 
 | Задача | Расписание | Функция | Назначение |
 |---|---|---|---|
-| `finalize-expired-stages` | Настраивается вручную | `finalize_expired_stage()` | Завершение stage-based встреч при закрытии этапа. Только `WHERE stage_id IS NOT NULL` |
-| `expire-stageless-meetings` | `*/30 * * * *` | `expire_stageless_meetings()` | Перевод stage-less встреч в `expired` если `meeting_date < now()` и status IN ('draft','submitted','returned') |
+| `finalize-expired-stages` | Настраивается вручную | `finalize_expired_stage()` | Завершение stage-based встреч при закрытии этапа |
+| `process-meeting-status` | `*/15 * * * *` | `process_meeting_status()` | Перевод встреч в `awaiting_summary` если дата прошла и итогов нет |
+| `process-meeting-tasks` | `*/15 * * * *` | `process_meeting_tasks()` | Генерация задач `meeting_fill_summary` и `meeting_plan_new` для руководителей |
 
 **Как настроен:** SQL в `migrations/20260219_meetings_decoupling_cron.sql` (закомментирован, выполняется вручную через SQL Editor).
 
@@ -775,8 +798,8 @@ SELECT ur.role, u.email FROM user_roles ur JOIN users u ON u.id = ur.user_id WHE
 -- Проверить permissions пользователя
 SELECT * FROM user_effective_permissions WHERE user_id = '<uuid>';
 
--- Проверить открытые встречи
-SELECT id, employee_id, manager_id, status, meeting_date FROM one_on_one_meetings WHERE status IN ('draft', 'submitted', 'returned');
+-- Проверить встречи (новая статусная модель)
+SELECT id, employee_id, manager_id, status, meeting_date, meeting_summary IS NOT NULL as has_summary FROM one_on_one_meetings ORDER BY meeting_date DESC LIMIT 20;
 
 -- Проверить активные этапы
 SELECT ds.id, ds.status, ps.period, ps.is_active FROM diagnostic_stages ds LEFT JOIN parent_stages ps ON ds.parent_id = ps.id WHERE ps.is_active = true;
@@ -828,7 +851,7 @@ SELECT * FROM access_denied_logs ORDER BY created_at DESC LIMIT 20;
 
 12. **`decryptUserData` — noop-функция.** Шифрование удалено, функция оставлена для совместимости. **Где:** `src/lib/userDataDecryption.ts`.
 
-13. **pg_cron SQL закомментирован.** Задача `expire-stageless-meetings` требует ручной настройки. **Где:** `migrations/20260219_meetings_decoupling_cron.sql`.
+13. **pg_cron SQL закомментирован.** Задачи `process_meeting_status` и `process_meeting_tasks` требуют ручной настройки. **Где:** миграции pg_cron.
 
 ---
 
@@ -857,15 +880,16 @@ SELECT * FROM access_denied_logs ORDER BY created_at DESC LIMIT 20;
 - [ ] 13. Завершение оценки → задача помечается completed
 - [ ] 14. Закрытие этапа → snapshot в `employee_stage_snapshots`
 
-### Встречи 1:1 (7)
+### Встречи one-to-one (8)
 
-- [ ] 15. Создание stage-less встречи сотрудником → автоматически задача в `tasks`
+- [ ] 15. Создание встречи сотрудником → задача `meeting_scheduled` для обоих участников
 - [ ] 16. Создание встречи руководителем для подчинённого → выбор из списка
-- [ ] 17. Заполнение формы и отправка на утверждение (draft → submitted)
-- [ ] 18. Решения после встречи видны в статусе submitted для сотрудника
-- [ ] 19. Руководитель утверждает (submitted → approved) или возвращает (submitted → returned)
-- [ ] 20. Возврат с причиной — причина отображается сотруднику
-- [ ] 21. Просроченная stage-less встреча → статус expired, кнопка "Возобновить"
+- [ ] 17. Статус автоматически `scheduled` при будущей дате, `awaiting_summary` при прошедшей
+- [ ] 18. Заполнение блока сотрудника и блока руководителя (раздельные поля)
+- [ ] 19. Сохранение итогов → статус `recorded`, задача `meeting_review_summary` второй стороне
+- [ ] 20. Мониторинг встреч: KPI дашборд (в норме, просрочено, не участвует в цикле)
+- [ ] 21. Историчность: текущий руководитель видит всю историю подчинённого
+- [ ] 22. Вложения: загрузка/скачивание файлов к встрече (до 10 шт)
 
 ### Карьерный трек (3)
 

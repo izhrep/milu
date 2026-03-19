@@ -50,7 +50,7 @@ export const permissionGroups = [
   },
   {
     id: 'meetings',
-    label: 'Встречи 1:1',
+    label: 'Встречи one-to-one',
     icon: Calendar,
     description: 'Управление встречами',
     resources: ['meetings']
@@ -92,7 +92,7 @@ export const resourceNames: Record<string, string> = {
   'diagnostics': 'Диагностика',
   'grades': 'Грейды',
   'manufacturers': 'Производители',
-  'meetings': 'Встречи 1:1',
+  'meetings': 'Встречи one-to-one',
   'permissions': 'Права доступа',
   'positions': 'Должности',
   'qualities': 'Качества',
@@ -135,7 +135,7 @@ export const roles = [
     value: 'manager', 
     label: 'Руководитель', 
     variant: 'secondary' as const, 
-    description: 'Управление командой и встречи 1:1.', 
+    description: 'Управление командой и встречи one-to-one.', 
     color: 'border-secondary',
     icon: '👨‍💼'
   },

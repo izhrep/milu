@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit2, Trash2, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,8 @@ export interface TemplateContext {
   soft_scale_min: number;
   soft_scale_max: number;
   hard_skills_enabled: boolean;
+  hard_scale_reversed?: boolean;
+  soft_scale_reversed?: boolean;
 }
 
 interface QuestionAnswerOptionsManagerProps {
@@ -93,9 +95,26 @@ export const QuestionAnswerOptionsManager = ({
     return level >= rangeMin && level <= rangeMax;
   };
 
+  // Compute coverage analysis
+  const rangeAnalysis = useMemo(() => {
+    if (rangeMin === undefined || rangeMax === undefined) return null;
+
+    const requiredLevels: number[] = [];
+    for (let i = rangeMin; i <= rangeMax; i++) requiredLevels.push(i);
+
+    const existingLevels = new Set(options.map(o => o.level_value));
+    const missingLevels = requiredLevels.filter(l => !existingLevels.has(l));
+    const extraLevels = options
+      .map(o => o.level_value)
+      .filter(l => l < rangeMin || l > rangeMax)
+      .sort((a, b) => a - b);
+    const uniqueExtra = [...new Set(extraLevels)];
+
+    return { missingLevels, extraLevels: uniqueExtra, hasGaps: missingLevels.length > 0, hasExtra: uniqueExtra.length > 0 };
+  }, [options, rangeMin, rangeMax]);
+
   const inRangeOptions = options.filter(o => isInRange(o.level_value));
   const outOfRangeOptions = options.filter(o => !isInRange(o.level_value));
-  const hasOutOfRange = outOfRangeOptions.length > 0;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -174,13 +193,16 @@ export const QuestionAnswerOptionsManager = ({
     );
   }
 
-  const renderOptionRow = (option: AnswerOption, readOnly = false) => (
-    <TableRow key={option.id} className={readOnly ? 'opacity-50' : ''}>
+  const renderOptionRow = (option: AnswerOption, isOutOfRange = false) => (
+    <TableRow 
+      key={option.id} 
+      className={isOutOfRange ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}
+    >
       <TableCell className="font-semibold">
         <div className="flex items-center gap-2">
           {option.level_value}
-          {!isInRange(option.level_value) && (
-            <Badge variant="outline" className="text-xs px-1.5 py-0 text-amber-600 border-amber-300">
+          {isOutOfRange && (
+            <Badge variant="outline" className="text-xs px-1.5 py-0 text-amber-600 border-amber-300 whitespace-nowrap">
               Вне диапазона
             </Badge>
           )}
@@ -192,24 +214,20 @@ export const QuestionAnswerOptionsManager = ({
         {option.description || '—'}
       </TableCell>
       <TableCell>
-        {readOnly ? (
-          <span className="text-xs text-muted-foreground">только чтение</span>
-        ) : (
-          <div className="flex gap-1">
-            <Button type="button" size="sm" variant="ghost" onClick={() => handleEdit(option)}>
-              <Edit2 className="w-4 h-4" />
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => handleDelete(option.id)}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={() => handleEdit(option)}>
+            <Edit2 className="w-4 h-4" />
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => handleDelete(option.id)}>
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
+    <div className="space-y-3 p-4 border rounded-lg bg-muted/5">
       <div>
         <h3 className="font-semibold mb-1">Варианты ответов</h3>
         <p className="text-sm text-muted-foreground">
@@ -217,12 +235,33 @@ export const QuestionAnswerOptionsManager = ({
         </p>
       </div>
 
-      {hasOutOfRange && templateContext && (
-        <Alert className="border-amber-300 bg-amber-50/50">
+      {/* Template context header */}
+      {templateContext && (
+        <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded px-3 py-2 border border-border/50">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Шаблон: <span className="font-medium text-foreground">{templateContext.name} v{templateContext.version}</span>
+            {' · '}
+            Диапазон {questionType === 'hard' ? 'Hard' : 'Soft'}: <span className="font-medium text-foreground">[{rangeMin}..{rangeMax}]</span>
+          </span>
+        </div>
+      )}
+
+      {/* Range analysis warnings */}
+      {rangeAnalysis && (rangeAnalysis.hasGaps || rangeAnalysis.hasExtra) && (
+        <Alert className="border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-sm text-amber-800">
-            У вопроса больше вариантов ответа, чем заложено в шаблоне «{templateContext.name}» 
-            (диапазон {questionType === 'hard' ? 'Hard' : 'Soft'}: [{rangeMin}..{rangeMax}]).
+          <AlertDescription className="text-sm space-y-1">
+            {rangeAnalysis.hasExtra && (
+              <p className="text-amber-800 dark:text-amber-200">
+                У вопроса больше вариантов ответа, чем заложено в шаблоне. Лишние уровни: <span className="font-medium">{rangeAnalysis.extraLevels.join(', ')}</span>
+              </p>
+            )}
+            {rangeAnalysis.hasGaps && (
+              <p className="text-destructive font-medium">
+                Для диапазона [{rangeMin}..{rangeMax}] отсутствуют уровни: {rangeAnalysis.missingLevels.join(', ')}
+              </p>
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -295,33 +334,19 @@ export const QuestionAnswerOptionsManager = ({
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">Загрузка...</TableCell>
               </TableRow>
-            ) : inRangeOptions.length === 0 && outOfRangeOptions.length === 0 ? (
+            ) : options.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">Нет вариантов ответов</TableCell>
               </TableRow>
             ) : (
               <>
                 {inRangeOptions.map(o => renderOptionRow(o, false))}
+                {outOfRangeOptions.map(o => renderOptionRow(o, true))}
               </>
             )}
           </TableBody>
         </Table>
       </div>
-
-      {outOfRangeOptions.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">
-            Вне диапазона текущего шаблона (только чтение)
-          </h4>
-          <div className="border rounded-lg overflow-hidden opacity-60">
-            <Table>
-              <TableBody>
-                {outOfRangeOptions.map(o => renderOptionRow(o, true))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

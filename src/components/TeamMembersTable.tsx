@@ -18,9 +18,11 @@ interface TeamMembersTableProps {
   members: User[];
   currentUserId: string;
   diagnosticStageId?: string | null;
+  isDirectManager?: boolean;
+  indirectManagerName?: string;
 }
 
-export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, currentUserId, diagnosticStageId }) => {
+export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, currentUserId, diagnosticStageId, isDirectManager = true, indirectManagerName }) => {
   const navigate = useNavigate();
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [selectedCareerTrackId, setSelectedCareerTrackId] = useState<string | null>(null);
@@ -38,19 +40,22 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
   const { activeStage } = useDiagnosticStages();
   const effectiveStageId = diagnosticStageId || activeStage?.id;
 
-  // Fetch meetings for all team members
+  // Fetch meetings for team members
+  const memberIds = members.map(m => m.id);
   const { data: meetingsData } = useQuery({
-    queryKey: ['team-meetings', currentUserId],
+    queryKey: ['team-meetings', memberIds, isDirectManager],
     queryFn: async () => {
+      // For both direct and indirect: fetch by employee_id (RLS now grants subtree SELECT)
       const { data, error } = await supabase
         .from('one_on_one_meetings')
-        .select('id, employee_id, status, meeting_date')
-        .eq('manager_id', currentUserId)
+        .select('id, employee_id, manager_id, status, meeting_date')
+        .in('employee_id', memberIds)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
+    enabled: memberIds.length > 0,
   });
 
   // Fetch career progress for all team members
@@ -190,18 +195,15 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
     let variant: 'default' | 'destructive' | 'outline' | 'secondary' = 'secondary';
     let status = 'Не назначена';
     
-    if (latestMeeting.status === 'draft') {
-      variant = 'secondary';
-      status = 'Черновик';
-    } else if (latestMeeting.status === 'submitted') {
+    if (latestMeeting.status === 'scheduled') {
       variant = 'default';
-      status = 'Отправлена';
-    } else if (latestMeeting.status === 'approved') {
-      variant = 'secondary'; // используем secondary для успеха
-      status = 'Утверждена';
-    } else if (latestMeeting.status === 'returned') {
+      status = 'Запланирована';
+    } else if (latestMeeting.status === 'awaiting_summary') {
       variant = 'destructive';
-      status = 'Возвращена';
+      status = 'Ожидает итогов';
+    } else if (latestMeeting.status === 'recorded') {
+      variant = 'secondary';
+      status = 'Зафиксирована';
     }
     
     return {
@@ -285,7 +287,7 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
               <TableHead>Должность</TableHead>
               <TableHead>Категория должностей</TableHead>
               <TableHead>Респонденты</TableHead>
-              <TableHead>Встреча 1:1</TableHead>
+              <TableHead>Встреча one-to-one</TableHead>
               <TableHead className="text-center">Hard-навыки</TableHead>
               <TableHead className="text-center">Soft-навыки</TableHead>
               <TableHead>Обратная связь 360</TableHead>
@@ -301,22 +303,30 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
               const avgSkills = getAverageSkills(member.id);
               const avgQualities = getAverageQualities(member.id);
               // Проверяем, является ли текущий пользователь менеджером этого члена команды
-              const isManagerOfMember = member.manager_id === currentUserId;
+              const isManagerOfMember = isDirectManager && member.manager_id === currentUserId;
               const respondentsStatus = getRespondentsStatus(member.id, isManagerOfMember);
 
               return (
                 <TableRow key={member.id}>
                   <TableCell>
-                    <button
-                      onClick={() => navigate(`/profile?user=${member.id}`)}
-                      className="font-medium text-brand-purple hover:underline text-left"
-                    >
-                      {fullName}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/profile?user=${member.id}`)}
+                        className="font-medium text-brand-purple hover:underline text-left"
+                      >
+                        {fullName}
+                      </button>
+                      {!isDirectManager && indirectManagerName && (
+                        <Badge variant="outline" className="text-xs font-normal whitespace-nowrap">
+                          через {indirectManagerName}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{member.positions?.name || '-'}</TableCell>
                   <TableCell>{member.positions?.position_categories?.name || '-'}</TableCell>
                   <TableCell>
+                    {isDirectManager ? (
                     <Button
                       variant={respondentsStatus.hasPending ? "default" : "outline"}
                       size="sm"
@@ -336,6 +346,9 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
                       <Users className="h-4 w-4 mr-2" />
                       {respondentsStatus.status}
                     </Button>
+                    ) : (
+                      <span className="text-text-tertiary text-sm">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -408,7 +421,7 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
       <Dialog open={!!selectedMeetingId} onOpenChange={(open) => !open && setSelectedMeetingId(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Встреча 1:1</DialogTitle>
+            <DialogTitle>Встреча one-to-one</DialogTitle>
           </DialogHeader>
           {selectedMeetingId && (
             <MeetingForm meetingId={selectedMeetingId} isManager onClose={() => setSelectedMeetingId(null)} />

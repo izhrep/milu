@@ -2,12 +2,11 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { Users, TrendingUp, Search } from 'lucide-react';
+import { Users, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
 import { useNavigate } from 'react-router-dom';
 import { TeamMembersTable } from '@/components/TeamMembersTable';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { usePermission } from '@/hooks/usePermission';
 import { Input } from '@/components/ui/input';
@@ -16,37 +15,19 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { StageFilter, useStageFilter } from '@/components/StageFilter';
 import { useDiagnosticStages } from '@/hooks/useDiagnosticStages';
+import { useSubordinateTree } from '@/hooks/useSubordinateTree';
 
 const TeamPage = () => {
   const { user } = useAuth();
   const { users, loading } = useUsers();
   const navigate = useNavigate();
   
-  // Check permissions
   const { hasPermission: canViewAllUsers } = usePermission('users.view');
   const { hasPermission: canManageTeam } = usePermission('team.manage');
   const { hasPermission: canViewTeam } = usePermission('team.view');
 
-  // Get current user data
-  const currentUser = users.find(u => u.id === user?.id);
-  
-  // Get team members (subordinates of current user)
-  const teamMembers = users.filter(u => u.manager_id === user?.id);
-
-  // Get company colleagues - show all users from same company (excluding self)
-  // Admin users are only visible to those with users.view permission
-  const companyColleagues = users.filter(u => {
-    // Exclude self
-    if (u.id === user?.id) return false;
-    // Without users.view permission, exclude admin users
-    if (!canViewAllUsers && u.roles?.some(r => r.role === 'admin')) return false;
-    // Include all other users (RLS policy already filters by company)
-    return true;
-  });
-
-  // For users with users.view (admin/hr_bp), always show all users
-  // For managers (canManageTeam), always show subordinates (no toggle needed)
-  const [showAllUsers, setShowAllUsers] = useState(canViewAllUsers);
+  // Manager filter for admin/hrbp
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,15 +47,36 @@ const TeamPage = () => {
     })) || [];
   }, [diagnosticStages]);
   const { selectedStageId, setSelectedStageId } = useStageFilter(stageOptions);
-  
-  // Determine which users to display (base list before filtering)
-  let baseMembers = teamMembers;
-  if (canViewAllUsers) {
-    // Users with users.view permission see all users
-    baseMembers = users;
-  } else if (canViewTeam && showAllUsers) {
-    baseMembers = companyColleagues;
-  }
+
+  // Determine the effective manager for subtree
+  const isAdminOrHrbp = canViewAllUsers;
+  const effectiveManagerId = isAdminOrHrbp && selectedManagerId !== 'all' 
+    ? selectedManagerId 
+    : user?.id;
+
+  // Use subtree hook for managers
+  const { groupedByManager, allSubtreeUsers, isLoading: subtreeLoading, directCount, indirectCount } = useSubordinateTree(
+    (canManageTeam || (isAdminOrHrbp && selectedManagerId !== 'all')) ? effectiveManagerId : undefined
+  );
+
+  // Get managers list for admin/hrbp filter
+  const managersForFilter = useMemo(() => {
+    if (!isAdminOrHrbp) return [];
+    return users
+      .filter(u => u.roles?.some(r => r.role === 'manager'))
+      .map(u => ({
+        id: u.id,
+        name: `${u.last_name || ''} ${u.first_name || ''}`.trim(),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [users, isAdminOrHrbp]);
+
+  // For admin/hrbp with "all" selected, show all users (existing behavior)
+  const showAllUsersMode = isAdminOrHrbp && selectedManagerId === 'all';
+  const baseMembers = showAllUsersMode ? users : allSubtreeUsers.map(su => {
+    // Map SubordinateUser to User type by finding in full users list
+    return users.find(u => u.id === su.id) || su as any;
+  });
 
   // Fetch assessment results for filtering
   const memberIds = baseMembers.map(m => m.id);
@@ -86,86 +88,52 @@ const TeamPage = () => {
         .from('user_assessment_results')
         .select('user_id, skill_id, quality_id, self_assessment, peers_average, manager_assessment')
         .in('user_id', memberIds);
-      
       if (error) throw error;
       return data;
     },
     enabled: memberIds.length > 0,
   });
 
-  // Create a set of user IDs that have assessment data
   const usersWithAssessmentData = useMemo(() => {
-    const usersWithData = new Set<string>();
-    if (assessmentsData) {
-      assessmentsData.forEach(result => {
-        // Check if user has any valid assessment scores
-        if (result.self_assessment || result.peers_average || result.manager_assessment) {
-          usersWithData.add(result.user_id);
-        }
-      });
-    }
-    return usersWithData;
+    const set = new Set<string>();
+    assessmentsData?.forEach(r => {
+      if (r.self_assessment || r.peers_average || r.manager_assessment) set.add(r.user_id);
+    });
+    return set;
   }, [assessmentsData]);
 
-  // Get unique positions and categories for filters
   const uniquePositions = useMemo(() => {
     const positions = new Set<string>();
-    baseMembers.forEach(member => {
-      if (member.positions?.name) {
-        positions.add(member.positions.name);
-      }
-    });
+    baseMembers.forEach(m => { if (m.positions?.name) positions.add(m.positions.name); });
     return Array.from(positions).sort();
   }, [baseMembers]);
 
   const uniqueCategories = useMemo(() => {
     const categories = new Set<string>();
-    baseMembers.forEach(member => {
-      if (member.positions?.position_categories?.name) {
-        categories.add(member.positions.position_categories.name);
-      }
-    });
+    baseMembers.forEach(m => { if (m.positions?.position_categories?.name) categories.add(m.positions.position_categories.name); });
     return Array.from(categories).sort();
   }, [baseMembers]);
 
-  // Apply all filters
-  const displayedMembers = useMemo(() => {
-    return baseMembers.filter(member => {
-      // Search by name
-      if (searchQuery) {
-        const fullName = `${member.last_name || ''} ${member.first_name || ''} ${member.middle_name || ''}`.toLowerCase();
-        if (!fullName.includes(searchQuery.toLowerCase())) {
-          return false;
-        }
-      }
+  // Apply filters to members
+  const filterMember = (member: any) => {
+    if (searchQuery) {
+      const fullName = `${member.last_name || ''} ${member.first_name || ''} ${member.middle_name || ''}`.toLowerCase();
+      if (!fullName.includes(searchQuery.toLowerCase())) return false;
+    }
+    if (positionFilter !== 'all' && member.positions?.name !== positionFilter) return false;
+    if (categoryFilter !== 'all' && member.positions?.position_categories?.name !== categoryFilter) return false;
+    if (assessmentFilter !== 'all') {
+      const has = usersWithAssessmentData.has(member.id);
+      if (assessmentFilter === 'has_data' && !has) return false;
+      if (assessmentFilter === 'no_data' && has) return false;
+    }
+    return true;
+  };
 
-      // Filter by position
-      if (positionFilter !== 'all' && member.positions?.name !== positionFilter) {
-        return false;
-      }
+  const displayedMembers = useMemo(() => baseMembers.filter(filterMember), 
+    [baseMembers, searchQuery, positionFilter, categoryFilter, assessmentFilter, usersWithAssessmentData]);
 
-      // Filter by category
-      if (categoryFilter !== 'all' && member.positions?.position_categories?.name !== categoryFilter) {
-        return false;
-      }
-
-      // Filter by assessment data (360 results)
-      if (assessmentFilter !== 'all') {
-        const hasAssessmentData = usersWithAssessmentData.has(member.id);
-        
-        if (assessmentFilter === 'has_data' && !hasAssessmentData) {
-          return false;
-        }
-        if (assessmentFilter === 'no_data' && hasAssessmentData) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [baseMembers, searchQuery, positionFilter, categoryFilter, assessmentFilter, usersWithAssessmentData]);
-
-  if (loading) {
+  if (loading || subtreeLoading) {
     return (
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <div className="animate-pulse">
@@ -176,7 +144,8 @@ const TeamPage = () => {
     );
   }
 
-  // Check access rights
+  // For managers: check if they have subordinates
+  const teamMembers = users.filter(u => u.manager_id === user?.id);
   const hasAccess = canViewAllUsers || canViewTeam || (canManageTeam && teamMembers.length > 0);
 
   if (!hasAccess) {
@@ -190,11 +159,7 @@ const TeamPage = () => {
               <p className="text-text-secondary">
                 Этот раздел доступен только руководителям с подчинёнными, HR BP и администраторам
               </p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => navigate('/')}
-              >
+              <Button variant="outline" className="mt-4" onClick={() => navigate('/')}>
                 Вернуться на главную
               </Button>
             </div>
@@ -215,20 +180,6 @@ const TeamPage = () => {
             Управление и развитие вашей команды
           </p>
         </div>
-        
-        {/* Toggle: Company view (only for hr_bp with team.view but without users.view) */}
-        {canViewTeam && !canViewAllUsers && !canManageTeam && companyColleagues.length > 0 && (
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="show-all-users"
-              checked={showAllUsers}
-              onCheckedChange={setShowAllUsers}
-            />
-            <Label htmlFor="show-all-users" className="cursor-pointer">
-              {showAllUsers ? 'Моя компания' : 'Мои подчиненные'}
-            </Label>
-          </div>
-        )}
       </div>
 
       {/* Filters */}
@@ -237,15 +188,24 @@ const TeamPage = () => {
           <CardTitle className="text-lg">Фильтры</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Stage filter */}
-            <StageFilter
-              stages={stageOptions}
-              selectedStageId={selectedStageId}
-              onStageChange={setSelectedStageId}
-              label="Этап диагностики"
-              showAllOption={false}
-            />
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdminOrHrbp ? 'lg:grid-cols-3 2xl:grid-cols-6' : 'lg:grid-cols-5'} gap-4 items-end`}>
+            {/* Manager filter for admin/hrbp */}
+            {isAdminOrHrbp && (
+              <div className="space-y-2">
+                <Label>Руководитель</Label>
+                <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Все сотрудники" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все сотрудники</SelectItem>
+                    {managersForFilter.map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Search by name */}
             <div className="space-y-2">
@@ -271,10 +231,8 @@ const TeamPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все должности</SelectItem>
-                  {uniquePositions.map(position => (
-                    <SelectItem key={position} value={position}>
-                      {position}
-                    </SelectItem>
+                  {uniquePositions.map(p => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -289,10 +247,8 @@ const TeamPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все категории</SelectItem>
-                  {uniqueCategories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
+                  {uniqueCategories.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -312,6 +268,15 @@ const TeamPage = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Stage filter - last */}
+            <StageFilter
+              stages={stageOptions}
+              selectedStageId={selectedStageId}
+              onStageChange={setSelectedStageId}
+              label="Этап диагностики"
+              showAllOption={false}
+            />
           </div>
         </CardContent>
       </Card>
@@ -320,22 +285,34 @@ const TeamPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Всего сотрудников</CardTitle>
+            <CardTitle className="text-sm font-medium text-text-secondary">
+              {showAllUsersMode ? 'Всего сотрудников' : 'Всего подчинённых'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-text-primary">{displayedMembers.length}</div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Активных</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-text-primary">
-              {displayedMembers.filter(m => m.status).length}
-            </div>
-          </CardContent>
-        </Card>
+        {!showAllUsersMode && (
+          <>
+            <Card className="border-0 shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">Прямые</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-text-primary">{directCount}</div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">Непрямые</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-text-primary">{indirectCount}</div>
+              </CardContent>
+            </Card>
+          </>
+        )}
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-text-secondary">Должностей</CardTitle>
@@ -348,33 +325,66 @@ const TeamPage = () => {
         </Card>
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Подразделений</CardTitle>
+            <CardTitle className="text-sm font-medium text-text-secondary">Всего результатов 360</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-text-primary">
-              {new Set(displayedMembers.map(m => m.department_id).filter(Boolean)).size}
+              {usersWithAssessmentData.size}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Team members table */}
+      {/* Team members — grouped by manager for subtree mode, flat for all-users mode */}
       {displayedMembers.length > 0 ? (
-        <Card className="border-0 shadow-card">
-          <CardHeader>
-            <CardTitle>
-              {canViewAllUsers 
-                ? 'Все пользователи' 
-                : canViewTeam && showAllUsers 
-                  ? 'Все сотрудники компании' 
-                  : 'Сотрудники команды'
-              }
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TeamMembersTable members={displayedMembers} currentUserId={user?.id || ''} diagnosticStageId={selectedStageId} />
-          </CardContent>
-        </Card>
+        showAllUsersMode ? (
+          // Flat mode for admin/hrbp with "all" selected
+          <Card className="border-0 shadow-card">
+            <CardHeader>
+              <CardTitle>Все пользователи</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TeamMembersTable members={displayedMembers} currentUserId={user?.id || ''} diagnosticStageId={selectedStageId} />
+            </CardContent>
+          </Card>
+        ) : (
+          // Grouped mode by manager
+          groupedByManager.map(group => {
+            const filteredGroupMembers = group.members
+              .map(su => users.find(u => u.id === su.id) || su as any)
+              .filter(filterMember);
+            
+            if (filteredGroupMembers.length === 0) return null;
+
+            // Find intermediate manager name for indirect groups
+            const intermediateMgrUser = !group.isDirect 
+              ? users.find(u => u.id === group.managerId)
+              : null;
+            const intermediateMgrName = intermediateMgrUser
+              ? `${intermediateMgrUser.last_name || ''} ${intermediateMgrUser.first_name || ''}`.trim()
+              : undefined;
+
+            return (
+              <Card key={group.managerId} className="border-0 shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {group.managerName}
+                    <span className="text-sm font-normal text-text-secondary">({filteredGroupMembers.length})</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TeamMembersTable
+                    members={filteredGroupMembers}
+                    currentUserId={user?.id || ''}
+                    diagnosticStageId={selectedStageId}
+                    isDirectManager={group.isDirect}
+                    indirectManagerName={intermediateMgrName}
+                  />
+                </CardContent>
+              </Card>
+            );
+          })
+        )
       ) : (
         <Card className="border-0 shadow-card">
           <CardContent className="pt-6 text-center">

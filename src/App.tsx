@@ -40,6 +40,7 @@ import ManagerComparisonPage from "./pages/ManagerComparisonPage";
 import HRAnalyticsPage from "./pages/HRAnalyticsPage";
 import { DiagnosticMonitoringPage } from "./pages/DiagnosticMonitoringPage";
 import ReportsPage from "./pages/ReportsPage";
+import MeetingsMonitoringPage from "./pages/MeetingsMonitoringPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { PanelLeft } from "lucide-react";
@@ -93,6 +94,7 @@ const App = () => (
                             <Route path="/questionnaires" element={<DevelopmentQuestionnairesPage />} />
                             <Route path="/tasks" element={<TasksPage />} />
                             <Route path="/meetings" element={<MeetingsPage />} />
+                            <Route path="/meetings-monitoring" element={<MeetingsMonitoringPage />} />
                             <Route path="/team" element={<TeamPage />} />
                             <Route path="/feed" element={<FeedPage />} />
                             <Route path="/skill-survey/questions/:assignmentId" element={<SkillSurveyQuestionsPage />} />

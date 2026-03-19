@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, MessageSquare } fr
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { useStageTemplateConfig } from '@/hooks/useStageTemplateConfig';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -76,7 +77,11 @@ const UnifiedAssessmentPage = () => {
   const [evaluatedUserId, setEvaluatedUserId] = useState<string | null>(null);
   const [assignmentType, setAssignmentType] = useState<'360' | 'skill' | null>(null);
   const [evaluatorType, setEvaluatorType] = useState<'self' | 'manager' | 'peer' | null>(null);
+  const [diagnosticStageId, setDiagnosticStageId] = useState<string | null>(null);
   const [diagnosticPeriod, setDiagnosticPeriod] = useState<{ start_date: string; end_date: string; reminder_date: string; period: string } | null>(null);
+
+  // Single source of truth for stage template config (resolves frozen_config → live template → legacy defaults)
+  const { config: stageConfig, loading: stageConfigLoading } = useStageTemplateConfig(diagnosticStageId ?? undefined);
   
   // Open questions state
   const [openQuestions, setOpenQuestions] = useState<OpenQuestion[]>([]);
@@ -168,10 +173,10 @@ const UnifiedAssessmentPage = () => {
   }, [assignmentId, currentUser]);
 
   useEffect(() => {
-    if (evaluatedUserId) {
+    if (evaluatedUserId && !stageConfigLoading) {
       loadAllQuestions();
     }
-  }, [evaluatedUserId]);
+  }, [evaluatedUserId, stageConfigLoading]);
 
   // Автосохранение отдельного вопроса при изменении (читает из refs для актуальных данных)
   const autoSaveSingleQuestion = useCallback(async (questionId: string) => {
@@ -244,11 +249,18 @@ const UnifiedAssessmentPage = () => {
         const tableName = question.type === 'quality' ? 'soft_skill_results' : 'hard_skill_results';
         
         // Используем upsert вместо delete + insert (unique constraint на evaluated_user_id, evaluating_user_id, question_id)
+        // Resolve raw_numeric_value from loaded answer options
+        const optionsArray = question.type === 'quality' ? qualityOptions : skillOptions;
+        const resolvedNumericValue = (!isSkipped && answerId)
+          ? (optionsArray.find(o => o.id === answerId)?.numeric_value ?? null)
+          : null;
+
         const upsertData = {
           evaluated_user_id: evaluatedUserId,
           evaluating_user_id: currentUser.id,
           question_id: questionId,
           answer_option_id: isSkipped ? null : answerId,
+          raw_numeric_value: resolvedNumericValue,
           comment: comment,
           is_anonymous_comment: isAnonymous,
           diagnostic_stage_id: diagnosticStageId,
@@ -383,6 +395,7 @@ const UnifiedAssessmentPage = () => {
 
       setAssignmentType('360');
       setEvaluatedUserId(assignment.evaluated_user_id);
+      setDiagnosticStageId(assignment.diagnostic_stage_id || null);
 
       // Сохраняем информацию о периоде диагностики
       if (assignment.diagnostic_stages?.parent_stages) {
@@ -504,9 +517,13 @@ const UnifiedAssessmentPage = () => {
         }
       }
       
-      // Загружаем вопросы для навыков
+      // Hard skills toggle — resolved by useStageTemplateConfig (single source of truth)
+      const hardSkillsEnabled = stageConfig.hardSkillsEnabled;
+      console.log('UnifiedAssessment: hardSkillsEnabled =', hardSkillsEnabled, '(isLegacy:', stageConfig.isLegacy, ')');
+
+      // Загружаем вопросы для навыков (только если hard skills включены)
       let skillQuestions: any[] = [];
-      if (skillIds.length > 0) {
+      if (skillIds.length > 0 && hardSkillsEnabled) {
         const { data, error } = await supabase
           .from('hard_skill_questions')
           .select('id, question_text, skill_id, answer_category_id, order_index, visibility_restriction_enabled, visibility_restriction_type, comment_required_override');
@@ -529,6 +546,8 @@ const UnifiedAssessmentPage = () => {
           skillQuestions = filtered;
           console.log('UnifiedAssessment: Filtered skill questions:', skillQuestions.length);
         }
+      } else if (!hardSkillsEnabled) {
+        console.log('UnifiedAssessment: Hard skills disabled by template, skipping hard_skill_questions');
       }
       
       // Загружаем информацию о навыках и качествах отдельно
@@ -859,11 +878,18 @@ const UnifiedAssessmentPage = () => {
         }
         
         // Используем UPSERT для сохранения (unique constraint на evaluated_user_id, evaluating_user_id, question_id)
+        // Resolve raw_numeric_value from loaded answer options
+        const optionsArray = question.type === 'quality' ? qualityOptions : skillOptions;
+        const resolvedNumericValue = (!isSkipped && answerId)
+          ? (optionsArray.find(o => o.id === answerId)?.numeric_value ?? null)
+          : null;
+
         const upsertData = {
           evaluated_user_id: evaluatedUserId,
           evaluating_user_id: currentUser.id,
           question_id: questionId,
           answer_option_id: isSkipped ? null : answerId,
+          raw_numeric_value: resolvedNumericValue,
           comment: comment,
           is_anonymous_comment: isAnonymous,
           diagnostic_stage_id: diagnosticStageId,
@@ -1031,6 +1057,9 @@ const UnifiedAssessmentPage = () => {
           .eq('assignment_id', assignmentId);
 
         // Вставляем новый ответ
+        const softNumericValue = answerId
+          ? (qualityOptions.find(o => o.id === answerId)?.numeric_value ?? null)
+          : null;
         const { error } = await supabase
           .from('soft_skill_results')
           .insert({
@@ -1038,6 +1067,7 @@ const UnifiedAssessmentPage = () => {
             evaluating_user_id: currentUser?.id,
             question_id: question.id,
             answer_option_id: answerId,
+            raw_numeric_value: softNumericValue,
             comment: comments[question.id] || null,
             is_anonymous_comment: isAnonymous,
             diagnostic_stage_id: diagnosticStageId,
@@ -1057,6 +1087,9 @@ const UnifiedAssessmentPage = () => {
           .eq('assignment_id', assignmentId);
 
         // Вставляем новый ответ
+        const hardNumericValue = answerId
+          ? (skillOptions.find(o => o.id === answerId)?.numeric_value ?? null)
+          : null;
         const { error } = await supabase
           .from('hard_skill_results')
           .insert({
@@ -1064,6 +1097,7 @@ const UnifiedAssessmentPage = () => {
             evaluating_user_id: currentUser?.id,
             question_id: question.id,
             answer_option_id: answerId,
+            raw_numeric_value: hardNumericValue,
             comment: comments[question.id] || null,
             is_anonymous_comment: isAnonymous,
             diagnostic_stage_id: diagnosticStageId,
@@ -1151,6 +1185,10 @@ const UnifiedAssessmentPage = () => {
           const diagnosticStageId = assignment?.diagnostic_stage_id || null;
           const tableName = question.type === 'quality' ? 'soft_skill_results' : 'hard_skill_results';
           
+          const finalOptArray = question.type === 'quality' ? qualityOptions : skillOptions;
+          const finalNumericValue = (!isSkipped && answerId)
+            ? (finalOptArray.find(o => o.id === answerId)?.numeric_value ?? null)
+            : null;
           await supabase
             .from(tableName)
             .upsert({
@@ -1158,6 +1196,7 @@ const UnifiedAssessmentPage = () => {
               evaluating_user_id: currentUser?.id,
               question_id: currentQuestionId,
               answer_option_id: isSkipped ? null : answerId,
+              raw_numeric_value: finalNumericValue,
               comment: comment,
               is_anonymous_comment: isAnonymous,
               diagnostic_stage_id: diagnosticStageId,
@@ -1186,6 +1225,7 @@ const UnifiedAssessmentPage = () => {
             const answerText = openAnswers[oq.id]?.trim() || '';
             // Only save if there's text or it was previously saved
             if (answerText || oq.is_required) {
+              const isOpenAnonymous = evaluatorType === 'peer';
               await supabase
                 .from('open_question_results')
                 .upsert({
@@ -1196,6 +1236,7 @@ const UnifiedAssessmentPage = () => {
                   evaluated_user_id: evaluatedUserId,
                   answer_text: answerText,
                   is_draft: false,
+                  is_anonymous: isOpenAnonymous,
                 }, {
                   onConflict: 'assignment_id,open_question_id',
                   ignoreDuplicates: false
@@ -1250,12 +1291,13 @@ const UnifiedAssessmentPage = () => {
         console.error('Error updating assignment status:', assignmentError);
       }
 
-      // 7. Обновляем статус связанной задачи
+      // 7. Обновляем статус связанной задачи (только diagnostic_stage, НЕ peer_selection)
       const { data: tasks } = await supabase
         .from('tasks')
         .select('id')
         .eq('assignment_id', assignmentId)
         .eq('user_id', currentUser?.id)
+        .eq('task_type', 'diagnostic_stage')
         .in('status', ['pending', 'in_progress']);
 
       if (tasks && tasks.length > 0) {
@@ -1265,7 +1307,33 @@ const UnifiedAssessmentPage = () => {
           .in('id', tasks.map(t => t.id));
       }
 
-      // 8. Переходим на страницу успеха
+      // 8. Создаём/обновляем снапшот результатов диагностики
+      try {
+        const { data: assignmentForSnapshot } = await supabase
+          .from('survey_360_assignments')
+          .select('diagnostic_stage_id')
+          .eq('id', assignmentId)
+          .maybeSingle();
+
+        const snapshotStageId = assignmentForSnapshot?.diagnostic_stage_id;
+        if (snapshotStageId && evaluatedUserId) {
+          const { error: snapshotError } = await supabase.rpc('create_or_refresh_diagnostic_snapshot', {
+            p_stage_id: snapshotStageId,
+            p_evaluated_user_id: evaluatedUserId,
+            p_reason: 'assessment_completed',
+          });
+          if (snapshotError) {
+            console.error('Error creating diagnostic snapshot:', snapshotError);
+          } else {
+            console.log('Diagnostic snapshot created/refreshed for stage:', snapshotStageId);
+          }
+        }
+      } catch (snapshotErr) {
+        // Не блокируем завершение оценки из-за ошибки снапшота
+        console.error('Snapshot creation failed (non-blocking):', snapshotErr);
+      }
+
+      // 9. Переходим на страницу успеха
       toast.success('Результаты успешно сохранены');
       navigate('/assessment/completed');
     } catch (error) {
@@ -1343,9 +1411,20 @@ if (loading || questionsLoading) {
 
   const currentQuestion = questions[currentQuestionIndex];
   const allOptions = currentQuestion?.type === 'quality' ? qualityOptions : skillOptions;
-  const currentOptions = currentQuestion?.answerCategoryId 
+  const categoryFilteredOptions = currentQuestion?.answerCategoryId 
     ? allOptions.filter(opt => opt.answer_category_id === currentQuestion.answerCategoryId)
     : allOptions;
+  // Filter by frozen scale bounds when stage has frozen_config
+  const currentOptions = !stageConfig.isLegacy
+    ? categoryFilteredOptions.filter(opt => {
+        const v = opt.numeric_value;
+        if (v === undefined || v === null) return true;
+        if (currentQuestion?.type === 'quality') {
+          return v >= stageConfig.softScaleMin && v <= stageConfig.softScaleMax;
+        }
+        return v >= stageConfig.hardScaleMin && v <= stageConfig.hardScaleMax;
+      })
+    : categoryFilteredOptions;
   // Учитываем и ответы и skip
   const answeredCount = Object.keys(answers).length + Object.keys(skippedAnswers).length;
   const totalSteps = questions.length + (openQuestions.length > 0 ? 1 : 0);

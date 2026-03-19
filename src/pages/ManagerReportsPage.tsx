@@ -36,7 +36,17 @@ const ManagerReportsPage = () => {
     try {
       setLoading(true);
 
-      // Получаем подчинённых
+      // Получаем подчинённых через subtree (включая indirect)
+      const { data: subtreeIds, error: subtreeError } = await supabase
+        .rpc('get_management_subtree_ids', { _manager_id: currentUser.id });
+      
+      if (subtreeError) throw subtreeError;
+      if (!subtreeIds || subtreeIds.length === 0) {
+        setEmployees([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: employeesData, error: employeesError } = await supabase
         .from('users')
         .select(`
@@ -49,7 +59,7 @@ const ManagerReportsPage = () => {
             name
           )
         `)
-        .eq('manager_id', currentUser.id);
+        .in('id', subtreeIds);
 
       if (employeesError) throw employeesError;
 

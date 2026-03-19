@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CompetencyFilterType, SkillSetFilterType } from '@/components/CompetencyFilter';
 import { getHardSkillsRoleVisibility, getSoftSkillsRoleVisibility } from './useSkillRoleVisibility';
+import type { SnapshotContext } from './useSnapshotContext';
 
 export interface AssessmentDataWithCounts {
   name: string;
@@ -15,9 +16,7 @@ export interface AssessmentDataWithCounts {
   manager_count: number;
   all_except_self_count: number;
   all_count: number;
-  // Новые поля для peer по категориям должностей
   peers_by_position_category?: Record<string, { average: number; count: number; name: string }>;
-  // Поля для сортировки и отображения категорий
   category_name?: string;
   subcategory_name?: string;
 }
@@ -46,12 +45,34 @@ interface EvaluatorInfo {
   position_category_name: string | null;
 }
 
+// Normalized result after dual-path fetch
+interface NormalizedHardResult {
+  id: string;
+  evaluated_user_id: string;
+  evaluating_user_id: string;
+  assignment_id: string | null;
+  question_id: string;
+  _skill_id: string | undefined;
+  _numeric_value: number;
+}
+
+interface NormalizedSoftResult {
+  id: string;
+  evaluated_user_id: string;
+  evaluating_user_id: string;
+  assignment_id: string | null;
+  question_id: string;
+  _quality_id: string | undefined;
+  _numeric_value: number;
+}
+
 export const useCorrectAssessmentResults = (
   userId: string | undefined,
   filterType: CompetencyFilterType,
   positionCategoryFilter: string = 'all',
   skillSetFilter: SkillSetFilterType = 'all',
-  diagnosticStageId?: string | null
+  diagnosticStageId?: string | null,
+  snapshotContext?: SnapshotContext | null
 ) => {
   const [radarData, setRadarData] = useState<AssessmentDataWithCounts[]>([]);
   const [overallResults, setOverallResults] = useState<AssessmentDataWithCounts | null>(null);
@@ -66,39 +87,61 @@ export const useCorrectAssessmentResults = (
     if (userId) {
       fetchCorrectResults();
     }
-  }, [userId, filterType, positionCategoryFilter, skillSetFilter, diagnosticStageId]);
+  }, [userId, filterType, positionCategoryFilter, skillSetFilter, diagnosticStageId, snapshotContext]);
 
   const fetchCorrectResults = async () => {
     if (!userId) return;
 
     try {
       setLoading(true);
+      
 
-      // Получаем grade_id пользователя
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('grade_id, manager_id')
-        .eq('id', userId)
-        .single();
+      // Получаем grade_id пользователя (из снапшота или live)
+      let gradeId: string;
+      let managerId: string | null = null;
 
-      if (userError) throw userError;
-      if (!userData?.grade_id) {
-        resetState();
-        return;
-      }
-
-      const gradeId = userData.grade_id;
-
-      // Получаем категорию должности руководителя
-      if (userData.manager_id) {
-        const { data: managerData } = await supabase
+      if (snapshotContext && snapshotContext.evaluatedUser) {
+        // SNAPSHOT MODE: grade_id из snapshot user context
+        gradeId = snapshotContext.evaluatedUser.gradeId || '';
+        if (!gradeId) {
+          resetState();
+          return;
+        }
+        // Manager position category из snapshot
+        // Ищем manager assignment в snapshot
+        snapshotContext.assignmentsMap.forEach((a) => {
+          if (a.assignmentType === 'manager' && a.evaluatorPositionCategoryName) {
+            setManagerPositionCategory(a.evaluatorPositionCategoryName);
+          }
+        });
+      } else {
+        // LIVE MODE
+        const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('position_id, positions(position_category_id, position_categories(name))')
-          .eq('id', userData.manager_id)
+          .select('grade_id, manager_id')
+          .eq('id', userId)
           .single();
 
-        if (managerData?.positions?.position_categories?.name) {
-          setManagerPositionCategory(managerData.positions.position_categories.name);
+        if (userError) throw userError;
+        if (!userData?.grade_id) {
+          resetState();
+          return;
+        }
+
+        gradeId = userData.grade_id;
+        managerId = userData.manager_id;
+
+        // Получаем категорию должности руководителя
+        if (managerId) {
+          const { data: managerData } = await supabase
+            .from('users')
+            .select('position_id, positions(position_category_id, position_categories(name))')
+            .eq('id', managerId)
+            .single();
+
+          if (managerData?.positions?.position_categories?.name) {
+            setManagerPositionCategory(managerData.positions.position_categories.name);
+          }
         }
       }
 
@@ -165,13 +208,313 @@ export const useCorrectAssessmentResults = (
     return infoMap;
   };
 
+  // ============= DUAL-PATH HELPERS =============
+  // These helpers fetch results from hard_skill_results / soft_skill_results
+  // using snapshot-only queries (no live JOINs) when snapshotContext is present,
+  // or standard live JOINs when not.
+
+  const fetchRawHardResults = async (
+    userId: string, skillIds: string[], stageId?: string | null
+  ): Promise<NormalizedHardResult[]> => {
+    if (snapshotContext) {
+      // Build question_id → skill_id map from snapshot
+      const questionSkillMap = new Map<string, string>();
+      snapshotContext.hardQuestionsMap.forEach((q, qId) => {
+        if (q.skillId && skillIds.includes(q.skillId)) {
+          questionSkillMap.set(qId, q.skillId);
+        }
+      });
+      const questionIds = [...questionSkillMap.keys()];
+      if (questionIds.length === 0) return [];
+
+      let query = supabase
+        .from('hard_skill_results')
+        .select('id, evaluated_user_id, evaluating_user_id, assignment_id, question_id, raw_numeric_value, answer_option_id')
+        .eq('evaluated_user_id', userId)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false')
+        .in('question_id', questionIds);
+      if (stageId) query = query.eq('diagnostic_stage_id', stageId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((r: any) => {
+        // Resolve numeric value: raw_numeric_value > snapshot answer option > 0
+        let numericValue = r.raw_numeric_value;
+        if (numericValue == null && r.answer_option_id) {
+          const snapshotOption = snapshotContext.hardAnswerOptionsMap.get(r.answer_option_id);
+          numericValue = snapshotOption?.numericValue;
+        }
+        return {
+          id: r.id,
+          evaluated_user_id: r.evaluated_user_id,
+          evaluating_user_id: r.evaluating_user_id,
+          assignment_id: r.assignment_id,
+          question_id: r.question_id,
+          _skill_id: questionSkillMap.get(r.question_id),
+          _numeric_value: numericValue ?? 0,
+        };
+      });
+    } else {
+      let query = supabase
+        .from('hard_skill_results')
+        .select(`
+          id, evaluated_user_id, evaluating_user_id, assignment_id, question_id,
+          hard_skill_questions!inner(skill_id),
+          hard_skill_answer_options(numeric_value)
+        `)
+        .eq('evaluated_user_id', userId)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false')
+        .in('hard_skill_questions.skill_id', skillIds);
+      if (stageId) query = query.eq('diagnostic_stage_id', stageId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        evaluated_user_id: r.evaluated_user_id,
+        evaluating_user_id: r.evaluating_user_id,
+        assignment_id: r.assignment_id,
+        question_id: r.question_id,
+        _skill_id: r.hard_skill_questions?.skill_id,
+        _numeric_value: (r as any).raw_numeric_value ?? r.hard_skill_answer_options?.numeric_value ?? 0,
+      }));
+    }
+  };
+
+  const fetchRawSoftResults = async (
+    userId: string, qualityIds: string[], stageId?: string | null
+  ): Promise<NormalizedSoftResult[]> => {
+    if (snapshotContext) {
+      const questionQualityMap = new Map<string, string>();
+      snapshotContext.softQuestionsMap.forEach((q, qId) => {
+        if (q.qualityId && qualityIds.includes(q.qualityId)) {
+          questionQualityMap.set(qId, q.qualityId);
+        }
+      });
+      const questionIds = [...questionQualityMap.keys()];
+      if (questionIds.length === 0) return [];
+
+      let query = supabase
+        .from('soft_skill_results')
+        .select('id, evaluated_user_id, evaluating_user_id, assignment_id, question_id, raw_numeric_value, answer_option_id')
+        .eq('evaluated_user_id', userId)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false')
+        .in('question_id', questionIds);
+      if (stageId) query = query.eq('diagnostic_stage_id', stageId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((r: any) => {
+        // Resolve numeric value: raw_numeric_value > snapshot answer option > 0
+        let numericValue = r.raw_numeric_value;
+        if (numericValue == null && r.answer_option_id) {
+          const snapshotOption = snapshotContext.softAnswerOptionsMap.get(r.answer_option_id);
+          numericValue = snapshotOption?.numericValue;
+        }
+        return {
+          id: r.id,
+          evaluated_user_id: r.evaluated_user_id,
+          evaluating_user_id: r.evaluating_user_id,
+          assignment_id: r.assignment_id,
+          question_id: r.question_id,
+          _quality_id: questionQualityMap.get(r.question_id),
+          _numeric_value: numericValue ?? 0,
+        };
+      });
+    } else {
+      let query = supabase
+        .from('soft_skill_results')
+        .select(`
+          id, evaluated_user_id, evaluating_user_id, assignment_id, question_id,
+          soft_skill_questions!inner(quality_id),
+          soft_skill_answer_options(numeric_value)
+        `)
+        .eq('evaluated_user_id', userId)
+        .eq('is_draft', false)
+        .or('is_skip.is.null,is_skip.eq.false')
+        .in('soft_skill_questions.quality_id', qualityIds);
+      if (stageId) query = query.eq('diagnostic_stage_id', stageId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        evaluated_user_id: r.evaluated_user_id,
+        evaluating_user_id: r.evaluating_user_id,
+        assignment_id: r.assignment_id,
+        question_id: r.question_id,
+        _quality_id: r.soft_skill_questions?.quality_id,
+        _numeric_value: (r as any).raw_numeric_value ?? r.soft_skill_answer_options?.numeric_value ?? 0,
+      }));
+    }
+  };
+
+  // Helper: resolve assignments map from snapshot or live
+  const resolveAssignmentsMap = async (rawResults: any[]): Promise<Map<string, string>> => {
+    const assignmentsMap = new Map<string, string>();
+    if (snapshotContext) {
+      snapshotContext.assignmentsMap.forEach((a, id) => {
+        if (a.assignmentType) assignmentsMap.set(id, a.assignmentType);
+      });
+    } else {
+      const assignmentIds = [...new Set(rawResults.map((r: any) => r.assignment_id).filter(Boolean))];
+      if (assignmentIds.length > 0) {
+        const { data: assignments } = await supabase
+          .from('survey_360_assignments')
+          .select('id, assignment_type')
+          .in('id', assignmentIds);
+        (assignments || []).forEach((a: any) => {
+          assignmentsMap.set(a.id, a.assignment_type);
+        });
+      }
+    }
+    return assignmentsMap;
+  };
+
+  // Helper: resolve evaluators info from snapshot or live
+  const resolveEvalInfo = async (rawResults: any[]): Promise<Map<string, EvaluatorInfo>> => {
+    if (snapshotContext) {
+      const evalInfo = new Map<string, EvaluatorInfo>();
+      snapshotContext.usersMap.forEach((u, id) => {
+        evalInfo.set(id, {
+          id,
+          position_category_id: null,
+          position_category_name: u.positionCategoryName
+        });
+      });
+      return evalInfo;
+    } else {
+      const evaluatorIds = [...new Set(rawResults.map((r: any) => r.evaluating_user_id))];
+      return fetchEvaluatorsInfo(evaluatorIds);
+    }
+  };
+
+  // Helper: map normalized result to RawScore
+  const toRawScore = (
+    r: any,
+    evalInfo: Map<string, EvaluatorInfo>,
+    assignmentsMap: Map<string, string>
+  ): RawScore => {
+    const info = evalInfo.get(r.evaluating_user_id);
+    const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
+    return {
+      evaluating_user_id: r.evaluating_user_id,
+      evaluated_user_id: r.evaluated_user_id,
+      numeric_value: r._numeric_value,
+      assignment_type: assignmentType,
+      evaluator_position_category_id: info?.position_category_id || undefined,
+      evaluator_position_category_name: info?.position_category_name || undefined
+    };
+  };
+
+  // Helper: snapshot-only visibility map for "Назначенные всем ролям"
+  // completed stage -> context only from snapshot (no live lookup)
+  type SnapshotVisibilityQuestion = {
+    skillId?: string | null;
+    qualityId?: string | null;
+    visibilityRestrictionEnabled: boolean | null;
+    visibilityRestrictionType: string | null;
+  };
+
+  const isVisibleForRole = (
+    restrictionEnabled: boolean | null,
+    restrictionType: string | null,
+    role: 'self' | 'manager' | 'peer'
+  ) => !restrictionEnabled || restrictionType !== role;
+
+  const buildAssignedToAllRolesMapFromSnapshot = (
+    competencyIds: string[],
+    questions: SnapshotVisibilityQuestion[],
+    key: 'skillId' | 'qualityId'
+  ): Map<string, { assignedToAllRoles: boolean }> => {
+    const result = new Map<string, {
+      visibleToSelf: boolean;
+      visibleToManager: boolean;
+      visibleToPeer: boolean;
+      assignedToAllRoles: boolean;
+    }>();
+
+    competencyIds.forEach((id) => {
+      result.set(id, {
+        visibleToSelf: false,
+        visibleToManager: false,
+        visibleToPeer: false,
+        assignedToAllRoles: false,
+      });
+    });
+
+    questions.forEach((q) => {
+      const competencyId = q[key];
+      if (!competencyId) return;
+      const current = result.get(competencyId);
+      if (!current) return;
+
+      const visibleToSelf = isVisibleForRole(
+        q.visibilityRestrictionEnabled,
+        q.visibilityRestrictionType,
+        'self'
+      );
+      const visibleToManager = isVisibleForRole(
+        q.visibilityRestrictionEnabled,
+        q.visibilityRestrictionType,
+        'manager'
+      );
+      const visibleToPeer = isVisibleForRole(
+        q.visibilityRestrictionEnabled,
+        q.visibilityRestrictionType,
+        'peer'
+      );
+
+      result.set(competencyId, {
+        visibleToSelf: current.visibleToSelf || visibleToSelf,
+        visibleToManager: current.visibleToManager || visibleToManager,
+        visibleToPeer: current.visibleToPeer || visibleToPeer,
+        assignedToAllRoles: false,
+      });
+    });
+
+    const finalMap = new Map<string, { assignedToAllRoles: boolean }>();
+    result.forEach((value, id) => {
+      finalMap.set(id, {
+        assignedToAllRoles:
+          value.visibleToSelf && value.visibleToManager && value.visibleToPeer,
+      });
+    });
+
+    return finalMap;
+  };
+
   // ============= HARD SKILLS =============
   const fetchHardSkills = async (userId: string, gradeId: string, stageId?: string | null) => {
-    // 1. Получаем навыки из грейда
-    const { data: gradeSkills } = await supabase
-      .from('grade_skills')
-      .select('skill_id, hard_skills(id, name, category_id, category_hard_skills(name))')
-      .eq('grade_id', gradeId);
+    // 1. Получаем навыки из грейда (из снапшота или live)
+    let gradeSkills: any[];
+    if (snapshotContext) {
+      gradeSkills = snapshotContext.gradeSkills.map(gs => {
+        const skill = snapshotContext.hardSkillsMap.get(gs.skillId);
+        return {
+          skill_id: gs.skillId,
+          hard_skills: {
+            id: gs.skillId,
+            name: skill?.name || '',
+            category_id: skill?.categoryId,
+            category_hard_skills: skill?.categoryName ? { name: skill.categoryName } : null
+          }
+        };
+      });
+    } else {
+      const { data } = await supabase
+        .from('grade_skills')
+        .select('skill_id, hard_skills(id, name, category_id, category_hard_skills(name))')
+        .eq('grade_id', gradeId);
+      gradeSkills = data || [];
+    }
 
     if (!gradeSkills || gradeSkills.length === 0) {
       resetState();
@@ -180,85 +523,56 @@ export const useCorrectAssessmentResults = (
 
     const skillIds = gradeSkills.map((gs: any) => gs.hard_skills.id);
 
-    // 2. Получаем исходные оценки с явным запросом assignment_type
-    let query = supabase
-      .from('hard_skill_results')
-      .select(`
-        id,
-        evaluated_user_id,
-        evaluating_user_id,
-        assignment_id,
-        question_id,
-        hard_skill_questions!inner(skill_id),
-        hard_skill_answer_options(numeric_value)
-      `)
-      .eq('evaluated_user_id', userId)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false')
-      .in('hard_skill_questions.skill_id', skillIds);
-    
-    // Фильтр по диагностическому этапу
-    if (stageId) {
-      query = query.eq('diagnostic_stage_id', stageId);
-    }
-    
-    const { data: rawResults, error: resultsError } = await query;
+    // 2. Получаем исходные оценки (snapshot-safe: без live JOINs в snapshot-mode)
+    const rawResults = await fetchRawHardResults(userId, skillIds, stageId);
 
-    if (resultsError) {
-      console.error('Error fetching hard skill results:', resultsError);
-      resetState();
-      return;
-    }
+    // 3. Получаем информацию об assignments (из снапшота или live)
+    const assignmentsMap = await resolveAssignmentsMap(rawResults);
 
-    // 3. Получаем информацию об assignments отдельно
-    const assignmentIds = [...new Set((rawResults || [])
-      .map((r: any) => r.assignment_id)
-      .filter(Boolean))];
-    
-    let assignmentsMap = new Map<string, string>();
-    if (assignmentIds.length > 0) {
-      const { data: assignments } = await supabase
-        .from('survey_360_assignments')
-        .select('id, assignment_type')
-        .in('id', assignmentIds);
-      
-      (assignments || []).forEach((a: any) => {
-        assignmentsMap.set(a.id, a.assignment_type);
-      });
-    }
-
-    // 4. Получаем информацию об оценивающих
-    const evaluatorIds = [...new Set((rawResults || []).map((r: any) => r.evaluating_user_id))];
-    const evalInfo = await fetchEvaluatorsInfo(evaluatorIds);
+    // 4. Получаем информацию об оценивающих (из снапшота или live)
+    const evalInfo = await resolveEvalInfo(rawResults);
     setEvaluatorsInfo(evalInfo);
+
+    console.log('[fetchHardSkills] rawResults count:', rawResults.length);
+    console.log('[fetchHardSkills] assignmentsMap:', Object.fromEntries(assignmentsMap));
 
     // 5. Получаем информацию о видимости навыков для фильтра "Назначенные всем ролям"
     let visibilityMap: Map<string, { assignedToAllRoles: boolean }> | null = null;
     if (skillSetFilter === 'assigned_to_all') {
-      visibilityMap = await getHardSkillsRoleVisibility(skillIds);
+      if (snapshotContext) {
+        visibilityMap = buildAssignedToAllRolesMapFromSnapshot(
+          skillIds,
+          Array.from(snapshotContext.hardQuestionsMap.values()),
+          'skillId'
+        );
+      } else {
+        visibilityMap = await getHardSkillsRoleVisibility(skillIds);
+      }
     }
 
-    // 6. Обрабатываем по каждому навыку
+    // 6. Получаем информацию о подкатегориях для навыков (из снапшота или live)
+    const subcategoryMap = new Map<string, string>();
+    if (snapshotContext) {
+      snapshotContext.hardSkillsMap.forEach((s, id) => {
+        if (s.subcategoryName) subcategoryMap.set(id, s.subcategoryName);
+      });
+    } else {
+      const skillIdsForSubcategories = gradeSkills.map((gs: any) => gs.hard_skills.id);
+      const { data: skillsWithSubcategories } = await supabase
+        .from('hard_skills')
+        .select('id, sub_category_id, sub_category_hard_skills(name)')
+        .in('id', skillIdsForSubcategories);
+      (skillsWithSubcategories || []).forEach((s: any) => {
+        if (s.sub_category_hard_skills?.name) {
+          subcategoryMap.set(s.id, s.sub_category_hard_skills.name);
+        }
+      });
+    }
+
+    // 7. Обрабатываем по каждому навыку
     const skillsData: AssessmentDataWithCounts[] = [];
     const skillsDetailed: CompetencyDetailedResult[] = [];
     let allScores: RawScore[] = [];
-
-    console.log('[fetchHardSkills] rawResults count:', rawResults?.length);
-    console.log('[fetchHardSkills] assignmentsMap:', Object.fromEntries(assignmentsMap));
-
-    // Получаем информацию о подкатегориях для навыков
-    const skillIdsForSubcategories = gradeSkills.map((gs: any) => gs.hard_skills.id);
-    const { data: skillsWithSubcategories } = await supabase
-      .from('hard_skills')
-      .select('id, sub_category_id, sub_category_hard_skills(name)')
-      .in('id', skillIdsForSubcategories);
-    
-    const subcategoryMap = new Map<string, string>();
-    (skillsWithSubcategories || []).forEach((s: any) => {
-      if (s.sub_category_hard_skills?.name) {
-        subcategoryMap.set(s.id, s.sub_category_hard_skills.name);
-      }
-    });
 
     for (const gs of gradeSkills) {
       const skill = (gs as any).hard_skills;
@@ -267,25 +581,13 @@ export const useCorrectAssessmentResults = (
       if (skillSetFilter === 'assigned_to_all' && visibilityMap) {
         const visibility = visibilityMap.get(skill.id);
         if (!visibility?.assignedToAllRoles) {
-          continue; // Пропускаем навык, если он не назначен всем ролям
+          continue;
         }
       }
 
-      const skillScores = (rawResults || []).filter((r: any) => 
-        r.hard_skill_questions?.skill_id === skill.id
-      ).map((r: any) => {
-        const info = evalInfo.get(r.evaluating_user_id);
-        const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
-        
-        return {
-          evaluating_user_id: r.evaluating_user_id,
-          evaluated_user_id: r.evaluated_user_id,
-          numeric_value: (r as any).raw_numeric_value ?? r.hard_skill_answer_options?.numeric_value ?? 0,
-          assignment_type: assignmentType,
-          evaluator_position_category_id: info?.position_category_id || undefined,
-          evaluator_position_category_name: info?.position_category_name || undefined
-        };
-      });
+      const skillScores = rawResults.filter((r) => 
+        r._skill_id === skill.id
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
 
       // Пропускаем навыки без результатов
       if (skillScores.length === 0) {
@@ -322,7 +624,6 @@ export const useCorrectAssessmentResults = (
     }
 
     // Кастомный порядок категорий для Hard-скиллов
-    // Важно: в БД могут быть варианты названий (например, "Платформа 1С"), поэтому используем нормализацию.
     const HARD_SKILLS_CATEGORY_ORDER = [
       'Знания типовых конфигураций',
       'Предметная область',
@@ -337,7 +638,6 @@ export const useCorrectAssessmentResults = (
       const direct = HARD_SKILLS_CATEGORY_ORDER.findIndex((c) => normalizeCategory(c) === normalized);
       if (direct !== -1) return direct;
 
-      // Поддержка вариантов типа "Платформа 1С" → "Платформа"
       if (normalized.startsWith(normalizeCategory('Платформа'))) {
         return HARD_SKILLS_CATEGORY_ORDER.findIndex((c) => normalizeCategory(c) === normalizeCategory('Платформа'));
       }
@@ -345,7 +645,6 @@ export const useCorrectAssessmentResults = (
       return -1;
     };
 
-    // Сортировка: сначала по кастомному порядку категорий, затем по алфавиту
     const sortByCategory = (a: any, b: any) => {
       const indexA = getHardCategoryOrderIndex(a.category_name);
       const indexB = getHardCategoryOrderIndex(b.category_name);
@@ -389,11 +688,28 @@ export const useCorrectAssessmentResults = (
 
   // ============= SOFT SKILLS =============
   const fetchSoftSkills = async (userId: string, gradeId: string, stageId?: string | null) => {
-    // 1. Получаем качества из грейда
-    const { data: gradeQualities } = await supabase
-      .from('grade_qualities')
-      .select('quality_id, soft_skills(id, name, category_id, category_soft_skills(name))')
-      .eq('grade_id', gradeId);
+    // 1. Получаем качества из грейда (из снапшота или live)
+    let gradeQualities: any[];
+    if (snapshotContext) {
+      gradeQualities = snapshotContext.gradeQualities.map(gq => {
+        const quality = snapshotContext.softSkillsMap.get(gq.qualityId);
+        return {
+          quality_id: gq.qualityId,
+          soft_skills: {
+            id: gq.qualityId,
+            name: quality?.name || '',
+            category_id: quality?.categoryId,
+            category_soft_skills: quality?.categoryName ? { name: quality.categoryName } : null
+          }
+        };
+      });
+    } else {
+      const { data } = await supabase
+        .from('grade_qualities')
+        .select('quality_id, soft_skills(id, name, category_id, category_soft_skills(name))')
+        .eq('grade_id', gradeId);
+      gradeQualities = data || [];
+    }
 
     if (!gradeQualities || gradeQualities.length === 0) {
       resetState();
@@ -402,77 +718,48 @@ export const useCorrectAssessmentResults = (
 
     const qualityIds = gradeQualities.map((gq: any) => gq.soft_skills.id);
 
-    // 2. Получаем исходные оценки с явным запросом
-    let query = supabase
-      .from('soft_skill_results')
-      .select(`
-        id,
-        evaluated_user_id,
-        evaluating_user_id,
-        assignment_id,
-        question_id,
-        soft_skill_questions!inner(quality_id),
-        soft_skill_answer_options(numeric_value)
-      `)
-      .eq('evaluated_user_id', userId)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false')
-      .in('soft_skill_questions.quality_id', qualityIds);
-    
-    // Фильтр по диагностическому этапу
-    if (stageId) {
-      query = query.eq('diagnostic_stage_id', stageId);
-    }
-    
-    const { data: rawResults, error: resultsError } = await query;
+    // 2. Получаем исходные оценки (snapshot-safe)
+    const rawResults = await fetchRawSoftResults(userId, qualityIds, stageId);
 
-    if (resultsError) {
-      console.error('Error fetching soft skill results:', resultsError);
-      resetState();
-      return;
-    }
+    // 3. Получаем информацию об assignments (из снапшота или live)
+    const assignmentsMap = await resolveAssignmentsMap(rawResults);
 
-    // 3. Получаем информацию об assignments отдельно
-    const assignmentIds = [...new Set((rawResults || [])
-      .map((r: any) => r.assignment_id)
-      .filter(Boolean))];
-    
-    let assignmentsMap = new Map<string, string>();
-    if (assignmentIds.length > 0) {
-      const { data: assignments } = await supabase
-        .from('survey_360_assignments')
-        .select('id, assignment_type')
-        .in('id', assignmentIds);
-      
-      (assignments || []).forEach((a: any) => {
-        assignmentsMap.set(a.id, a.assignment_type);
-      });
-    }
-
-    // 4. Получаем информацию об оценивающих
-    const evaluatorIds = [...new Set((rawResults || []).map((r: any) => r.evaluating_user_id))];
-    const evalInfo = await fetchEvaluatorsInfo(evaluatorIds);
+    // 4. Получаем информацию об оценивающих (из снапшота или live)
+    const evalInfo = await resolveEvalInfo(rawResults);
     setEvaluatorsInfo(evalInfo);
 
     // 5. Получаем информацию о видимости качеств для фильтра "Назначенные всем ролям"
     let visibilityMap: Map<string, { assignedToAllRoles: boolean }> | null = null;
     if (skillSetFilter === 'assigned_to_all') {
-      visibilityMap = await getSoftSkillsRoleVisibility(qualityIds);
+      if (snapshotContext) {
+        visibilityMap = buildAssignedToAllRolesMapFromSnapshot(
+          qualityIds,
+          Array.from(snapshotContext.softQuestionsMap.values()),
+          'qualityId'
+        );
+      } else {
+        visibilityMap = await getSoftSkillsRoleVisibility(qualityIds);
+      }
     }
 
-    // 6. Получаем информацию о подкатегориях для качеств
-    const qualityIdsForSubcategories = gradeQualities.map((gq: any) => gq.soft_skills.id);
-    const { data: qualitiesWithSubcategories } = await supabase
-      .from('soft_skills')
-      .select('id, sub_category_id, sub_category_soft_skills(name)')
-      .in('id', qualityIdsForSubcategories);
-    
+    // 6. Получаем информацию о подкатегориях для качеств (из снапшота или live)
     const subcategoryMap = new Map<string, string>();
-    (qualitiesWithSubcategories || []).forEach((q: any) => {
-      if (q.sub_category_soft_skills?.name) {
-        subcategoryMap.set(q.id, q.sub_category_soft_skills.name);
-      }
-    });
+    if (snapshotContext) {
+      snapshotContext.softSkillsMap.forEach((s, id) => {
+        if (s.subcategoryName) subcategoryMap.set(id, s.subcategoryName);
+      });
+    } else {
+      const qualityIdsForSubcategories = gradeQualities.map((gq: any) => gq.soft_skills.id);
+      const { data: qualitiesWithSubcategories } = await supabase
+        .from('soft_skills')
+        .select('id, sub_category_id, sub_category_soft_skills(name)')
+        .in('id', qualityIdsForSubcategories);
+      (qualitiesWithSubcategories || []).forEach((q: any) => {
+        if (q.sub_category_soft_skills?.name) {
+          subcategoryMap.set(q.id, q.sub_category_soft_skills.name);
+        }
+      });
+    }
 
     // 7. Обрабатываем по каждому качеству
     const qualitiesData: AssessmentDataWithCounts[] = [];
@@ -482,31 +769,17 @@ export const useCorrectAssessmentResults = (
     for (const gq of gradeQualities) {
       const quality = (gq as any).soft_skills;
       
-      // Фильтр "Назначенные всем ролям"
       if (skillSetFilter === 'assigned_to_all' && visibilityMap) {
         const visibility = visibilityMap.get(quality.id);
         if (!visibility?.assignedToAllRoles) {
-          continue; // Пропускаем качество, если оно не назначено всем ролям
+          continue;
         }
       }
 
-      const qualityScores = (rawResults || []).filter((r: any) => 
-        r.soft_skill_questions?.quality_id === quality.id
-      ).map((r: any) => {
-        const info = evalInfo.get(r.evaluating_user_id);
-        const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
-        
-        return {
-          evaluating_user_id: r.evaluating_user_id,
-          evaluated_user_id: r.evaluated_user_id,
-          numeric_value: (r as any).raw_numeric_value ?? r.soft_skill_answer_options?.numeric_value ?? 0,
-          assignment_type: assignmentType,
-          evaluator_position_category_id: info?.position_category_id || undefined,
-          evaluator_position_category_name: info?.position_category_name || undefined
-        };
-      });
+      const qualityScores = rawResults.filter((r) => 
+        r._quality_id === quality.id
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
 
-      // Пропускаем качества без результатов
       if (qualityScores.length === 0) {
         continue;
       }
@@ -539,7 +812,7 @@ export const useCorrectAssessmentResults = (
       allScores = allScores.concat(qualityScores);
     }
 
-    // Сортировка: сначала по категории А-Я, затем по названию А-Я
+    // Сортировка
     const sortByCategory = (a: any, b: any) => {
       const catA = (a.category_name || 'Яяя').toLowerCase();
       const catB = (b.category_name || 'Яяя').toLowerCase();
@@ -555,7 +828,6 @@ export const useCorrectAssessmentResults = (
       return a.competency_name.toLowerCase().localeCompare(b.competency_name.toLowerCase(), 'ru');
     });
 
-    // Общие результаты
     const overallAggregated = aggregateScores(allScores, userId, positionCategoryFilter);
 
     setRadarData(qualitiesData);
@@ -567,14 +839,27 @@ export const useCorrectAssessmentResults = (
 
   // ============= HARD CATEGORIES =============
   const fetchHardCategories = async (userId: string, gradeId: string, stageId?: string | null) => {
-    // Получаем навыки с категориями
-    const { data: gradeSkills } = await supabase
-      .from('grade_skills')
-      .select(`
-        skill_id,
-        hard_skills(id, name, category_id, category_hard_skills(id, name))
-      `)
-      .eq('grade_id', gradeId);
+    let gradeSkills: any[];
+    if (snapshotContext) {
+      gradeSkills = snapshotContext.gradeSkills.map(gs => {
+        const skill = snapshotContext.hardSkillsMap.get(gs.skillId);
+        return {
+          skill_id: gs.skillId,
+          hard_skills: {
+            id: gs.skillId,
+            name: skill?.name || '',
+            category_id: skill?.categoryId,
+            category_hard_skills: skill?.categoryId ? { id: skill.categoryId, name: skill.categoryName || '' } : null
+          }
+        };
+      });
+    } else {
+      const { data } = await supabase
+        .from('grade_skills')
+        .select(`skill_id, hard_skills(id, name, category_id, category_hard_skills(id, name))`)
+        .eq('grade_id', gradeId);
+      gradeSkills = data || [];
+    }
 
     if (!gradeSkills || gradeSkills.length === 0) {
       resetState();
@@ -583,40 +868,14 @@ export const useCorrectAssessmentResults = (
 
     const skillIds = gradeSkills.map((gs: any) => gs.hard_skills.id);
 
-    // Получаем исходные оценки
-    let query = supabase
-      .from('hard_skill_results')
-      .select(`
-        id,
-        evaluated_user_id,
-        evaluating_user_id,
-        assignment_id,
-        hard_skill_questions!inner(skill_id),
-        hard_skill_answer_options(numeric_value)
-      `)
-      .eq('evaluated_user_id', userId)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false')
-      .in('hard_skill_questions.skill_id', skillIds);
-    
-    // Фильтр по диагностическому этапу
-    if (stageId) {
-      query = query.eq('diagnostic_stage_id', stageId);
-    }
-    
-    const { data: rawResults } = await query;
+    // Получаем исходные оценки (snapshot-safe)
+    const rawResults = await fetchRawHardResults(userId, skillIds, stageId);
 
-    // Получаем assignments отдельно
-    const assignmentIds = [...new Set((rawResults || []).map((r: any) => r.assignment_id).filter(Boolean))];
-    let assignmentsMap = new Map<string, string>();
-    if (assignmentIds.length > 0) {
-      const { data: assignments } = await supabase.from('survey_360_assignments').select('id, assignment_type').in('id', assignmentIds);
-      (assignments || []).forEach((a: any) => assignmentsMap.set(a.id, a.assignment_type));
-    }
+    // Получаем assignments (из снапшота или live)
+    const assignmentsMap = await resolveAssignmentsMap(rawResults);
 
-    // Получаем информацию об оценивающих
-    const evaluatorIds = [...new Set((rawResults || []).map((r: any) => r.evaluating_user_id))];
-    const evalInfo = await fetchEvaluatorsInfo(evaluatorIds);
+    // Получаем информацию об оценивающих (из снапшота или live)
+    const evalInfo = await resolveEvalInfo(rawResults);
     setEvaluatorsInfo(evalInfo);
 
     // Группируем по категориям
@@ -632,20 +891,9 @@ export const useCorrectAssessmentResults = (
       
       if (!category) continue;
 
-      const skillScores = (rawResults || []).filter((r: any) => 
-        r.hard_skill_questions?.skill_id === skill.id
-      ).map((r: any) => {
-        const info = evalInfo.get(r.evaluating_user_id);
-        const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
-        return {
-          evaluating_user_id: r.evaluating_user_id,
-          evaluated_user_id: r.evaluated_user_id,
-          numeric_value: (r as any).raw_numeric_value ?? r.hard_skill_answer_options?.numeric_value ?? 0,
-          assignment_type: assignmentType,
-          evaluator_position_category_id: info?.position_category_id || undefined,
-          evaluator_position_category_name: info?.position_category_name || undefined
-        };
-      });
+      const skillScores = rawResults.filter((r) => 
+        r._skill_id === skill.id
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
 
       if (!categoryMap.has(category.id)) {
         categoryMap.set(category.id, { name: category.name, scores: [], skillsDetailed: [] });
@@ -664,7 +912,6 @@ export const useCorrectAssessmentResults = (
       });
     }
 
-    // Агрегируем по категориям
     const categoriesData: AssessmentDataWithCounts[] = [];
     let allScores: RawScore[] = [];
     let allSkillsDetailed: CompetencyDetailedResult[] = [];
@@ -687,10 +934,27 @@ export const useCorrectAssessmentResults = (
 
   // ============= SOFT CATEGORIES =============
   const fetchSoftCategories = async (userId: string, gradeId: string, stageId?: string | null) => {
-    const { data: gradeQualities } = await supabase
-      .from('grade_qualities')
-      .select(`quality_id, soft_skills(id, name, category_id, category_soft_skills(id, name))`)
-      .eq('grade_id', gradeId);
+    let gradeQualities: any[];
+    if (snapshotContext) {
+      gradeQualities = snapshotContext.gradeQualities.map(gq => {
+        const quality = snapshotContext.softSkillsMap.get(gq.qualityId);
+        return {
+          quality_id: gq.qualityId,
+          soft_skills: {
+            id: gq.qualityId,
+            name: quality?.name || '',
+            category_id: quality?.categoryId,
+            category_soft_skills: quality?.categoryId ? { id: quality.categoryId, name: quality.categoryName || '' } : null
+          }
+        };
+      });
+    } else {
+      const { data } = await supabase
+        .from('grade_qualities')
+        .select(`quality_id, soft_skills(id, name, category_id, category_soft_skills(id, name))`)
+        .eq('grade_id', gradeId);
+      gradeQualities = data || [];
+    }
 
     if (!gradeQualities || gradeQualities.length === 0) {
       resetState();
@@ -699,37 +963,11 @@ export const useCorrectAssessmentResults = (
 
     const qualityIds = gradeQualities.map((gq: any) => gq.soft_skills.id);
 
-    let query = supabase
-      .from('soft_skill_results')
-      .select(`
-        id,
-        evaluated_user_id,
-        evaluating_user_id,
-        assignment_id,
-        soft_skill_questions!inner(quality_id),
-        soft_skill_answer_options(numeric_value)
-      `)
-      .eq('evaluated_user_id', userId)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false')
-      .in('soft_skill_questions.quality_id', qualityIds);
-    
-    // Фильтр по диагностическому этапу
-    if (stageId) {
-      query = query.eq('diagnostic_stage_id', stageId);
-    }
-    
-    const { data: rawResults } = await query;
+    const rawResults = await fetchRawSoftResults(userId, qualityIds, stageId);
 
-    const assignmentIds = [...new Set((rawResults || []).map((r: any) => r.assignment_id).filter(Boolean))];
-    let assignmentsMap = new Map<string, string>();
-    if (assignmentIds.length > 0) {
-      const { data: assignments } = await supabase.from('survey_360_assignments').select('id, assignment_type').in('id', assignmentIds);
-      (assignments || []).forEach((a: any) => assignmentsMap.set(a.id, a.assignment_type));
-    }
+    const assignmentsMap = await resolveAssignmentsMap(rawResults);
 
-    const evaluatorIds = [...new Set((rawResults || []).map((r: any) => r.evaluating_user_id))];
-    const evalInfo = await fetchEvaluatorsInfo(evaluatorIds);
+    const evalInfo = await resolveEvalInfo(rawResults);
     setEvaluatorsInfo(evalInfo);
 
     const categoryMap = new Map<string, { name: string; scores: RawScore[]; qualitiesDetailed: CompetencyDetailedResult[] }>();
@@ -739,20 +977,9 @@ export const useCorrectAssessmentResults = (
       const category = quality.category_soft_skills;
       if (!category) continue;
 
-      const qualityScores = (rawResults || []).filter((r: any) => 
-        r.soft_skill_questions?.quality_id === quality.id
-      ).map((r: any) => {
-        const info = evalInfo.get(r.evaluating_user_id);
-        const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
-        return {
-          evaluating_user_id: r.evaluating_user_id,
-          evaluated_user_id: r.evaluated_user_id,
-          numeric_value: (r as any).raw_numeric_value ?? r.soft_skill_answer_options?.numeric_value ?? 0,
-          assignment_type: assignmentType,
-          evaluator_position_category_id: info?.position_category_id || undefined,
-          evaluator_position_category_name: info?.position_category_name || undefined
-        };
-      });
+      const qualityScores = rawResults.filter((r) => 
+        r._quality_id === quality.id
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
 
       if (!categoryMap.has(category.id)) {
         categoryMap.set(category.id, { name: category.name, scores: [], qualitiesDetailed: [] });
@@ -793,10 +1020,28 @@ export const useCorrectAssessmentResults = (
 
   // ============= HARD SUBCATEGORIES =============
   const fetchHardSubcategories = async (userId: string, gradeId: string, stageId?: string | null) => {
-    const { data: gradeSkills } = await supabase
-      .from('grade_skills')
-      .select(`skill_id, hard_skills(id, name, sub_category_id, sub_category_hard_skills(id, name))`)
-      .eq('grade_id', gradeId);
+    let gradeSkills: any[];
+    if (snapshotContext) {
+      gradeSkills = snapshotContext.gradeSkills.map(gs => {
+        const skill = snapshotContext.hardSkillsMap.get(gs.skillId);
+        const subcat = skill?.subCategoryId ? snapshotContext.hardSubcategoriesMap.get(skill.subCategoryId) : null;
+        return {
+          skill_id: gs.skillId,
+          hard_skills: {
+            id: gs.skillId,
+            name: skill?.name || '',
+            sub_category_id: skill?.subCategoryId,
+            sub_category_hard_skills: subcat ? { id: skill!.subCategoryId, name: subcat.name } : null
+          }
+        };
+      });
+    } else {
+      const { data } = await supabase
+        .from('grade_skills')
+        .select(`skill_id, hard_skills(id, name, sub_category_id, sub_category_hard_skills(id, name))`)
+        .eq('grade_id', gradeId);
+      gradeSkills = data || [];
+    }
 
     if (!gradeSkills || gradeSkills.length === 0) {
       resetState();
@@ -805,37 +1050,11 @@ export const useCorrectAssessmentResults = (
 
     const skillIds = gradeSkills.map((gs: any) => gs.hard_skills.id);
 
-    let query = supabase
-      .from('hard_skill_results')
-      .select(`
-        id,
-        evaluated_user_id,
-        evaluating_user_id,
-        assignment_id,
-        hard_skill_questions!inner(skill_id),
-        hard_skill_answer_options(numeric_value)
-      `)
-      .eq('evaluated_user_id', userId)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false')
-      .in('hard_skill_questions.skill_id', skillIds);
-    
-    // Фильтр по диагностическому этапу
-    if (stageId) {
-      query = query.eq('diagnostic_stage_id', stageId);
-    }
-    
-    const { data: rawResults } = await query;
+    const rawResults = await fetchRawHardResults(userId, skillIds, stageId);
 
-    const assignmentIds = [...new Set((rawResults || []).map((r: any) => r.assignment_id).filter(Boolean))];
-    let assignmentsMap = new Map<string, string>();
-    if (assignmentIds.length > 0) {
-      const { data: assignments } = await supabase.from('survey_360_assignments').select('id, assignment_type').in('id', assignmentIds);
-      (assignments || []).forEach((a: any) => assignmentsMap.set(a.id, a.assignment_type));
-    }
+    const assignmentsMap = await resolveAssignmentsMap(rawResults);
 
-    const evaluatorIds = [...new Set((rawResults || []).map((r: any) => r.evaluating_user_id))];
-    const evalInfo = await fetchEvaluatorsInfo(evaluatorIds);
+    const evalInfo = await resolveEvalInfo(rawResults);
     setEvaluatorsInfo(evalInfo);
 
     const subcategoryMap = new Map<string, { name: string; scores: RawScore[]; skillsDetailed: CompetencyDetailedResult[] }>();
@@ -845,20 +1064,9 @@ export const useCorrectAssessmentResults = (
       const subcategory = skill.sub_category_hard_skills;
       if (!subcategory) continue;
 
-      const skillScores = (rawResults || []).filter((r: any) => 
-        r.hard_skill_questions?.skill_id === skill.id
-      ).map((r: any) => {
-        const info = evalInfo.get(r.evaluating_user_id);
-        const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
-        return {
-          evaluating_user_id: r.evaluating_user_id,
-          evaluated_user_id: r.evaluated_user_id,
-          numeric_value: (r as any).raw_numeric_value ?? r.hard_skill_answer_options?.numeric_value ?? 0,
-          assignment_type: assignmentType,
-          evaluator_position_category_id: info?.position_category_id || undefined,
-          evaluator_position_category_name: info?.position_category_name || undefined
-        };
-      });
+      const skillScores = rawResults.filter((r) => 
+        r._skill_id === skill.id
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
 
       if (!subcategoryMap.has(subcategory.id)) {
         subcategoryMap.set(subcategory.id, { name: subcategory.name, scores: [], skillsDetailed: [] });
@@ -899,10 +1107,28 @@ export const useCorrectAssessmentResults = (
 
   // ============= SOFT SUBCATEGORIES =============
   const fetchSoftSubcategories = async (userId: string, gradeId: string, stageId?: string | null) => {
-    const { data: gradeQualities } = await supabase
-      .from('grade_qualities')
-      .select(`quality_id, soft_skills(id, name, sub_category_id, sub_category_soft_skills(id, name))`)
-      .eq('grade_id', gradeId);
+    let gradeQualities: any[];
+    if (snapshotContext) {
+      gradeQualities = snapshotContext.gradeQualities.map(gq => {
+        const quality = snapshotContext.softSkillsMap.get(gq.qualityId);
+        const subcat = quality?.subCategoryId ? snapshotContext.softSubcategoriesMap.get(quality.subCategoryId) : null;
+        return {
+          quality_id: gq.qualityId,
+          soft_skills: {
+            id: gq.qualityId,
+            name: quality?.name || '',
+            sub_category_id: quality?.subCategoryId,
+            sub_category_soft_skills: subcat ? { id: quality!.subCategoryId, name: subcat.name } : null
+          }
+        };
+      });
+    } else {
+      const { data } = await supabase
+        .from('grade_qualities')
+        .select(`quality_id, soft_skills(id, name, sub_category_id, sub_category_soft_skills(id, name))`)
+        .eq('grade_id', gradeId);
+      gradeQualities = data || [];
+    }
 
     if (!gradeQualities || gradeQualities.length === 0) {
       resetState();
@@ -911,37 +1137,11 @@ export const useCorrectAssessmentResults = (
 
     const qualityIds = gradeQualities.map((gq: any) => gq.soft_skills.id);
 
-    let query = supabase
-      .from('soft_skill_results')
-      .select(`
-        id,
-        evaluated_user_id,
-        evaluating_user_id,
-        assignment_id,
-        soft_skill_questions!inner(quality_id),
-        soft_skill_answer_options(numeric_value)
-      `)
-      .eq('evaluated_user_id', userId)
-      .eq('is_draft', false)
-      .or('is_skip.is.null,is_skip.eq.false')
-      .in('soft_skill_questions.quality_id', qualityIds);
-    
-    // Фильтр по диагностическому этапу
-    if (stageId) {
-      query = query.eq('diagnostic_stage_id', stageId);
-    }
-    
-    const { data: rawResults } = await query;
+    const rawResults = await fetchRawSoftResults(userId, qualityIds, stageId);
 
-    const assignmentIds = [...new Set((rawResults || []).map((r: any) => r.assignment_id).filter(Boolean))];
-    let assignmentsMap = new Map<string, string>();
-    if (assignmentIds.length > 0) {
-      const { data: assignments } = await supabase.from('survey_360_assignments').select('id, assignment_type').in('id', assignmentIds);
-      (assignments || []).forEach((a: any) => assignmentsMap.set(a.id, a.assignment_type));
-    }
+    const assignmentsMap = await resolveAssignmentsMap(rawResults);
 
-    const evaluatorIds = [...new Set((rawResults || []).map((r: any) => r.evaluating_user_id))];
-    const evalInfo = await fetchEvaluatorsInfo(evaluatorIds);
+    const evalInfo = await resolveEvalInfo(rawResults);
     setEvaluatorsInfo(evalInfo);
 
     const subcategoryMap = new Map<string, { name: string; scores: RawScore[]; qualitiesDetailed: CompetencyDetailedResult[] }>();
@@ -951,20 +1151,9 @@ export const useCorrectAssessmentResults = (
       const subcategory = quality.sub_category_soft_skills;
       if (!subcategory) continue;
 
-      const qualityScores = (rawResults || []).filter((r: any) => 
-        r.soft_skill_questions?.quality_id === quality.id
-      ).map((r: any) => {
-        const info = evalInfo.get(r.evaluating_user_id);
-        const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
-        return {
-          evaluating_user_id: r.evaluating_user_id,
-          evaluated_user_id: r.evaluated_user_id,
-          numeric_value: (r as any).raw_numeric_value ?? r.soft_skill_answer_options?.numeric_value ?? 0,
-          assignment_type: assignmentType,
-          evaluator_position_category_id: info?.position_category_id || undefined,
-          evaluator_position_category_name: info?.position_category_name || undefined
-        };
-      });
+      const qualityScores = rawResults.filter((r) => 
+        r._quality_id === quality.id
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
 
       if (!subcategoryMap.has(subcategory.id)) {
         subcategoryMap.set(subcategory.id, { name: subcategory.name, scores: [], qualitiesDetailed: [] });
@@ -1014,27 +1203,21 @@ export const useCorrectAssessmentResults = (
     evaluatedUserId: string,
     positionCategoryFilter: string = 'all'
   ): Omit<AssessmentDataWithCounts, 'name'> => {
-    // Группируем оценки по типу оценивающего
     const selfScores: number[] = [];
     const managerScores: number[] = [];
     const peerScores: number[] = [];
     
-    // Для подсчета уникальных пользователей
     const selfUsers = new Set<string>();
     const managerUsers = new Set<string>();
     const peerUsers = new Set<string>();
 
-    // Для группировки peer по категориям должностей
     const peersByCategory = new Map<string, { scores: number[]; users: Set<string>; name: string }>();
 
     scores.forEach(score => {
-      // Пропускаем нулевые значения - они не должны учитываться в расчете средних
       if (score.numeric_value === 0) return;
 
-      // Определяем тип оценивающего
       const isSelf = score.evaluating_user_id === evaluatedUserId || score.assignment_type === 'self';
       const isManager = score.assignment_type === 'manager';
-      // Всё остальное считаем peer (включая undefined assignment_type, если это не self)
       const isPeer = !isSelf && (score.assignment_type === 'peer' || (!isManager && score.evaluating_user_id !== evaluatedUserId));
 
       if (isSelf) {
@@ -1044,17 +1227,14 @@ export const useCorrectAssessmentResults = (
         managerScores.push(score.numeric_value);
         managerUsers.add(score.evaluating_user_id);
       } else if (isPeer) {
-        // Фильтруем peer по категории должности
         const categoryId = score.evaluator_position_category_id || 'unknown';
         const categoryName = score.evaluator_position_category_name || 'Без категории';
 
-        // Если фильтр "все" или совпадает с категорией
         if (positionCategoryFilter === 'all' || positionCategoryFilter === categoryId) {
           peerScores.push(score.numeric_value);
           peerUsers.add(score.evaluating_user_id);
         }
 
-        // Всегда собираем данные по категориям для отображения
         if (!peersByCategory.has(categoryId)) {
           peersByCategory.set(categoryId, { scores: [], users: new Set(), name: categoryName });
         }
@@ -1064,7 +1244,6 @@ export const useCorrectAssessmentResults = (
       }
     });
 
-    // Вычисляем средние (сумма / количество)
     const self_assessment = selfScores.length > 0 
       ? selfScores.reduce((sum, val) => sum + val, 0) / selfScores.length 
       : null;
@@ -1077,23 +1256,19 @@ export const useCorrectAssessmentResults = (
       ? peerScores.reduce((sum, val) => sum + val, 0) / peerScores.length
       : null;
 
-    // Все кроме self (manager + peers)
     const allExceptSelfScores = [...managerScores, ...peerScores];
     const all_except_self = allExceptSelfScores.length > 0
       ? allExceptSelfScores.reduce((sum, val) => sum + val, 0) / allExceptSelfScores.length
       : null;
 
-    // Все (self + manager + peers)
     const allScores = [...selfScores, ...managerScores, ...peerScores];
     const all_average = allScores.length > 0
       ? allScores.reduce((sum, val) => sum + val, 0) / allScores.length
       : null;
 
-    // Подсчитываем уникальных пользователей
     const allExceptSelfUsers = new Set([...managerUsers, ...peerUsers]);
     const allUsers = new Set([...selfUsers, ...managerUsers, ...peerUsers]);
 
-    // Формируем peers_by_position_category
     const peers_by_position_category: Record<string, { average: number; count: number; name: string }> = {};
     for (const [categoryId, catData] of peersByCategory) {
       if (catData.scores.length > 0) {

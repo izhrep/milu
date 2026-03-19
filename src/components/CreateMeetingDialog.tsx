@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermission } from '@/hooks/usePermission';
@@ -12,7 +13,7 @@ import { Loader2 } from 'lucide-react';
 interface CreateMeetingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateMeeting: (params: { employee_id: string; manager_id: string; stage_id?: string | null }) => Promise<any>;
+  onCreateMeeting: (params: { employee_id: string; manager_id: string; stage_id?: string | null; meeting_date: string }) => Promise<any>;
   stageId?: string | null;
 }
 
@@ -29,11 +30,12 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const { hasPermission: canManageMeetings } = usePermission('meetings.manage');
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [selectedManager, setSelectedManager] = useState<string>('');
+  const [meetingDate, setMeetingDate] = useState<string>('');
+  const [meetingTime, setMeetingTime] = useState<string>('10:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isHrOrAdmin = canManageMeetings;
 
-  // For employees without a manager — load potential managers
   const { data: potentialManagers } = useQuery({
     queryKey: ['potential-managers'],
     queryFn: async () => {
@@ -105,6 +107,8 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   });
 
   const handleCreate = async () => {
+    if (!meetingDate) return;
+
     let employeeId: string;
     let managerId: string;
 
@@ -132,6 +136,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
         employee_id: employeeId,
         manager_id: managerId,
         stage_id: stageId || null,
+        meeting_date: `${meetingDate}T${meetingTime}`,
       });
       onOpenChange(false);
       resetForm();
@@ -145,6 +150,8 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const resetForm = () => {
     setSelectedEmployee('');
     setSelectedManager('');
+    setMeetingDate('');
+    setMeetingTime('10:00');
   };
 
   const managersForEmployee = useMemo(() => {
@@ -155,6 +162,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const needsManualManagerSelect = !isManager && !isHrOrAdmin && !currentUserData?.manager_id;
 
   const canSubmit = () => {
+    if (!meetingDate) return false;
     if (isHrOrAdmin) return selectedEmployee && selectedManager && selectedEmployee !== selectedManager;
     if (isManager) return !!selectedEmployee;
     if (needsManualManagerSelect) return !!selectedManager;
@@ -165,10 +173,29 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Создать встречу 1:1</DialogTitle>
+          <DialogTitle>Создать встречу one-to-one</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Date & time (required) */}
+          <div className="space-y-2">
+            <Label>Дата и время встречи *</Label>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                className="flex-1"
+                value={meetingDate}
+                onChange={(e) => setMeetingDate(e.target.value)}
+              />
+              <Input
+                type="time"
+                className="w-28"
+                value={meetingTime}
+                onChange={(e) => setMeetingTime(e.target.value)}
+              />
+            </div>
+          </div>
+
           {!isManager && !isHrOrAdmin && !needsManualManagerSelect && (
             <div className="text-sm text-muted-foreground">
               Встреча будет создана с вашим руководителем
@@ -190,9 +217,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {potentialManagers?.map(u => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {formatUserName(u)}
-                    </SelectItem>
+                    <SelectItem key={u.id} value={u.id}>{formatUserName(u)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -208,9 +233,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {subordinates?.map(sub => (
-                    <SelectItem key={sub.id} value={sub.id}>
-                      {formatUserName(sub)}
-                    </SelectItem>
+                    <SelectItem key={sub.id} value={sub.id}>{formatUserName(sub)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -227,9 +250,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {allUsers?.map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {formatUserName(u)}
-                      </SelectItem>
+                      <SelectItem key={u.id} value={u.id}>{formatUserName(u)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -242,9 +263,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {managersForEmployee.map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {formatUserName(u)}
-                      </SelectItem>
+                      <SelectItem key={u.id} value={u.id}>{formatUserName(u)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

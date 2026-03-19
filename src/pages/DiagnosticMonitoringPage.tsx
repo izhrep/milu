@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { OfflineSurveyManager } from '@/components/OfflineSurveyManager';
+import { loadSnapshotForStage } from '@/utils/loadSnapshotForStage';
 
 interface ParticipantProgress {
   user_id: string;
@@ -34,8 +35,8 @@ export const DiagnosticMonitoringPage = () => {
   const { user } = useAuth();
   const { hasPermission: canManageParticipants, isLoading: participantsLoading } = usePermission('diagnostics.manage_participants');
   const { hasPermission: canViewAdminPanel, isLoading: adminLoading } = usePermission('security.view_admin_panel');
-  const { hasPermission: canViewAllDiagnostics } = usePermission('diagnostics.view_results');
-  const { hasPermission: canViewTeam } = usePermission('team.view');
+  const { hasPermission: canViewAllDiagnostics, isLoading: diagnosticsPermLoading } = usePermission('diagnostics.view_results');
+  const { hasPermission: canViewTeam, isLoading: teamPermLoading } = usePermission('team.view');
   const { stages, isLoading: stagesLoading } = useDiagnosticStages();
   const { users } = useUsers();
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
@@ -57,14 +58,25 @@ export const DiagnosticMonitoringPage = () => {
 
   // Permission-based access control
   // isManager: can view team but not all diagnostics (for filtering to subordinates only)
-  const isManager = canViewTeam && !canViewAllDiagnostics;
+  const isManager = canViewTeam && !canViewAdminPanel;
   const isAdminOrHR = canViewAllDiagnostics;
 
-  // Get subordinate IDs for managers
+  // Get subordinate IDs for managers (using subtree)
+  const { data: subtreeIdsData } = useQuery({
+    queryKey: ['management-subtree-ids-monitoring', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .rpc('get_management_subtree_ids', { _manager_id: user.id });
+      if (error) throw error;
+      return (data as string[]) || [];
+    },
+    enabled: isManager && !!user?.id,
+  });
   const subordinateIds = useMemo(() => {
-    if (!isManager || !user?.id) return [];
-    return users.filter(u => u.manager_id === user.id).map(u => u.id);
-  }, [isManager, user?.id, users]);
+    if (!isManager) return [];
+    return subtreeIdsData || [];
+  }, [isManager, subtreeIdsData]);
 
   // Fetch participants progress for selected stage
   const { data: participantsProgress, isLoading: progressLoading } = useQuery({
@@ -217,9 +229,9 @@ export const DiagnosticMonitoringPage = () => {
     enabled: !!selectedStageId,
   });
 
-  const permissionLoading = participantsLoading || adminLoading;
+  const permissionLoading = participantsLoading || adminLoading || diagnosticsPermLoading || teamPermLoading;
   // Allow access for admin/hr_bp with permissions OR managers
-  const hasAccess = canManageParticipants || canViewAdminPanel || isManager;
+  const hasAccess = canManageParticipants || canViewAdminPanel || canViewAllDiagnostics || canViewTeam;
 
   // Проверка доступа
   if (permissionLoading) {
@@ -264,13 +276,20 @@ export const DiagnosticMonitoringPage = () => {
     try {
       toast.loading('Формирование отчета...');
 
+      const isCompletedStage = selectedStage?.status === 'completed';
+
+      // For completed stages, load snapshot reference data
+      let snapshot: Awaited<ReturnType<typeof loadSnapshotForStage>> = null;
+      if (isCompletedStage) {
+        snapshot = await loadSnapshotForStage(selectedStageId);
+      }
+
       // Получаем участников этапа
       let participantsQuery = supabase
         .from('diagnostic_stage_participants')
         .select('user_id')
         .eq('stage_id', selectedStageId);
 
-      // For managers, filter to only their subordinates
       if (isManager && subordinateIds.length > 0) {
         participantsQuery = participantsQuery.in('user_id', subordinateIds);
       } else if (isManager && subordinateIds.length === 0) {
@@ -289,149 +308,218 @@ export const DiagnosticMonitoringPage = () => {
 
       const exportData: any[] = [];
 
-      // Обрабатываем каждого участника
       for (const participant of participants) {
         const user = users.find(u => u.id === participant.user_id);
         const userName = getFullName(user) || 'Не указано';
 
-        const { data: hardSkillResults, error: hardSkillError } = await supabase
-          .from('hard_skill_results')
-          .select(`
-            question_id,
-            answer_option_id,
-            evaluating_user_id,
-            created_at,
-            comment,
-            is_anonymous_comment,
-            is_skip,
-            hard_skill_questions!inner (
-              question_text,
-              skill_id,
-              hard_skills!inner (
-                name
-              )
-            ),
-            hard_skill_answer_options (
-              title,
-              numeric_value
-            )
-          `)
-          .eq('evaluated_user_id', participant.user_id)
-          .eq('diagnostic_stage_id', selectedStageId);
+        if (snapshot) {
+          // ===== SNAPSHOT MODE: fetch raw results, resolve via snapshot maps =====
+          const [hardRes, softRes] = await Promise.all([
+            supabase
+              .from('hard_skill_results')
+              .select('question_id, raw_numeric_value, evaluating_user_id, created_at, comment, is_anonymous_comment, is_skip')
+              .eq('evaluated_user_id', participant.user_id)
+              .eq('diagnostic_stage_id', selectedStageId),
+            supabase
+              .from('soft_skill_results')
+              .select('question_id, raw_numeric_value, evaluating_user_id, created_at, comment, is_anonymous_comment, is_skip')
+              .eq('evaluated_user_id', participant.user_id)
+              .eq('diagnostic_stage_id', selectedStageId),
+          ]);
 
-        // Обрабатываем результаты хард скиллов
-        if (hardSkillError) {
-          console.error('Error fetching hard skill results:', hardSkillError);
-        }
-        
-        if (hardSkillResults) {
-          for (const result of hardSkillResults) {
-            const question = result.hard_skill_questions as any;
-            const answer = result.hard_skill_answer_options as any;
-            const skill = question?.hard_skills as any;
-            const isSkipped = (result as any).is_skip === true;
-            
-            // Получаем имя оценивающего
+          // Process hard results via snapshot
+          for (const result of hardRes.data || []) {
+            const q = snapshot.hardQuestionsMap.get(result.question_id);
+            const skill = q?.skillId ? snapshot.hardSkillsMap.get(q.skillId) : null;
+            const isSkipped = result.is_skip === true;
+
+            // Resolve answer title from snapshot answer options
+            let answerTitle = 'Не указано';
+            if (!isSkipped && result.raw_numeric_value != null && q?.answerCategoryId) {
+              for (const [, opt] of snapshot.hardAnswerOptionsMap) {
+                if (opt.answerCategoryId === q.answerCategoryId && opt.numericValue === result.raw_numeric_value) {
+                  answerTitle = opt.title;
+                  break;
+                }
+              }
+            }
+
             const evaluatingUser = users.find(u => u.id === result.evaluating_user_id);
             const evaluatingUserName = getFullName(evaluatingUser) || 'Не указано';
-            
-            // Определяем тип оценщика
-            const isManager = user?.manager_id === result.evaluating_user_id;
+            const isManagerEval = user?.manager_id === result.evaluating_user_id;
             const isSelf = participant.user_id === result.evaluating_user_id;
-            const evaluatorType = isSelf ? 'Самооценка' : isManager ? 'Руководитель' : 'Коллега';
-            
-            // Отображение имени оценщика - всегда ФИО
-            const displayEvaluatorName = evaluatingUserName;
-            
-            // Форматируем дату и время
-            const dateTime = result.created_at 
-              ? new Date(result.created_at).toLocaleString('ru-RU')
-              : 'Не указано';
+            const evaluatorType = isSelf ? 'Самооценка' : isManagerEval ? 'Руководитель' : 'Коллега';
+            const dateTime = result.created_at ? new Date(result.created_at).toLocaleString('ru-RU') : 'Не указано';
 
             exportData.push({
               'Оцениваемый': userName,
-              'Оценивающий': displayEvaluatorName,
+              'Оценивающий': evaluatingUserName,
               'Роль оценщика': evaluatorType,
               'Дата и время': dateTime,
               'Тип компетенции': 'Навык',
               'Компетенция': skill?.name || 'Не указано',
-              'Вопрос': question?.question_text || 'Не указано',
-              'Ответ': isSkipped ? 'Не могу ответить' : (answer?.title || 'Не указано'),
-              'Балл': isSkipped ? '' : ((result as any).raw_numeric_value ?? answer?.numeric_value ?? 0),
+              'Вопрос': q?.questionText || 'Не указано',
+              'Ответ': isSkipped ? 'Не могу ответить' : answerTitle,
+              'Балл': isSkipped ? '' : (result.raw_numeric_value ?? 0),
               'Комментарий': result.comment || '',
-              'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет'
+              'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет',
             });
           }
-        }
 
-        // Получаем результаты по качествам (софт скиллы)
-        const { data: softSkillResults, error: softSkillError } = await supabase
-          .from('soft_skill_results')
-          .select(`
-            question_id,
-            answer_option_id,
-            evaluating_user_id,
-            created_at,
-            comment,
-            is_anonymous_comment,
-            is_skip,
-            soft_skill_questions!inner (
-              question_text,
-              quality_id,
-              soft_skills!soft_skill_questions_soft_skill_id_fkey (
-                name
-              )
-            ),
-            soft_skill_answer_options (
-              title,
-              numeric_value
-            )
-          `)
-          .eq('evaluated_user_id', participant.user_id)
-          .eq('diagnostic_stage_id', selectedStageId);
+          // Process soft results via snapshot
+          for (const result of softRes.data || []) {
+            const q = snapshot.softQuestionsMap.get(result.question_id);
+            const quality = q?.qualityId ? snapshot.softSkillsMap.get(q.qualityId) : null;
+            const isSkipped = result.is_skip === true;
 
-        // Обрабатываем результаты софт скиллов
-        if (softSkillError) {
-          console.error('Error fetching soft skill results:', softSkillError);
-        }
-        
-        if (softSkillResults) {
-          for (const result of softSkillResults) {
-            const question = result.soft_skill_questions as any;
-            const answer = result.soft_skill_answer_options as any;
-            const quality = question?.soft_skills as any;
-            const isSkipped = (result as any).is_skip === true;
-            
-            // Получаем имя оценивающего
+            let answerTitle = 'Не указано';
+            if (!isSkipped && result.raw_numeric_value != null && q?.answerCategoryId) {
+              for (const [, opt] of snapshot.softAnswerOptionsMap) {
+                if (opt.answerCategoryId === q.answerCategoryId && opt.numericValue === result.raw_numeric_value) {
+                  answerTitle = opt.title;
+                  break;
+                }
+              }
+            }
+
             const evaluatingUser = users.find(u => u.id === result.evaluating_user_id);
             const evaluatingUserName = getFullName(evaluatingUser) || 'Не указано';
-            
-            // Определяем тип оценщика
-            const isManager = user?.manager_id === result.evaluating_user_id;
+            const isManagerEval = user?.manager_id === result.evaluating_user_id;
             const isSelf = participant.user_id === result.evaluating_user_id;
-            const evaluatorType = isSelf ? 'Самооценка' : isManager ? 'Руководитель' : 'Коллега';
-            
-            // Отображение имени оценщика - всегда ФИО
-            const displayEvaluatorName = evaluatingUserName;
-            
-            // Форматируем дату и время
-            const dateTime = result.created_at 
-              ? new Date(result.created_at).toLocaleString('ru-RU')
-              : 'Не указано';
+            const evaluatorType = isSelf ? 'Самооценка' : isManagerEval ? 'Руководитель' : 'Коллега';
+            const dateTime = result.created_at ? new Date(result.created_at).toLocaleString('ru-RU') : 'Не указано';
 
             exportData.push({
               'Оцениваемый': userName,
-              'Оценивающий': displayEvaluatorName,
+              'Оценивающий': evaluatingUserName,
               'Роль оценщика': evaluatorType,
               'Дата и время': dateTime,
               'Тип компетенции': 'Качество',
               'Компетенция': quality?.name || 'Не указано',
-              'Вопрос': question?.question_text || 'Не указано',
-              'Ответ': isSkipped ? 'Не могу ответить' : (answer?.title || 'Не указано'),
-              'Балл': isSkipped ? '' : ((result as any).raw_numeric_value ?? answer?.numeric_value ?? 0),
+              'Вопрос': q?.questionText || 'Не указано',
+              'Ответ': isSkipped ? 'Не могу ответить' : answerTitle,
+              'Балл': isSkipped ? '' : (result.raw_numeric_value ?? 0),
               'Комментарий': result.comment || '',
-              'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет'
+              'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет',
             });
+          }
+
+        } else {
+          // ===== LIVE MODE: original JOINs =====
+          const { data: hardSkillResults, error: hardSkillError } = await supabase
+            .from('hard_skill_results')
+            .select(`
+              question_id,
+              answer_option_id,
+              raw_numeric_value,
+              evaluating_user_id,
+              created_at,
+              comment,
+              is_anonymous_comment,
+              is_skip,
+              hard_skill_questions!inner (
+                question_text,
+                skill_id,
+                hard_skills!inner (
+                  name
+                )
+              ),
+              hard_skill_answer_options (
+                title,
+                numeric_value
+              )
+            `)
+            .eq('evaluated_user_id', participant.user_id)
+            .eq('diagnostic_stage_id', selectedStageId);
+
+          if (hardSkillError) console.error('Error fetching hard skill results:', hardSkillError);
+
+          if (hardSkillResults) {
+            for (const result of hardSkillResults) {
+              const question = result.hard_skill_questions as any;
+              const answer = result.hard_skill_answer_options as any;
+              const skill = question?.hard_skills as any;
+              const isSkipped = (result as any).is_skip === true;
+
+              const evaluatingUser = users.find(u => u.id === result.evaluating_user_id);
+              const evaluatingUserName = getFullName(evaluatingUser) || 'Не указано';
+              const isManagerEval = user?.manager_id === result.evaluating_user_id;
+              const isSelf = participant.user_id === result.evaluating_user_id;
+              const evaluatorType = isSelf ? 'Самооценка' : isManagerEval ? 'Руководитель' : 'Коллега';
+              const dateTime = result.created_at ? new Date(result.created_at).toLocaleString('ru-RU') : 'Не указано';
+
+              exportData.push({
+                'Оцениваемый': userName,
+                'Оценивающий': evaluatingUserName,
+                'Роль оценщика': evaluatorType,
+                'Дата и время': dateTime,
+                'Тип компетенции': 'Навык',
+                'Компетенция': skill?.name || 'Не указано',
+                'Вопрос': question?.question_text || 'Не указано',
+                'Ответ': isSkipped ? 'Не могу ответить' : (answer?.title || 'Не указано'),
+                'Балл': isSkipped ? '' : (result.raw_numeric_value ?? answer?.numeric_value ?? 0),
+                'Комментарий': result.comment || '',
+                'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет',
+              });
+            }
+          }
+
+          const { data: softSkillResults, error: softSkillError } = await supabase
+            .from('soft_skill_results')
+            .select(`
+              question_id,
+              answer_option_id,
+              raw_numeric_value,
+              evaluating_user_id,
+              created_at,
+              comment,
+              is_anonymous_comment,
+              is_skip,
+              soft_skill_questions!inner (
+                question_text,
+                quality_id,
+                soft_skills!soft_skill_questions_soft_skill_id_fkey (
+                  name
+                )
+              ),
+              soft_skill_answer_options (
+                title,
+                numeric_value
+              )
+            `)
+            .eq('evaluated_user_id', participant.user_id)
+            .eq('diagnostic_stage_id', selectedStageId);
+
+          if (softSkillError) console.error('Error fetching soft skill results:', softSkillError);
+
+          if (softSkillResults) {
+            for (const result of softSkillResults) {
+              const question = result.soft_skill_questions as any;
+              const answer = result.soft_skill_answer_options as any;
+              const quality = question?.soft_skills as any;
+              const isSkipped = (result as any).is_skip === true;
+
+              const evaluatingUser = users.find(u => u.id === result.evaluating_user_id);
+              const evaluatingUserName = getFullName(evaluatingUser) || 'Не указано';
+              const isManagerEval = user?.manager_id === result.evaluating_user_id;
+              const isSelf = participant.user_id === result.evaluating_user_id;
+              const evaluatorType = isSelf ? 'Самооценка' : isManagerEval ? 'Руководитель' : 'Коллега';
+              const dateTime = result.created_at ? new Date(result.created_at).toLocaleString('ru-RU') : 'Не указано';
+
+              exportData.push({
+                'Оцениваемый': userName,
+                'Оценивающий': evaluatingUserName,
+                'Роль оценщика': evaluatorType,
+                'Дата и время': dateTime,
+                'Тип компетенции': 'Качество',
+                'Компетенция': quality?.name || 'Не указано',
+                'Вопрос': question?.question_text || 'Не указано',
+                'Ответ': isSkipped ? 'Не могу ответить' : (answer?.title || 'Не указано'),
+                'Балл': isSkipped ? '' : (result.raw_numeric_value ?? answer?.numeric_value ?? 0),
+                'Комментарий': result.comment || '',
+                'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет',
+              });
+            }
           }
         }
       }
@@ -442,26 +530,17 @@ export const DiagnosticMonitoringPage = () => {
         return;
       }
 
-      // Создаем книгу Excel
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Результаты диагностики');
 
-      // Настраиваем ширину колонок
       const maxWidth = 50;
       const wscols = [
-        { wch: 30 }, // Оцениваемый
-        { wch: 30 }, // Оценивающий
-        { wch: 20 }, // Дата и время
-        { wch: 15 }, // Тип компетенции
-        { wch: 30 }, // Компетенция
-        { wch: maxWidth }, // Вопрос
-        { wch: 20 }, // Ответ
-        { wch: 10 }  // Балл
+        { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 15 },
+        { wch: 30 }, { wch: maxWidth }, { wch: 20 }, { wch: 10 },
       ];
       worksheet['!cols'] = wscols;
 
-      // Сохраняем файл
       const fileName = `Диагностика_${selectedStage?.period || 'отчет'}_${new Date().toLocaleDateString('ru-RU')}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
@@ -634,6 +713,7 @@ export const DiagnosticMonitoringPage = () => {
           <OfflineSurveyManager
             stageId={selectedStageId}
             stagePeriod={selectedStage?.period || ''}
+            stageStatus={selectedStage?.status}
             users={users}
             participantUserIds={participantUserIds || []}
           />

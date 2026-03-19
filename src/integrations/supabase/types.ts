@@ -101,7 +101,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          question_type: string | null
+          question_type: string
           updated_at: string
         }
         Insert: {
@@ -110,7 +110,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
-          question_type?: string | null
+          question_type?: string
           updated_at?: string
         }
         Update: {
@@ -119,10 +119,52 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-          question_type?: string | null
+          question_type?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      answer_category_snapshots: {
+        Row: {
+          comment_required: boolean | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+          question_type: string | null
+        }
+        Insert: {
+          comment_required?: boolean | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+          question_type?: string | null
+        }
+        Update: {
+          comment_required?: boolean | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+          question_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_category_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "answer_category_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "answer_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_log: {
         Row: {
@@ -661,6 +703,7 @@ export type Database = {
           hard_scale_reversed: boolean
           hard_skills_enabled: boolean
           id: string
+          johari_rules: Json
           name: string
           open_questions_config: Json
           soft_scale_max: number
@@ -680,6 +723,7 @@ export type Database = {
           hard_scale_reversed?: boolean
           hard_skills_enabled?: boolean
           id?: string
+          johari_rules?: Json
           name: string
           open_questions_config?: Json
           soft_scale_max?: number
@@ -699,6 +743,7 @@ export type Database = {
           hard_scale_reversed?: boolean
           hard_skills_enabled?: boolean
           id?: string
+          johari_rules?: Json
           name?: string
           open_questions_config?: Json
           soft_scale_max?: number
@@ -714,6 +759,105 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnostic_result_snapshots: {
+        Row: {
+          created_at: string
+          data_hash: string
+          evaluated_user_id: string
+          id: string
+          is_current: boolean
+          reason: string | null
+          stage_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          data_hash: string
+          evaluated_user_id: string
+          id?: string
+          is_current?: boolean
+          reason?: string | null
+          stage_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          data_hash?: string
+          evaluated_user_id?: string
+          id?: string
+          is_current?: boolean
+          reason?: string | null
+          stage_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_result_snapshots_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_result_snapshots_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnostic_snapshot_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          evaluated_user_id: string
+          id: string
+          last_error: string | null
+          processed_at: string | null
+          reason: string | null
+          stage_id: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          evaluated_user_id: string
+          id?: string
+          last_error?: string | null
+          processed_at?: string | null
+          reason?: string | null
+          stage_id: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          evaluated_user_id?: string
+          id?: string
+          last_error?: string | null
+          processed_at?: string | null
+          reason?: string | null
+          stage_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_snapshot_jobs_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_snapshot_jobs_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -818,6 +962,63 @@ export type Database = {
           },
         ]
       }
+      diagnostic_user_snapshots: {
+        Row: {
+          department_name: string | null
+          diagnostic_id: string
+          entity_id: string
+          first_name: string | null
+          grade_id: string | null
+          grade_name: string | null
+          id: string
+          last_name: string | null
+          middle_name: string | null
+          position_category_name: string | null
+          position_name: string | null
+        }
+        Insert: {
+          department_name?: string | null
+          diagnostic_id: string
+          entity_id: string
+          first_name?: string | null
+          grade_id?: string | null
+          grade_name?: string | null
+          id?: string
+          last_name?: string | null
+          middle_name?: string | null
+          position_category_name?: string | null
+          position_name?: string | null
+        }
+        Update: {
+          department_name?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          first_name?: string | null
+          grade_id?: string | null
+          grade_name?: string | null
+          id?: string
+          last_name?: string | null
+          middle_name?: string | null
+          position_category_name?: string | null
+          position_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_user_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_user_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_stage_snapshots: {
         Row: {
           assignments_json: Json
@@ -895,6 +1096,90 @@ export type Database = {
             columns: ["quality_id"]
             isOneToOne: false
             referencedRelation: "soft_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grade_quality_snapshots: {
+        Row: {
+          diagnostic_id: string
+          entity_id: string
+          grade_id: string
+          id: string
+          quality_id: string
+          target_level: number
+        }
+        Insert: {
+          diagnostic_id: string
+          entity_id: string
+          grade_id: string
+          id?: string
+          quality_id: string
+          target_level: number
+        }
+        Update: {
+          diagnostic_id?: string
+          entity_id?: string
+          grade_id?: string
+          id?: string
+          quality_id?: string
+          target_level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grade_quality_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_quality_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "grade_qualities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grade_skill_snapshots: {
+        Row: {
+          diagnostic_id: string
+          entity_id: string
+          grade_id: string
+          id: string
+          skill_id: string
+          target_level: number
+        }
+        Insert: {
+          diagnostic_id: string
+          entity_id: string
+          grade_id: string
+          id?: string
+          skill_id: string
+          target_level: number
+        }
+        Update: {
+          diagnostic_id?: string
+          entity_id?: string
+          grade_id?: string
+          id?: string
+          skill_id?: string
+          target_level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grade_skill_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_skill_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "grade_skills"
             referencedColumns: ["id"]
           },
         ]
@@ -1018,6 +1303,57 @@ export type Database = {
           },
         ]
       }
+      hard_skill_answer_option_snapshots: {
+        Row: {
+          answer_category_id: string | null
+          description: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          level_value: number | null
+          numeric_value: number
+          order_index: number | null
+          title: string
+        }
+        Insert: {
+          answer_category_id?: string | null
+          description?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          level_value?: number | null
+          numeric_value: number
+          order_index?: number | null
+          title: string
+        }
+        Update: {
+          answer_category_id?: string | null
+          description?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          level_value?: number | null
+          numeric_value?: number
+          order_index?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_skill_answer_option_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_answer_option_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "hard_skill_answer_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hard_skill_answer_options: {
         Row: {
           answer_category_id: string | null
@@ -1058,6 +1394,99 @@ export type Database = {
             columns: ["answer_category_id"]
             isOneToOne: false
             referencedRelation: "answer_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hard_skill_category_snapshots: {
+        Row: {
+          description: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          description?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          description?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_skill_category_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_category_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "category_hard_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hard_skill_question_snapshots: {
+        Row: {
+          answer_category_id: string | null
+          comment_required_override: boolean | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          order_index: number | null
+          question_text: string
+          skill_id: string | null
+          visibility_restriction_enabled: boolean | null
+          visibility_restriction_type: string | null
+        }
+        Insert: {
+          answer_category_id?: string | null
+          comment_required_override?: boolean | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          order_index?: number | null
+          question_text: string
+          skill_id?: string | null
+          visibility_restriction_enabled?: boolean | null
+          visibility_restriction_type?: string | null
+        }
+        Update: {
+          answer_category_id?: string | null
+          comment_required_override?: boolean | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          order_index?: number | null
+          question_text?: string
+          skill_id?: string | null
+          visibility_restriction_enabled?: boolean | null
+          visibility_restriction_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_skill_question_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_question_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "hard_skill_questions"
             referencedColumns: ["id"]
           },
         ]
@@ -1213,6 +1642,99 @@ export type Database = {
           },
         ]
       }
+      hard_skill_snapshots: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          description: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+          sub_category_id: string | null
+          subcategory_name: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          category_name?: string | null
+          description?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+          sub_category_id?: string | null
+          subcategory_name?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          category_name?: string | null
+          description?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+          sub_category_id?: string | null
+          subcategory_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_skill_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "hard_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hard_skill_subcategory_snapshots: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_id?: string | null
+          category_name?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category_id?: string | null
+          category_name?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_skill_subcategory_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_subcategory_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "sub_category_hard_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hard_skills: {
         Row: {
           category_id: string | null
@@ -1261,11 +1783,11 @@ export type Database = {
       johari_ai_snapshots: {
         Row: {
           ai_text: string | null
+          comments_classification: Json | null
           created_at: string | null
           created_by: string | null
           data_hash: string
           evaluated_user_id: string
-          external_comments_review: Json | null
           id: string
           is_reviewed: boolean | null
           metrics_json: Json
@@ -1279,11 +1801,11 @@ export type Database = {
         }
         Insert: {
           ai_text?: string | null
+          comments_classification?: Json | null
           created_at?: string | null
           created_by?: string | null
           data_hash: string
           evaluated_user_id: string
-          external_comments_review?: Json | null
           id?: string
           is_reviewed?: boolean | null
           metrics_json: Json
@@ -1297,11 +1819,11 @@ export type Database = {
         }
         Update: {
           ai_text?: string | null
+          comments_classification?: Json | null
           created_at?: string | null
           created_by?: string | null
           data_hash?: string
           evaluated_user_id?: string
-          external_comments_review?: Json | null
           id?: string
           is_reviewed?: boolean | null
           metrics_json?: Json
@@ -1458,6 +1980,44 @@ export type Database = {
             foreignKeyName: "meeting_decisions_meeting_id_fkey"
             columns: ["meeting_id"]
             isOneToOne: false
+            referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_manager_fields: {
+        Row: {
+          created_at: string | null
+          id: string
+          meeting_id: string
+          mgr_development_comment: string | null
+          mgr_news: string | null
+          mgr_praise: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          meeting_id: string
+          mgr_development_comment?: string | null
+          mgr_news?: string | null
+          mgr_praise?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          meeting_id?: string
+          mgr_development_comment?: string | null
+          mgr_news?: string | null
+          mgr_praise?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_manager_fields_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: true
             referencedRelation: "one_on_one_meetings"
             referencedColumns: ["id"]
           },
@@ -1620,6 +2180,11 @@ export type Database = {
           approved_at: string | null
           created_at: string
           created_by: string | null
+          emp_mood: string | null
+          emp_news: string | null
+          emp_problems: string | null
+          emp_questions: string | null
+          emp_successes: string | null
           employee_id: string
           energy_gained: string | null
           energy_lost: string | null
@@ -1630,6 +2195,7 @@ export type Database = {
           manager_id: string
           meeting_date: string | null
           meeting_link: string | null
+          meeting_summary: string | null
           previous_decisions_debrief: string | null
           return_reason: string | null
           returned_at: string | null
@@ -1639,12 +2205,19 @@ export type Database = {
           status_at_stage_end: string | null
           stoppers: string | null
           submitted_at: string | null
+          summary_saved_at: string | null
+          summary_saved_by: string | null
           updated_at: string
         }
         Insert: {
           approved_at?: string | null
           created_at?: string
           created_by?: string | null
+          emp_mood?: string | null
+          emp_news?: string | null
+          emp_problems?: string | null
+          emp_questions?: string | null
+          emp_successes?: string | null
           employee_id: string
           energy_gained?: string | null
           energy_lost?: string | null
@@ -1655,6 +2228,7 @@ export type Database = {
           manager_id: string
           meeting_date?: string | null
           meeting_link?: string | null
+          meeting_summary?: string | null
           previous_decisions_debrief?: string | null
           return_reason?: string | null
           returned_at?: string | null
@@ -1664,12 +2238,19 @@ export type Database = {
           status_at_stage_end?: string | null
           stoppers?: string | null
           submitted_at?: string | null
+          summary_saved_at?: string | null
+          summary_saved_by?: string | null
           updated_at?: string
         }
         Update: {
           approved_at?: string | null
           created_at?: string
           created_by?: string | null
+          emp_mood?: string | null
+          emp_news?: string | null
+          emp_problems?: string | null
+          emp_questions?: string | null
+          emp_successes?: string | null
           employee_id?: string
           energy_gained?: string | null
           energy_lost?: string | null
@@ -1680,6 +2261,7 @@ export type Database = {
           manager_id?: string
           meeting_date?: string | null
           meeting_link?: string | null
+          meeting_summary?: string | null
           previous_decisions_debrief?: string | null
           return_reason?: string | null
           returned_at?: string | null
@@ -1689,6 +2271,8 @@ export type Database = {
           status_at_stage_end?: string | null
           stoppers?: string | null
           submitted_at?: string | null
+          summary_saved_at?: string | null
+          summary_saved_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1713,6 +2297,13 @@ export type Database = {
             referencedRelation: "meeting_stages"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "one_on_one_meetings_summary_saved_by_fkey"
+            columns: ["summary_saved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       open_question_results: {
@@ -1724,6 +2315,7 @@ export type Database = {
           evaluated_user_id: string
           evaluating_user_id: string
           id: string
+          is_anonymous: boolean
           is_draft: boolean
           open_question_id: string
           updated_at: string
@@ -1736,6 +2328,7 @@ export type Database = {
           evaluated_user_id: string
           evaluating_user_id: string
           id?: string
+          is_anonymous?: boolean
           is_draft?: boolean
           open_question_id: string
           updated_at?: string
@@ -1748,6 +2341,7 @@ export type Database = {
           evaluated_user_id?: string
           evaluating_user_id?: string
           id?: string
+          is_anonymous?: boolean
           is_draft?: boolean
           open_question_id?: string
           updated_at?: string
@@ -2040,6 +2634,57 @@ export type Database = {
           },
         ]
       }
+      soft_skill_answer_option_snapshots: {
+        Row: {
+          answer_category_id: string | null
+          description: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          level_value: number | null
+          numeric_value: number
+          order_index: number | null
+          title: string
+        }
+        Insert: {
+          answer_category_id?: string | null
+          description?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          level_value?: number | null
+          numeric_value: number
+          order_index?: number | null
+          title: string
+        }
+        Update: {
+          answer_category_id?: string | null
+          description?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          level_value?: number | null
+          numeric_value?: number
+          order_index?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soft_skill_answer_option_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_answer_option_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "soft_skill_answer_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       soft_skill_answer_options: {
         Row: {
           answer_category_id: string | null
@@ -2080,6 +2725,105 @@ export type Database = {
             columns: ["answer_category_id"]
             isOneToOne: false
             referencedRelation: "answer_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      soft_skill_category_snapshots: {
+        Row: {
+          description: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          description?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          description?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soft_skill_category_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_category_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "category_soft_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      soft_skill_question_snapshots: {
+        Row: {
+          answer_category_id: string | null
+          behavioral_indicators: string | null
+          category: string | null
+          comment_required_override: boolean | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          order_index: number | null
+          quality_id: string | null
+          question_text: string
+          visibility_restriction_enabled: boolean | null
+          visibility_restriction_type: string | null
+        }
+        Insert: {
+          answer_category_id?: string | null
+          behavioral_indicators?: string | null
+          category?: string | null
+          comment_required_override?: boolean | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          order_index?: number | null
+          quality_id?: string | null
+          question_text: string
+          visibility_restriction_enabled?: boolean | null
+          visibility_restriction_type?: string | null
+        }
+        Update: {
+          answer_category_id?: string | null
+          behavioral_indicators?: string | null
+          category?: string | null
+          comment_required_override?: boolean | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          order_index?: number | null
+          quality_id?: string | null
+          question_text?: string
+          visibility_restriction_enabled?: boolean | null
+          visibility_restriction_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soft_skill_question_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_question_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "soft_skill_questions"
             referencedColumns: ["id"]
           },
         ]
@@ -2244,6 +2988,99 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "soft_skill_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      soft_skill_snapshots: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          description: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+          sub_category_id: string | null
+          subcategory_name: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          category_name?: string | null
+          description?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+          sub_category_id?: string | null
+          subcategory_name?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          category_name?: string | null
+          description?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+          sub_category_id?: string | null
+          subcategory_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soft_skill_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "soft_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      soft_skill_subcategory_snapshots: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          diagnostic_id: string
+          entity_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_id?: string | null
+          category_name?: string | null
+          diagnostic_id: string
+          entity_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category_id?: string | null
+          category_name?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soft_skill_subcategory_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_subcategory_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "sub_category_soft_skills"
             referencedColumns: ["id"]
           },
         ]
@@ -2434,6 +3271,54 @@ export type Database = {
             columns: ["diagnostic_stage_id"]
             isOneToOne: false
             referencedRelation: "diagnostic_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_assignment_snapshots: {
+        Row: {
+          assignment_type: string | null
+          diagnostic_id: string
+          entity_id: string
+          evaluating_user_id: string | null
+          evaluator_first_name: string | null
+          evaluator_last_name: string | null
+          evaluator_position_category_name: string | null
+          id: string
+        }
+        Insert: {
+          assignment_type?: string | null
+          diagnostic_id: string
+          entity_id: string
+          evaluating_user_id?: string | null
+          evaluator_first_name?: string | null
+          evaluator_last_name?: string | null
+          evaluator_position_category_name?: string | null
+          id?: string
+        }
+        Update: {
+          assignment_type?: string | null
+          diagnostic_id?: string
+          entity_id?: string
+          evaluating_user_id?: string | null
+          evaluator_first_name?: string | null
+          evaluator_last_name?: string | null
+          evaluator_position_category_name?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_assignment_snapshots_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_assignment_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "survey_360_assignments"
             referencedColumns: ["id"]
           },
         ]
@@ -3142,6 +4027,7 @@ export type Database = {
         Args: { table_name: string }
         Returns: Json
       }
+      backfill_diagnostic_snapshots: { Args: never; Returns: number }
       calculate_career_gap: {
         Args: { p_grade_id: string; p_user_id: string }
         Returns: {
@@ -3159,6 +4045,10 @@ export type Database = {
         Returns: number
       }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
+      can_view_snapshot: {
+        Args: { _snapshot_evaluated_user_id: string }
+        Returns: boolean
+      }
       can_view_users: { Args: { _user_id: string }; Returns: boolean }
       check_and_deactivate_expired_stages: { Args: never; Returns: undefined }
       check_and_finalize_expired_stages: { Args: never; Returns: undefined }
@@ -3198,7 +4088,14 @@ export type Database = {
           status: string
         }[]
       }
-      expire_stageless_meetings: { Args: never; Returns: undefined }
+      create_or_refresh_diagnostic_snapshot: {
+        Args: {
+          p_evaluated_user_id: string
+          p_reason?: string
+          p_stage_id: string
+        }
+        Returns: undefined
+      }
       finalize_expired_stage: {
         Args: { p_stage_id: string }
         Returns: undefined
@@ -3255,12 +4152,32 @@ export type Database = {
           department_id: string
         }[]
       }
+      get_management_subtree_ids: {
+        Args: { _manager_id: string }
+        Returns: string[]
+      }
       get_my_assignment_stats: {
         Args: { _evaluated_user_id: string; _stage_id?: string }
         Returns: {
           completed_evaluators: number
           pending_evaluators: number
           total_evaluators: number
+        }[]
+      }
+      get_open_question_results_safe: {
+        Args: { p_evaluated_user_id: string; p_stage_id?: string }
+        Returns: {
+          answer_text: string
+          assignment_id: string
+          created_at: string
+          diagnostic_stage_id: string
+          evaluated_user_id: string
+          evaluating_user_id: string
+          id: string
+          is_anonymous: boolean
+          is_draft: boolean
+          open_question_id: string
+          updated_at: string
         }[]
       }
       get_recommended_development_tasks: {
@@ -3393,6 +4310,10 @@ export type Database = {
         Args: { _evaluated_id: string; _evaluator_id: string }
         Returns: boolean
       }
+      is_in_management_subtree: {
+        Args: { _manager_id: string; _target_id: string }
+        Returns: boolean
+      }
       is_meeting_participant: {
         Args: { _meeting_id: string; _user_id: string }
         Returns: boolean
@@ -3434,6 +4355,12 @@ export type Database = {
         }
         Returns: string
       }
+      process_diagnostic_snapshot_job: {
+        Args: { p_job_id: string }
+        Returns: undefined
+      }
+      process_meeting_status: { Args: never; Returns: undefined }
+      process_meeting_tasks: { Args: never; Returns: undefined }
       recommend_career_tracks: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: {

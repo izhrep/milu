@@ -16,6 +16,7 @@ export interface DiagnosticConfigTemplate {
   soft_scale_reversed: boolean;
   hard_skills_enabled: boolean;
   comment_rules: Record<string, any>;
+  johari_rules: Record<string, any>;
   open_questions_config: any[];
   created_by: string;
   created_at: string;
@@ -43,43 +44,24 @@ export interface CreateTemplateInput {
   hard_skills_enabled?: boolean;
   comment_rules?: Record<string, any>;
   open_questions_config?: any[];
+  johari_rules?: Record<string, any>;
 }
 
-/** Client-side approval validation matching DB trigger logic */
+/** Client-side approval validation — checks template params only.
+ *  Label coverage is validated in "Questions & Answers" context. */
 export function validateTemplateForApproval(
   template: DiagnosticConfigTemplate,
-  labels: TemplateScaleLabel[]
 ): string[] {
   const errors: string[] = [];
 
-  // Soft labels — always required
-  const softLabels = labels.filter(l => l.skill_type === 'soft');
-  const softExpected = template.soft_scale_max - template.soft_scale_min + 1;
-  const softValues = new Set(softLabels.map(l => l.level_value));
-  
-  if (softValues.size !== softExpected) {
-    errors.push(`Soft: ожидается ${softExpected} уровней, найдено ${softValues.size}`);
-  }
-  const softMin = Math.min(...softLabels.map(l => l.level_value));
-  const softMax = Math.max(...softLabels.map(l => l.level_value));
-  if (softLabels.length > 0 && (softMin !== template.soft_scale_min || softMax !== template.soft_scale_max)) {
-    errors.push(`Soft: диапазон [${softMin}..${softMax}] не совпадает с [${template.soft_scale_min}..${template.soft_scale_max}]`);
-  }
-
-  // Hard labels — only if enabled
   if (template.hard_skills_enabled) {
-    const hardLabels = labels.filter(l => l.skill_type === 'hard');
-    const hardExpected = template.hard_scale_max - template.hard_scale_min + 1;
-    const hardValues = new Set(hardLabels.map(l => l.level_value));
+    if (template.hard_scale_min < 0 || template.hard_scale_max <= template.hard_scale_min) {
+      errors.push(`Hard: некорректный диапазон [${template.hard_scale_min}..${template.hard_scale_max}]`);
+    }
+  }
 
-    if (hardValues.size !== hardExpected) {
-      errors.push(`Hard: ожидается ${hardExpected} уровней, найдено ${hardValues.size}`);
-    }
-    const hardMin = Math.min(...hardLabels.map(l => l.level_value));
-    const hardMax = Math.max(...hardLabels.map(l => l.level_value));
-    if (hardLabels.length > 0 && (hardMin !== template.hard_scale_min || hardMax !== template.hard_scale_max)) {
-      errors.push(`Hard: диапазон [${hardMin}..${hardMax}] не совпадает с [${template.hard_scale_min}..${template.hard_scale_max}]`);
-    }
+  if (template.soft_scale_min < 0 || template.soft_scale_max <= template.soft_scale_min) {
+    errors.push(`Soft: некорректный диапазон [${template.soft_scale_min}..${template.soft_scale_max}]`);
   }
 
   return errors;
@@ -157,16 +139,23 @@ export const useDiagnosticConfigTemplates = () => {
     }
   }, [fetchTemplates]);
 
-  const approveTemplate = useCallback(async (id: string, templateLabels: TemplateScaleLabel[]) => {
-    // Find the template
-    const tpl = templates.find(t => t.id === id);
+  const approveTemplate = useCallback(async (id: string) => {
+    // Try local cache first, then fetch from DB to avoid stale-state issues
+    let tpl = templates.find(t => t.id === id);
     if (!tpl) {
-      toast.error('Шаблон не найден');
-      return false;
+      const { data, error: fetchErr } = await supabase
+        .from('diagnostic_config_templates' as any)
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (fetchErr || !data) {
+        toast.error('Шаблон не найден');
+        return false;
+      }
+      tpl = data as any as DiagnosticConfigTemplate;
     }
 
-    // Client-side pre-validation
-    const errors = validateTemplateForApproval(tpl, templateLabels);
+    const errors = validateTemplateForApproval(tpl);
     if (errors.length > 0) {
       errors.forEach(e => toast.error(e));
       return false;

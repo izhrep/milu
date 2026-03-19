@@ -193,7 +193,7 @@ export const TaskList: React.FC<TaskListProps> = ({ userId }) => {
         const isAssessmentTask = task.task_type === 'assessment';
         const isSelfAssessment = task.is_self_assessment;
         const isDevelopmentTask = task.category === 'development' || task.task_type === 'development';
-        const isMeetingTask = task.task_type === 'meeting' || task.category === 'Встречи 1:1';
+        const isMeetingTask = task.task_type === 'meeting' || task.category === 'Встречи one-to-one' || ['meeting_scheduled', 'meeting_fill_summary', 'meeting_review_summary', 'meeting_plan_new'].includes(task.task_type || '');
         const isDiagnosticTask = task.task_type === 'diagnostic_stage' || task.category === 'Диагностика';
         const isManagerEvaluationTask = task.task_type === 'survey_360_evaluation';
         // Кнопки должны оставаться видимыми для pending и in_progress (пока не completed)

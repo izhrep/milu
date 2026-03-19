@@ -33,5 +33,3 @@ verify_jwt = true
 [functions.import-grades-data]
 verify_jwt = true
 
-[functions.anonymize-comments]
-verify_jwt = false

@@ -1,8 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Eye, Sparkles, HelpCircle } from 'lucide-react';
+import { CheckCircle, Eye, Sparkles, HelpCircle, AlertCircle } from 'lucide-react';
 import { JohariSkillCard } from './JohariSkillCard';
+import { sortSkillsInZone } from '@/lib/johariMarkers';
 import type { SkillMetrics } from '@/hooks/useJohariReport';
 
 interface JohariQuadrantsProps {
@@ -24,7 +25,7 @@ const quadrantConfigs: QuadrantConfig[] = [
   {
     zone: 'arena',
     title: 'Открытая зона',
-    subtitle: 'Что я знаю о себе, другие знают обо мне',
+    subtitle: 'Самооценка и внешняя оценка близки',
     icon: <CheckCircle className="w-4 h-4 text-green-600" />,
     bgClass: 'bg-green-50 dark:bg-green-950',
     borderClass: 'border-green-200 dark:border-green-800'
@@ -32,7 +33,7 @@ const quadrantConfigs: QuadrantConfig[] = [
   {
     zone: 'blind_spot',
     title: 'Слепая зона',
-    subtitle: 'Что я знаю о себе, другие не знают обо мне',
+    subtitle: 'Сотрудник оценивает себя выше окружающих',
     icon: <Eye className="w-4 h-4 text-orange-600" />,
     bgClass: 'bg-orange-50 dark:bg-orange-950',
     borderClass: 'border-orange-200 dark:border-orange-800'
@@ -40,7 +41,7 @@ const quadrantConfigs: QuadrantConfig[] = [
   {
     zone: 'hidden_strength',
     title: 'Скрытая зона',
-    subtitle: 'Что я не знаю о себе, другие знают обо мне',
+    subtitle: 'Окружающие оценивают выше сотрудника',
     icon: <Sparkles className="w-4 h-4 text-blue-600" />,
     bgClass: 'bg-blue-50 dark:bg-blue-950',
     borderClass: 'border-blue-200 dark:border-blue-800'
@@ -48,7 +49,7 @@ const quadrantConfigs: QuadrantConfig[] = [
   {
     zone: 'unknown',
     title: 'Чёрный ящик',
-    subtitle: 'Что ни я, ни другие не знают обо мне',
+    subtitle: 'Недостаточно данных для классификации',
     icon: <HelpCircle className="w-4 h-4 text-gray-600" />,
     bgClass: 'bg-gray-50 dark:bg-gray-900',
     borderClass: 'border-gray-200 dark:border-gray-700'
@@ -56,7 +57,8 @@ const quadrantConfigs: QuadrantConfig[] = [
 ];
 
 const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[]; scaleMax: number; externalOnly?: boolean }> = ({ config, zoneSkills, scaleMax, externalOnly = false }) => {
-  const total = zoneSkills.length;
+  const sortedSkills = sortSkillsInZone(zoneSkills);
+  const total = sortedSkills.length;
 
   return (
     <Card className={`${config.bgClass} ${config.borderClass} border`}>
@@ -81,7 +83,7 @@ const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[
       <CardContent className="px-3 pb-3 pt-0">
         {total > 0 ? (
           <div className="grid grid-cols-2 gap-1.5">
-            {zoneSkills.map((skill) => (
+            {sortedSkills.map((skill) => (
               <JohariSkillCard key={skill.skill_id} skill={skill} scaleMax={scaleMax} externalOnly={externalOnly} />
             ))}
           </div>
@@ -96,27 +98,51 @@ const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[
 };
 
 export const JohariQuadrants: React.FC<JohariQuadrantsProps> = ({ skills, scaleMax, externalOnly = false }) => {
-  const groupedSkills = skills.reduce((acc, skill) => {
+  // Server already applies classification and borderline rounding — consume as-is
+  const sufficientSkills = skills.filter(s => s.confidence_tier !== 'insufficient');
+  const insufficientSkills = skills.filter(s => s.confidence_tier === 'insufficient');
+
+  const groupedSkills = sufficientSkills.reduce((acc, skill) => {
     if (!acc[skill.zone]) acc[skill.zone] = [];
     acc[skill.zone].push(skill);
     return acc;
   }, {} as Record<SkillMetrics['zone'], SkillMetrics[]>);
 
-  for (const zone of Object.keys(groupedSkills) as SkillMetrics['zone'][]) {
-    groupedSkills[zone].sort((a, b) => b.delta - a.delta);
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {quadrantConfigs.map((config) => (
-        <QuadrantCard
-          key={config.zone}
-          config={config}
-          zoneSkills={groupedSkills[config.zone] || []}
-          scaleMax={scaleMax}
-          externalOnly={externalOnly}
-        />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {quadrantConfigs.map((config) => (
+          <QuadrantCard
+            key={config.zone}
+            config={config}
+            zoneSkills={groupedSkills[config.zone] || []}
+            scaleMax={scaleMax}
+            externalOnly={externalOnly}
+          />
+        ))}
+      </div>
+
+      {/* Insufficient data skills */}
+      {insufficientSkills.length > 0 && (
+        <Card className="border-muted">
+          <CardHeader className="px-3 py-2 pb-1.5">
+            <CardTitle className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <AlertCircle className="w-4 h-4" />
+              Недостаточно данных
+              <span className="text-xs font-normal">
+                — не хватает ответов для помещения в одну из зон, слишком субъективно
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 pb-3 pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+              {insufficientSkills.map((skill) => (
+                <JohariSkillCard key={skill.skill_id} skill={skill} scaleMax={scaleMax} externalOnly={externalOnly} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

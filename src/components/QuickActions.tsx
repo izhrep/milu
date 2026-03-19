@@ -31,7 +31,7 @@ export const QuickActions = () => {
     },
     {
       title: 'Запланировать встречу',
-      description: 'Встреча 1:1 с руководителем',
+      description: 'Встреча one-to-one с unit-лидом',
       icon: Calendar,
       action: () => navigate('/meetings'),
       color: 'bg-brand-navy-light',

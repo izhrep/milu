@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { getFullName } from '@/hooks/useUsers';
+import { loadSnapshotForStage } from '@/utils/loadSnapshotForStage';
+import type { SnapshotContext } from '@/hooks/useSnapshotContext';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +33,7 @@ interface UserData {
 interface OfflineSurveyManagerProps {
   stageId: string | null;
   stagePeriod: string;
+  stageStatus?: string;
   users: UserData[];
   participantUserIds: string[];
 }
@@ -62,6 +65,7 @@ interface PreviewRow {
   comment: string;
   questionId: string;
   answerOptionId: string;
+  numericValue: number | null;
   questionType: 'hard' | 'soft';
   isValid: boolean;
 }
@@ -82,6 +86,7 @@ interface PreviewData {
 export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
   stageId,
   stagePeriod,
+  stageStatus,
   users,
   participantUserIds,
 }) => {
@@ -206,6 +211,99 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
   };
 
   const fetchQuestionsForRole = async (assignmentType: string): Promise<QuestionData[]> => {
+    const isCompleted = stageStatus === 'completed';
+
+    // For completed stages, use snapshot data
+    if (isCompleted && stageId) {
+      return fetchQuestionsFromSnapshot(assignmentType);
+    }
+
+    return fetchQuestionsFromLive(assignmentType);
+  };
+
+  const fetchQuestionsFromSnapshot = async (assignmentType: string): Promise<QuestionData[]> => {
+    if (!stageId) return [];
+    const snapshot = await loadSnapshotForStage(stageId);
+    if (!snapshot) {
+      console.warn('No snapshot found for completed stage, falling back to live');
+      return fetchQuestionsFromLive(assignmentType);
+    }
+    return buildQuestionsFromSnapshot(snapshot, assignmentType);
+  };
+
+  const buildQuestionsFromSnapshot = (snapshot: SnapshotContext, assignmentType: string): QuestionData[] => {
+    const questions: QuestionData[] = [];
+
+    // Group answer options by answer_category_id
+    const hardOptionsByCategory = new Map<string, { id: string; title: string; description: string | null; numeric_value: number }[]>();
+    snapshot.hardAnswerOptionsMap.forEach((opt, entityId) => {
+      if (!opt.answerCategoryId) return;
+      if (!hardOptionsByCategory.has(opt.answerCategoryId)) hardOptionsByCategory.set(opt.answerCategoryId, []);
+      hardOptionsByCategory.get(opt.answerCategoryId)!.push({
+        id: entityId, title: opt.title, description: opt.description, numeric_value: opt.numericValue,
+      });
+    });
+
+    const softOptionsByCategory = new Map<string, { id: string; title: string; description: string | null; numeric_value: number }[]>();
+    snapshot.softAnswerOptionsMap.forEach((opt, entityId) => {
+      if (!opt.answerCategoryId) return;
+      if (!softOptionsByCategory.has(opt.answerCategoryId)) softOptionsByCategory.set(opt.answerCategoryId, []);
+      softOptionsByCategory.get(opt.answerCategoryId)!.push({
+        id: entityId, title: opt.title, description: opt.description, numeric_value: opt.numericValue,
+      });
+    });
+
+    // Sort options by orderIndex or numeric_value
+    const sortOptions = (arr: any[]) => arr.sort((a: any, b: any) => (a.order_index ?? a.numeric_value) - (b.order_index ?? b.numeric_value));
+
+    // Hard questions from snapshot
+    const hardQuestionsArr = Array.from(snapshot.hardQuestionsMap.entries())
+      .sort((a, b) => (a[1].orderIndex ?? 0) - (b[1].orderIndex ?? 0));
+
+    for (const [qId, q] of hardQuestionsArr) {
+      if (!isQuestionVisibleForRole(q.visibilityRestrictionEnabled, q.visibilityRestrictionType, assignmentType)) continue;
+      const skill = q.skillId ? snapshot.hardSkillsMap.get(q.skillId) : null;
+      const options = hardOptionsByCategory.get(q.answerCategoryId || '') || [];
+      if (options.length > 0) {
+        questions.push({
+          id: qId,
+          question_text: q.questionText,
+          skill_id: q.skillId,
+          skill_name: skill?.name || 'Не указано',
+          type: 'hard',
+          answer_options: sortOptions([...options]),
+          visibility_restriction_enabled: q.visibilityRestrictionEnabled,
+          visibility_restriction_type: q.visibilityRestrictionType,
+        });
+      }
+    }
+
+    // Soft questions from snapshot
+    const softQuestionsArr = Array.from(snapshot.softQuestionsMap.entries())
+      .sort((a, b) => (a[1].orderIndex ?? 0) - (b[1].orderIndex ?? 0));
+
+    for (const [qId, q] of softQuestionsArr) {
+      if (!isQuestionVisibleForRole(q.visibilityRestrictionEnabled, q.visibilityRestrictionType, assignmentType)) continue;
+      const quality = q.qualityId ? snapshot.softSkillsMap.get(q.qualityId) : null;
+      const options = softOptionsByCategory.get(q.answerCategoryId || '') || [];
+      if (options.length > 0) {
+        questions.push({
+          id: qId,
+          question_text: q.questionText,
+          skill_id: q.qualityId || null,
+          skill_name: quality?.name || 'Не указано',
+          type: 'soft',
+          answer_options: sortOptions([...options]),
+          visibility_restriction_enabled: q.visibilityRestrictionEnabled,
+          visibility_restriction_type: q.visibilityRestrictionType,
+        });
+      }
+    }
+
+    return questions;
+  };
+
+  const fetchQuestionsFromLive = async (assignmentType: string): Promise<QuestionData[]> => {
     const questions: QuestionData[] = [];
 
     // Fetch hard skill questions
@@ -360,9 +458,9 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
           })
           .join('\n');
         
-        // Map numbers to option IDs for import: "1:optionId1|2:optionId2|..."
+        // Map numbers to option IDs and numeric values for import: "1:optionId1:numVal|2:optionId2:numVal|..."
         const answerOptionsMap = q.answer_options
-          .map((o, idx) => `${idx + 1}:${o.id}`)
+          .map((o, idx) => `${idx + 1}:${o.id}:${o.numeric_value}`)
           .join('|');
 
         dataRows.push([
@@ -477,6 +575,7 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
         let answerOptionId = '';
         let answerText = '';
         let isValid = true;
+        let resolvedNumericValue: number | null = null;
 
         if (isNaN(answerNum)) {
           isValid = false;
@@ -485,8 +584,8 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
           // Parse answer options map
           const optionsMapStr = String(answerOptionsMap || '');
           const optionsMapEntries = optionsMapStr.split('|').map(entry => {
-            const [num, optionId] = entry.split(':');
-            return { num: parseInt(num, 10), optionId };
+            const parts = entry.split(':');
+            return { num: parseInt(parts[0], 10), optionId: parts[1], numericValue: parts[2] ? parseInt(parts[2], 10) : null };
           });
 
           const matchingOption = optionsMapEntries.find(e => e.num === answerNum);
@@ -496,6 +595,7 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
           } else {
             answerOptionId = matchingOption.optionId;
             answerText = `Вариант ${answerNum}`;
+            resolvedNumericValue = matchingOption.numericValue;
           }
         }
 
@@ -513,6 +613,7 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
           comment: String(comment),
           questionId,
           answerOptionId,
+          numericValue: resolvedNumericValue,
           questionType: questionType === 'hard' ? 'hard' : 'soft',
           isValid,
         });
@@ -571,6 +672,7 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
           evaluating_user_id: previewData.evaluatingUserId,
           question_id: row.questionId,
           answer_option_id: row.answerOptionId,
+          raw_numeric_value: row.numericValue,
           diagnostic_stage_id: previewData.stageId,
           assignment_id: previewData.assignmentId,
           comment: row.comment || null,

@@ -31,7 +31,6 @@ export const useMeetingDecisions = (meetingId?: string) => {
     queryFn: async () => {
       if (!meetingId) return [];
 
-      // Получаем текущую встречу
       const { data: currentMeeting } = await supabase
         .from('one_on_one_meetings')
         .select('employee_id, stage_id, created_at')
@@ -40,20 +39,19 @@ export const useMeetingDecisions = (meetingId?: string) => {
 
       if (!currentMeeting) return [];
 
-      // Получаем предыдущую утвержденную встречу этого сотрудника
+      // Get previous recorded meeting for this employee
       const { data: previousMeeting } = await supabase
         .from('one_on_one_meetings')
         .select('id')
         .eq('employee_id', currentMeeting.employee_id)
-        .eq('status', 'approved')
+        .eq('status', 'recorded')
         .lt('created_at', currentMeeting.created_at)
-        .order('approved_at', { ascending: false })
+        .order('meeting_date', { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();
 
       if (!previousMeeting) return [];
 
-      // Получаем решения из предыдущей встречи
       const { data, error } = await supabase
         .from('meeting_decisions')
         .select('*')
@@ -85,7 +83,7 @@ export const useMeetingDecisions = (meetingId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meeting-decisions'] });
-      toast({ title: 'Решение добавлено' });
+      toast({ title: 'Договорённость добавлена' });
     },
     onError: (error: Error) => {
       toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });

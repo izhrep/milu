@@ -216,11 +216,11 @@ export const SurveyAccessWidget = () => {
 
   // Определяем наличие назначений по типам
   const assignmentTypes = useMemo(() => {
-    // Self: есть назначение где пользователь оценивает себя, статус approved/pending
+    // Self: есть назначение где пользователь оценивает себя (любой активный статус, включая completed)
     const hasSelf = survey360Assignments.some(
       a => a.evaluated_user_id === user?.id && 
            a.evaluating_user_id === user?.id &&
-           (a.status === 'approved' || a.status === 'pending')
+           (a.status === 'approved' || a.status === 'pending' || a.status === 'completed')
     );
     
     // Manager: есть задачи оценки подчинённых (используем assignment_type='manager' вместо проверки заголовка)

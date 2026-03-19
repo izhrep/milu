@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle, Download, Calendar, Brain, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Download, Calendar, Brain, FileSpreadsheet, History } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadarChartResults } from '@/components/RadarChartResults';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HorizontalBarChart, BarChartDataItem } from '@/components/HorizontalBarChart';
@@ -27,11 +28,13 @@ import { useCorrectAssessmentResults } from '@/hooks/useCorrectAssessmentResults
 import { useSkillSurveyResultsEnhanced } from '@/hooks/useSkillSurveyResultsEnhanced';
 import { useSurvey360ResultsEnhanced } from '@/hooks/useSurvey360ResultsEnhanced';
 import { useDiagnosticStages } from '@/hooks/useDiagnosticStages';
+import { useSnapshotContext } from '@/hooks/useSnapshotContext';
 import { JohariWindowSheet } from '@/components/johari/JohariWindowSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { exportAssessmentExcel } from '@/utils/exportAssessmentExcel';
 import { toast } from 'sonner';
 import { GapsAnalysisBlock } from '@/components/GapsAnalysisBlock';
+import { useStageTemplateConfig } from '@/hooks/useStageTemplateConfig';
 const AssessmentResultsPage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -47,9 +50,30 @@ const AssessmentResultsPage = () => {
   // Получаем диагностические этапы
   const { stages: diagnosticStages, activeStage } = useDiagnosticStages();
   
-  // Определяем ID этапа: из state или активный
-  const selectedStageId = stageIdFromState || activeStage?.id || null;
+  // Explicit stage selector state
+  const [manualStageId, setManualStageId] = useState<string | undefined>(undefined);
   
+  // Fallback: if no active stage, use the first available stage
+  const firstStageId = diagnosticStages && diagnosticStages.length > 0 ? diagnosticStages[0].id : null;
+  
+  // Определяем ID этапа: manual > state > активный > первый доступный
+  const selectedStageId = manualStageId || stageIdFromState || activeStage?.id || firstStageId || null;
+  
+  // Snapshot context for historical data
+  const { snapshotContext, isHistorical, loading: snapshotLoading } = useSnapshotContext(selectedStageId, userId);
+  
+  // Stage template config (hard_skills_enabled toggle, scales, etc.)
+  const { config: stageConfig, loading: stageConfigLoading } = useStageTemplateConfig(selectedStageId || undefined);
+  const hardSkillsEnabled = stageConfig.hardSkillsEnabled;
+  
+  // Available competency filters based on stage config
+  const availableCompetencyFilters = useMemo<CompetencyFilterType[]>(() => {
+    if (hardSkillsEnabled) {
+      return ['hard_skills', 'soft_skills', 'hard_categories', 'soft_categories', 'hard_subcategories', 'soft_subcategories'];
+    }
+    return ['soft_skills', 'soft_categories', 'soft_subcategories'];
+  }, [hardSkillsEnabled]);
+
   // Информация о выбранном этапе для отображения
   const selectedStageInfo = useMemo(() => {
     if (!selectedStageId || !diagnosticStages) return null;
@@ -61,8 +85,16 @@ const AssessmentResultsPage = () => {
     };
   }, [selectedStageId, diagnosticStages]);
   
-  // Фильтр компетенций - по умолчанию hard_skills
+  // Фильтр компетенций - по умолчанию soft_skills если hard отключены
   const [globalFilter, setGlobalFilter] = useState<CompetencyFilterType>('hard_skills');
+  
+  // Auto-switch to soft_skills when hard skills are disabled
+  useEffect(() => {
+    if (stageConfigLoading) return;
+    if (!hardSkillsEnabled && globalFilter.includes('hard')) {
+      setGlobalFilter('soft_skills');
+    }
+  }, [hardSkillsEnabled, stageConfigLoading]);
   
   // Фильтр ролей для RadarChart (multi-select)
   const [radarRoles, setRadarRoles] = useState<RadarRoleType[]>(allRadarRoles);
@@ -129,16 +161,15 @@ const AssessmentResultsPage = () => {
         return;
       }
       
-      // Check if viewing team member (manager with team.view permission)
+      // Check if viewing team member (manager with team.view permission) — subtree check
       if (canViewJohariTeam && !loadingViewTeam) {
-        const { data: subordinate, error } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', userId)
-          .eq('manager_id', currentUser.id)
-          .single();
+        const { data: isInSubtree, error } = await supabase
+          .rpc('is_in_management_subtree', { 
+            _manager_id: currentUser.id, 
+            _target_id: userId 
+          });
         
-        if (subordinate && !error) {
+        if (isInSubtree && !error) {
           setAccessDenied(false);
           setAccessCheckComplete(true);
           return;
@@ -229,11 +260,18 @@ const AssessmentResultsPage = () => {
     loading,
     maxValue,
     managerPositionCategory
-  } = useCorrectAssessmentResults(userId, globalFilter, 'all', skillSetFilter, selectedStageId);
+  } = useCorrectAssessmentResults(userId, globalFilter, 'all', skillSetFilter, selectedStageId, snapshotContext);
 
   // Получаем комментарии
-  const { skillResults: enhancedSkillResults } = useSkillSurveyResultsEnhanced(userId, selectedStageId);
-  const { qualityResults: enhancedQualityResults } = useSurvey360ResultsEnhanced(userId, selectedStageId);
+  const {
+    skillResults: enhancedSkillResults,
+    loading: enhancedSkillLoading,
+  } = useSkillSurveyResultsEnhanced(userId, selectedStageId, snapshotContext);
+  const {
+    qualityResults: enhancedQualityResults,
+    loading: enhancedQualityLoading,
+  } = useSurvey360ResultsEnhanced(userId, selectedStageId, snapshotContext);
+
 
   // Функции для получения заголовков в зависимости от фильтра
   const getOverallTitle = () => {
@@ -460,15 +498,33 @@ const AssessmentResultsPage = () => {
           {/* Breadcrumbs + Stage info */}
           <div className="print:hidden mb-3 flex items-center justify-between">
             <Breadcrumbs />
-            {selectedStageInfo && (
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Этап:</span>
-                <Badge variant={selectedStageInfo.is_active ? "default" : "secondary"}>
-                  {selectedStageInfo.period}
+            <div className="flex items-center gap-2">
+              {isHistorical && (
+                <Badge variant="warning" className="flex items-center gap-1">
+                  <History className="h-3 w-3" />
+                  Исторические данные
                 </Badge>
-              </div>
-            )}
+              )}
+              {diagnosticStages && diagnosticStages.length > 0 && (
+                <Select
+                  value={selectedStageId || undefined}
+                  onValueChange={(val) => setManualStageId(val)}
+                >
+                  <SelectTrigger className="w-[220px] h-8 text-sm">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Выберите этап" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {diagnosticStages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        {stage.period || stage.evaluation_period || 'Без названия'}
+                        {stage.is_active ? ' (активный)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
 
           {showCompletionMessage && (
@@ -506,7 +562,8 @@ const AssessmentResultsPage = () => {
                         userId,
                         selectedStageId,
                         evaluatedUserName,
-                        selectedStageInfo?.period
+                        selectedStageInfo?.period,
+                        snapshotContext
                       );
                       toast.success('Excel-файл успешно сформирован');
                     } catch (error) {
@@ -552,6 +609,7 @@ const AssessmentResultsPage = () => {
           onChange={setGlobalFilter}
           radarRoles={radarRoles}
           onRadarRolesChange={setRadarRoles}
+          availableFilters={availableCompetencyFilters}
           skillSetValue={skillSetFilter}
           onSkillSetChange={setSkillSetFilter}
           showComments={showComments}
