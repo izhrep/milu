@@ -33,3 +33,12 @@ verify_jwt = true
 [functions.import-grades-data]
 verify_jwt = true
 
+[functions.send-bitrix-message]
+verify_jwt = false
+
+[functions.enqueue-reminder]
+verify_jwt = false
+
+[functions.process-reminders]
+verify_jwt = false
+

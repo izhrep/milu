@@ -85,7 +85,7 @@ function formatJohariLabel(rules: Record<string, any> | undefined): string {
   }
   const openPct = Math.round((rules.open_delta_pct as number) * 100);
   const bhPct = Math.round((rules.blind_hidden_delta_pct as number) * 100);
-  return `open ≤${openPct}%, grey ${openPct}–${bhPct}%, blind/hidden >${bhPct}%`;
+  return `Открытая зона ≤${openPct}%, Серая зона ${openPct}–${bhPct}%, Слепая/Скрытая зона >${bhPct}%`;
 }
 
 export function buildTemplateSummary(

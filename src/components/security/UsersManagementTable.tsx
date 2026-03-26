@@ -27,7 +27,10 @@ interface UserRow {
   updated_at: string;
   role: string;
   position_name?: string;
+  position_id?: string;
+  position_category_name?: string;
   department_name?: string;
+  department_id?: string;
   company_name?: string;
   grade_name?: string;
   career_track_name?: string;
@@ -36,6 +39,8 @@ interface UserRow {
   middle_name?: string;
   employee_number?: string;
   manager_name?: string;
+  bitrix_bot_enabled?: boolean;
+  bitrix_user_id?: string;
 }
 
 const UsersManagementTable = () => {
@@ -46,6 +51,10 @@ const UsersManagementTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [positionFilter, setPositionFilter] = useState<string>('all');
+  const [positionCategoryFilter, setPositionCategoryFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [userTypeFilter, setUserTypeFilter] = useState<string>('internal');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [auditSheetOpen, setAuditSheetOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; userId: string; action: string } | null>(null);
@@ -70,7 +79,8 @@ const UsersManagementTable = () => {
   const [editUser, setEditUser] = useState<any>(null);
   const [managersList, setManagersList] = useState<Array<{id: string; full_name: string; department_id: string | null}>>([]);
   const [allManagersList, setAllManagersList] = useState<Array<{id: string; full_name: string; department_id: string | null}>>([]);
-  const [positionsList, setPositionsList] = useState<Array<{id: string; name: string}>>([]);
+  const [positionsList, setPositionsList] = useState<Array<{id: string; name: string; position_category_id: string | null}>>([]);
+  const [positionCategoriesList, setPositionCategoriesList] = useState<Array<{id: string; name: string}>>([]);
   const [departmentsList, setDepartmentsList] = useState<Array<{id: string; name: string}>>([]);
   const [gradesList, setGradesList] = useState<Array<{id: string; name: string; position_id: string | null; level: number}>>([]);
   const [filteredGrades, setFilteredGrades] = useState<Array<{id: string; name: string; level: number}>>([]);
@@ -79,13 +89,14 @@ const UsersManagementTable = () => {
     fetchUsers();
     fetchManagers();
     fetchPositions();
+    fetchPositionCategories();
     fetchDepartments();
     fetchGrades();
   }, []);
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter, positionFilter, positionCategoryFilter, departmentFilter, userTypeFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -96,7 +107,7 @@ const UsersManagementTable = () => {
         .from('users')
         .select(`
           *,
-          positions(name),
+          positions(name, position_category_id, position_categories(name)),
           departments(name, companies(name)),
           grades(name),
           user_career_progress(
@@ -146,6 +157,7 @@ const UsersManagementTable = () => {
           updated_at: u.updated_at || u.created_at,
           role: rolesMap.get(u.id) || 'employee',
           position_name: u.positions?.name || '',
+          position_category_name: u.positions?.position_categories?.name || '',
           department_name: u.departments?.name || '',
           company_name: u.departments?.companies?.name || '',
           grade_name: u.grades?.name || '',
@@ -154,7 +166,9 @@ const UsersManagementTable = () => {
           position_id: u.position_id,
           department_id: u.department_id,
           grade_id: u.grade_id,
-          manager_id: u.manager_id
+          manager_id: u.manager_id,
+          bitrix_bot_enabled: u.bitrix_bot_enabled || false,
+          bitrix_user_id: u.bitrix_user_id || ''
         };
       }));
 
@@ -211,13 +225,27 @@ const UsersManagementTable = () => {
     try {
       const { data, error } = await supabase
         .from('positions')
-        .select('id, name')
+        .select('id, name, position_category_id')
         .order('name');
       
       if (error) throw error;
       setPositionsList(data || []);
     } catch (error) {
       console.error('Error fetching positions:', error);
+    }
+  };
+
+  const fetchPositionCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('position_categories')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      setPositionCategoriesList(data || []);
+    } catch (error) {
+      console.error('Error fetching position categories:', error);
     }
   };
 
@@ -249,13 +277,25 @@ const UsersManagementTable = () => {
     }
   };
 
+  const isExternalUser = (u: UserRow) => {
+    return u.position_category_name?.includes('(внешний)') ?? false;
+  };
+
   const filterUsers = () => {
     let filtered = [...users];
 
     if (searchTerm) {
-      filtered = filtered.filter(u => 
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const query = searchTerm.toLowerCase();
+      filtered = filtered.filter(u => {
+        const fullName = [u.last_name, u.first_name, u.middle_name].filter(Boolean).join(' ').toLowerCase();
+        return (
+          u.email.toLowerCase().includes(query) ||
+          (u.first_name || '').toLowerCase().includes(query) ||
+          (u.last_name || '').toLowerCase().includes(query) ||
+          (u.middle_name || '').toLowerCase().includes(query) ||
+          fullName.includes(query)
+        );
+      });
     }
 
     if (roleFilter !== 'all') {
@@ -266,6 +306,27 @@ const UsersManagementTable = () => {
       filtered = filtered.filter(u => u.status);
     } else if (statusFilter === 'inactive') {
       filtered = filtered.filter(u => !u.status);
+    }
+
+    if (positionFilter !== 'all') {
+      filtered = filtered.filter(u => u.position_id === positionFilter);
+    }
+
+    if (positionCategoryFilter !== 'all') {
+      const posIdsInCategory = positionsList
+        .filter(p => p.position_category_id === positionCategoryFilter)
+        .map(p => p.id);
+      filtered = filtered.filter(u => u.position_id && posIdsInCategory.includes(u.position_id));
+    }
+
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(u => u.department_id === departmentFilter);
+    }
+
+    if (userTypeFilter === 'internal') {
+      filtered = filtered.filter(u => !isExternalUser(u));
+    } else if (userTypeFilter === 'external') {
+      filtered = filtered.filter(u => isExternalUser(u));
     }
 
     setFilteredUsers(filtered);
@@ -344,7 +405,15 @@ const UsersManagementTable = () => {
     const newStatus = action === 'activate';
 
     try {
-      // Note: We cannot directly update the external API, so we log the action
+      // Persist status change to database
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ status: newStatus })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+
+      // Log the action
       await supabase.rpc('log_admin_action', {
         _admin_id: currentUser?.id,
         _target_user_id: userId,
@@ -382,10 +451,7 @@ const UsersManagementTable = () => {
 
       // Call edge function to delete user
       const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: {
-          userId,
-          adminId: currentUser?.id
-        }
+        body: { user_id: userId }
       });
 
       if (error) {
@@ -502,7 +568,9 @@ const UsersManagementTable = () => {
           position_id: editUser.position_id || null,
           department_id: editUser.department_id || null,
           grade_id: editUser.grade_id || null,
-          status: editUser.status
+          status: editUser.status,
+          bitrix_user_id: editUser.bitrix_user_id || null,
+          bitrix_bot_enabled: editUser.bitrix_bot_enabled || false
         })
         .eq('id', editUser.id);
 
@@ -645,12 +713,12 @@ const UsersManagementTable = () => {
   return (
     <div className="space-y-4">
       {/* Filters and Search */}
-      <div className="flex flex-wrap gap-4 items-center sticky top-0 bg-background p-4 border-b z-10">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-wrap gap-3 items-center sticky top-0 bg-background p-4 border-b z-10">
+        <div className="flex-1 min-w-[250px]">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Поиск по email..."
+              placeholder="Поиск по ФИО или email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8"
@@ -658,9 +726,20 @@ const UsersManagementTable = () => {
           </div>
         </div>
 
+        <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Тип" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все</SelectItem>
+            <SelectItem value="internal">Внутренние</SelectItem>
+            <SelectItem value="external">Внешние</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Фильтр по роли" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Роль" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все роли</SelectItem>
@@ -672,13 +751,49 @@ const UsersManagementTable = () => {
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Фильтр по статусу" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Статус" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все статусы</SelectItem>
             <SelectItem value="active">Активные</SelectItem>
             <SelectItem value="inactive">Деактивированные</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Подразделение" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все подразделения</SelectItem>
+            {departmentsList.map(d => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={positionFilter} onValueChange={setPositionFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Должность" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все должности</SelectItem>
+            {positionsList.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={positionCategoryFilter} onValueChange={setPositionCategoryFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Категория должности" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все категории</SelectItem>
+            {positionCategoriesList.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -700,116 +815,129 @@ const UsersManagementTable = () => {
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Роль</TableHead>
-              <TableHead>Должность</TableHead>
-              <TableHead>Компания</TableHead>
-              <TableHead>Подразделение</TableHead>
-              <TableHead>Статус</TableHead>
-              <TableHead>Последний вход</TableHead>
-              <TableHead>Создан</TableHead>
-              <TableHead>Изменён</TableHead>
-              <TableHead className="text-right">Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUsers.map((user) => (
-              <TableRow key={user.id} className={!user.status ? 'opacity-50' : ''}>
-                <TableCell className="font-medium">{user.email}</TableCell>
-                <TableCell>
-                  <Select
-                    value={user.role}
-                    onValueChange={(value) => handleRoleChange(user.id, value)}
-                  >
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue>
-                        <Badge variant={getRoleBadgeVariant(user.role)}>
-                          {getRoleLabel(user.role)}
-                        </Badge>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Администратор</SelectItem>
-                      <SelectItem value="hr_bp">HR BP</SelectItem>
-                      <SelectItem value="manager">Руководитель</SelectItem>
-                      <SelectItem value="employee">Сотрудник</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>{user.position_name || '-'}</TableCell>
-                <TableCell>{user.company_name || '-'}</TableCell>
-                <TableCell>{user.department_name || '-'}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={user.status}
-                      onCheckedChange={(checked) => handleStatusToggle(user.id, checked)}
-                    />
-                    <span className="text-sm">{user.status ? 'Активен' : 'Деактивирован'}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {user.last_login_at 
-                    ? format(new Date(user.last_login_at), 'dd.MM.yyyy HH:mm', { locale: ru })
-                    : '-'
-                  }
-                </TableCell>
-                <TableCell>
-                  {format(new Date(user.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {format(new Date(user.updated_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
-                    {isRecentlyUpdated(user.updated_at) && (
-                      <Badge variant="secondary" className="text-xs">Недавно</Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setViewUserData(user);
-                        setViewUserDialog(true);
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditDialog(user)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedUser(user.id);
-                        setAuditSheetOpen(true);
-                      }}
-                    >
-                      <History className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteUser(user.id, user.email)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        <div className="overflow-x-auto scrollbar-visible scrollbar-top">
+          <Table className="min-w-[1200px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[200px]">ФИО</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Роль</TableHead>
+                <TableHead>Должность</TableHead>
+                <TableHead>Подразделение</TableHead>
+                <TableHead>Статус</TableHead>
+                <TableHead>Bitrix ID</TableHead>
+                <TableHead>Bitrix Бот</TableHead>
+                <TableHead>Изменён</TableHead>
+                <TableHead className="text-right min-w-[180px]">Действия</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.id} className={!user.status ? 'opacity-50' : ''}>
+                  <TableCell className="font-medium whitespace-nowrap">
+                    {[user.last_name, user.first_name, user.middle_name].filter(Boolean).join(' ') || '-'}
+                  </TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={user.role}
+                      onValueChange={(value) => handleRoleChange(user.id, value)}
+                    >
+                      <SelectTrigger className="w-[160px]">
+                        <SelectValue>
+                          <Badge variant={getRoleBadgeVariant(user.role)}>
+                            {getRoleLabel(user.role)}
+                          </Badge>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Администратор</SelectItem>
+                        <SelectItem value="hr_bp">HR BP</SelectItem>
+                        <SelectItem value="manager">Руководитель</SelectItem>
+                        <SelectItem value="employee">Сотрудник</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>{user.position_name || '-'}</TableCell>
+                  <TableCell>{user.department_name || '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={user.status}
+                        onCheckedChange={(checked) => handleStatusToggle(user.id, checked)}
+                      />
+                      <span className="text-sm">{user.status ? 'Активен' : 'Деактивирован'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{user.bitrix_user_id || '-'}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={user.bitrix_bot_enabled || false}
+                      disabled={!user.bitrix_user_id}
+                      onCheckedChange={async (checked) => {
+                        if (checked && !user.bitrix_user_id) {
+                          toast.error('Сначала укажите Bitrix User ID');
+                          return;
+                        }
+                        try {
+                          await supabase.from('users').update({ bitrix_bot_enabled: checked }).eq('id', user.id);
+                          setUsers(users.map(u => u.id === user.id ? { ...u, bitrix_bot_enabled: checked } : u));
+                          toast.success(checked ? 'Bitrix бот включён' : 'Bitrix бот выключен');
+                        } catch { toast.error('Ошибка обновления'); }
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {format(new Date(user.updated_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                      {isRecentlyUpdated(user.updated_at) && (
+                        <Badge variant="secondary" className="text-xs">Недавно</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setViewUserData(user);
+                          setViewUserDialog(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(user)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(user.id);
+                          setAuditSheetOpen(true);
+                        }}
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id, user.email)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* User Audit History Sheet */}
@@ -1224,6 +1352,38 @@ const UsersManagementTable = () => {
               </div>
             )}
             
+            <div className="space-y-1">
+              <Label htmlFor="edit-bitrix-user-id" className="text-sm">Bitrix User ID</Label>
+              <Input
+                id="edit-bitrix-user-id"
+                value={editUser?.bitrix_user_id || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditUser({ ...editUser, bitrix_user_id: val, ...(!val ? { bitrix_bot_enabled: false } : {}) });
+                }}
+                placeholder="ID пользователя в Bitrix24"
+                className="h-9"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="edit-bitrix-bot"
+                checked={editUser?.bitrix_bot_enabled || false}
+                disabled={!editUser?.bitrix_user_id}
+                onCheckedChange={(checked) => {
+                  if (checked && !editUser?.bitrix_user_id) {
+                    toast.error('Сначала укажите Bitrix User ID');
+                    return;
+                  }
+                  setEditUser({ ...editUser, bitrix_bot_enabled: checked });
+                }}
+              />
+              <Label htmlFor="edit-bitrix-bot" className="text-sm">
+                Bitrix Бот включён{!editUser?.bitrix_user_id ? ' (укажите Bitrix ID)' : ''}
+              </Label>
+            </div>
+
             <div className="flex items-center space-x-2">
               <Switch
                 id="edit-status"
@@ -1327,6 +1487,23 @@ const UsersManagementTable = () => {
                     <div>
                       <Label className="text-muted-foreground">Руководитель</Label>
                       <p className="font-medium">{viewUserData.manager_name || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bitrix24 */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2">Bitrix24</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground">Bitrix User ID</Label>
+                      <p className="font-medium">{viewUserData.bitrix_user_id || '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Bitrix Бот</Label>
+                      <Badge variant={viewUserData.bitrix_bot_enabled ? 'default' : 'secondary'}>
+                        {viewUserData.bitrix_bot_enabled ? 'Включён' : 'Выключен'}
+                      </Badge>
                     </div>
                   </div>
                 </div>

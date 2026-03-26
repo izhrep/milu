@@ -102,13 +102,48 @@ export const useMeetingDecisions = (meetingId?: string) => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      const { id, ...updates } = variables;
+
+      // Cancel refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['meeting-decisions'] });
+      await queryClient.cancelQueries({ queryKey: ['previous-meeting-decisions'] });
+
+      // Snapshot both caches for rollback
+      const allDecisionCaches = queryClient.getQueriesData<MeetingDecision[]>({ queryKey: ['meeting-decisions'] });
+      const allPrevDecisionCaches = queryClient.getQueriesData<MeetingDecision[]>({ queryKey: ['previous-meeting-decisions'] });
+
+      // Optimistically update all matching caches
+      const patchCache = (entries: [readonly unknown[], MeetingDecision[] | undefined][]) => {
+        for (const [key, old] of entries) {
+          if (!old) continue;
+          const idx = old.findIndex(d => d.id === id);
+          if (idx !== -1) {
+            queryClient.setQueryData(key, old.map(d => d.id === id ? { ...d, ...updates } : d));
+          }
+        }
+      };
+      patchCache(allDecisionCaches);
+      patchCache(allPrevDecisionCaches);
+
+      return { allDecisionCaches, allPrevDecisionCaches };
+    },
+    onError: (error: Error, _vars, context) => {
+      // Rollback on error
+      if (context) {
+        for (const [key, data] of context.allDecisionCaches) {
+          queryClient.setQueryData(key, data);
+        }
+        for (const [key, data] of context.allPrevDecisionCaches) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+    },
+    onSettled: () => {
+      // Background re-sync to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['meeting-decisions'] });
       queryClient.invalidateQueries({ queryKey: ['previous-meeting-decisions'] });
-      toast({ title: 'Решение обновлено' });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
     },
   });
 

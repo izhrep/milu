@@ -1,4 +1,4 @@
-import { Home, User, BookOpen, Trophy, TrendingUp, MapPin, Calendar, Target, LogOut, Shield, Users, BarChart3, CheckSquare, ClipboardList, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { LogOut, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -17,7 +17,18 @@ import { toast } from 'sonner';
 import { usePermission } from '@/hooks/usePermission';
 import { useMenuVisibility } from '@/hooks/useMenuVisibility';
 import { Button } from '@/components/ui/button';
-import miluLogo from '@/assets/milu-logo.png';
+import logoExpanded from '@/assets/Logo_expanded.svg';
+import iconHome from '@/assets/icons/icon-home.png';
+import iconProfile from '@/assets/icons/icon-profile.png';
+import iconTasks from '@/assets/icons/icon-tasks.png';
+import iconCareer from '@/assets/icons/icon-career.png';
+import iconFeedback360 from '@/assets/icons/icon-feedback360.png';
+import iconMeetings from '@/assets/icons/icon-meetings.png';
+import iconMeetingsMonitor from '@/assets/icons/icon-meetings-monitor.png';
+import iconTeam from '@/assets/icons/icon-team.png';
+import iconDiagnostics from '@/assets/icons/icon-diagnostics.png';
+import iconReferences from '@/assets/icons/icon-references.png';
+import iconSecurity from '@/assets/icons/icon-security.png';
 
 export const AppSidebar = () => {
   const { state, toggleSidebar } = useSidebar();
@@ -47,30 +58,32 @@ export const AppSidebar = () => {
   
   // Собираем все пункты меню в один массив с условиями видимости
   const allMenuItems = [
-    { title: 'Главная', url: '/', icon: Home, show: true, end: true },
-    { title: 'Профиль', url: '/profile', icon: User, show: canViewTeam || canViewAdminPanel, end: false },
-    { title: 'Мои задачи', url: '/tasks', icon: CheckSquare, show: true, end: false },
-    { title: 'Карьерный трек', url: '/development/career-track', icon: Target, show: showCareerTrack, end: false },
-    { title: 'Обратная связь 360', url: '/questionnaires', icon: ClipboardList, show: true, end: false },
-    { title: 'Встречи', url: '/meetings', icon: Calendar, show: showMeetings, end: false },
-    { title: 'Мониторинг встреч', url: '/meetings-monitoring', icon: BarChart3, show: canViewTeam, end: false },
-    { title: 'Моя команда', url: '/team', icon: Users, show: canViewTeam, end: false },
-    { title: 'Мониторинг диагностики', url: '/diagnostic-monitoring', icon: BarChart3, show: canViewAdminPanel || canManageParticipants || canViewDiagnosticsResults, end: false },
-    { title: 'Справочники', url: '/admin', icon: MapPin, show: canViewAdminPanel, end: false },
-    { title: 'Безопасность', url: '/security', icon: Shield, show: canViewSecurity, end: false },
+    { title: 'Главная', url: '/', icon: iconHome, show: true, end: true, size: 'h-7 w-7' },
+    { title: 'Профиль', url: '/profile', icon: iconProfile, show: canViewTeam || canViewAdminPanel, end: false, size: 'h-7 w-7' },
+    { title: 'Мои задачи', url: '/tasks', icon: iconTasks, show: true, end: false, size: 'h-7 w-7' },
+    { title: 'Карьерный трек', url: '/development/career-track', icon: iconCareer, show: showCareerTrack, end: false, size: 'h-7 w-7' },
+    { title: 'Обратная связь 360', url: '/questionnaires', icon: iconFeedback360, show: true, end: false, size: 'h-8 w-8' },
+    { title: 'Встречи 1:1', url: '/meetings', icon: iconMeetings, show: showMeetings, end: false, size: 'h-7 w-7' },
+    { title: 'Мониторинг встреч 1:1', url: '/meetings-monitoring', icon: iconMeetingsMonitor, show: canViewTeam, end: false, size: 'h-7 w-7' },
+    { title: 'Моя команда', url: '/team', icon: iconTeam, show: canViewTeam, end: false, size: 'h-7 w-7' },
+    { title: 'Мониторинг диагностики', url: '/diagnostic-monitoring', icon: iconDiagnostics, show: canViewAdminPanel || canManageParticipants || canViewDiagnosticsResults, end: false, size: 'h-7 w-7' },
+    { title: 'Справочники', url: '/admin', icon: iconReferences, show: canViewAdminPanel, end: false, size: 'h-8 w-8' },
+    { title: 'Безопасность', url: '/security', icon: iconSecurity, show: canViewSecurity, end: false, size: 'h-7 w-7' },
   ];
 
   const visibleMenuItems = allMenuItems.filter(item => item.show);
 
   return (
-    <Sidebar className={`${state === 'collapsed' ? 'w-16' : 'w-64'} bg-sidebar border-r-0`}>
+    <Sidebar className={`${state === 'collapsed' ? 'w-16' : 'w-64'} border-r-0 sidebar-brand-bg`}>
       {/* Header with Logo and Toggle */}
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-white/10 relative z-10">
         <div className="flex items-center justify-between px-2 py-3">
           <div className="flex items-center">
-            <span className={`font-bold text-white tracking-wide ${state === 'collapsed' ? 'text-sm' : 'text-lg'}`}>
-              {state === 'collapsed' ? 'M' : 'MILU'}
-            </span>
+            {state === 'collapsed' ? (
+              <span className="font-bold text-white tracking-wide text-sm">M</span>
+            ) : (
+              <img src={logoExpanded} alt="MILU" className="h-7 w-auto" />
+            )}
           </div>
           <Button
             variant="ghost"
@@ -87,7 +100,7 @@ export const AppSidebar = () => {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="sidebar-scrollbar">
+      <SidebarContent className="sidebar-scrollbar relative z-10">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -95,7 +108,7 @@ export const AppSidebar = () => {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={state === 'collapsed' ? item.title : undefined}>
                     <NavLink to={item.url} end={item.end} className={getNavCls}>
-                      <item.icon className={`${state === 'collapsed' ? 'h-5 w-5' : 'h-4 w-4'} shrink-0`} />
+                      <img src={item.icon} alt="" className={`${item.size} shrink-0 brightness-0 invert opacity-90`} />
                       {state !== 'collapsed' && <span className="ml-2">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -106,7 +119,7 @@ export const AppSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-white/10 relative z-10">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 

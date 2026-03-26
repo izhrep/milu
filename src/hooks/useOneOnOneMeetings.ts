@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeMeetingDateToUtcIso } from '@/lib/meetingDateTime';
 
 export type MeetingStatus = 'scheduled' | 'awaiting_summary' | 'recorded';
 
@@ -99,12 +100,15 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
 
       const employeeId = meeting.employee_id || user.id;
 
+      // Конвертируем локально выбранные date/time в UTC ISO для timestamptz
+      const meetingDateISO = normalizeMeetingDateToUtcIso(meeting.meeting_date);
+
       const meetingData = {
         stage_id: meeting.stage_id || null,
         manager_id: meeting.manager_id,
         employee_id: employeeId,
         created_by: user.id,
-        meeting_date: meeting.meeting_date,
+        meeting_date: meetingDateISO,
         // Status is computed by DB trigger based on meeting_date
       };
 
@@ -128,9 +132,15 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
 
   const updateMeetingMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<OneOnOneMeeting> & { id: string }) => {
+      const safeUpdates: Partial<OneOnOneMeeting> = { ...updates };
+
+      if (typeof safeUpdates.meeting_date === 'string' && safeUpdates.meeting_date) {
+        safeUpdates.meeting_date = normalizeMeetingDateToUtcIso(safeUpdates.meeting_date);
+      }
+
       const { data, error } = await supabase
         .from('one_on_one_meetings')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -138,8 +148,9 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['meeting', variables.id] });
       toast({ title: 'Встреча обновлена' });
     },
     onError: (error: Error) => {
@@ -165,12 +176,63 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['meeting', variables.meetingId] });
       toast({ title: 'Итоги встречи сохранены' });
     },
     onError: (error: Error) => {
       toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const rescheduleMeetingMutation = useMutation({
+    mutationFn: async ({ meetingId, previousDate, newDateIso }: { meetingId: string; previousDate: string; newDateIso: string }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      // 1. Insert reschedule history
+      const { error: histError } = await supabase
+        .from('meeting_reschedules')
+        .insert({
+          meeting_id: meetingId,
+          previous_date: previousDate,
+          new_date: newDateIso,
+          rescheduled_by: user.id,
+        });
+      if (histError) throw histError;
+
+      // 2. Update meeting date (DB trigger recalculates status)
+      const { error: updateError } = await supabase
+        .from('one_on_one_meetings')
+        .update({ meeting_date: newDateIso })
+        .eq('id', meetingId);
+      if (updateError) throw updateError;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['meeting', variables.meetingId] });
+      queryClient.invalidateQueries({ queryKey: ['meeting-reschedules', variables.meetingId] });
+      toast({ title: 'Встреча перенесена' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Ошибка переноса', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteMeetingMutation = useMutation({
+    mutationFn: async (meetingId: string) => {
+      const { error } = await supabase
+        .from('one_on_one_meetings')
+        .delete()
+        .eq('id', meetingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
+      toast({ title: 'Встреча удалена' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Ошибка удаления', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -183,5 +245,8 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
     updateMeetingAsync: updateMeetingMutation.mutateAsync,
     saveSummary: saveSummaryMutation.mutate,
     saveSummaryAsync: saveSummaryMutation.mutateAsync,
+    rescheduleMeeting: rescheduleMeetingMutation.mutateAsync,
+    deleteMeeting: deleteMeetingMutation.mutateAsync,
+    isDeletingMeeting: deleteMeetingMutation.isPending,
   };
 };

@@ -169,7 +169,7 @@ export type Database = {
       audit_log: {
         Row: {
           action_type: string
-          admin_id: string
+          admin_id: string | null
           created_at: string | null
           details: Json | null
           field: string | null
@@ -180,7 +180,7 @@ export type Database = {
         }
         Insert: {
           action_type: string
-          admin_id: string
+          admin_id?: string | null
           created_at?: string | null
           details?: Json | null
           field?: string | null
@@ -191,7 +191,7 @@ export type Database = {
         }
         Update: {
           action_type?: string
-          admin_id?: string
+          admin_id?: string | null
           created_at?: string | null
           details?: Json | null
           field?: string | null
@@ -696,7 +696,7 @@ export type Database = {
         Row: {
           comment_rules: Json
           created_at: string
-          created_by: string
+          created_by: string | null
           description: string | null
           hard_scale_max: number
           hard_scale_min: number
@@ -716,7 +716,7 @@ export type Database = {
         Insert: {
           comment_rules?: Json
           created_at?: string
-          created_by: string
+          created_by?: string | null
           description?: string | null
           hard_scale_max?: number
           hard_scale_min?: number
@@ -736,7 +736,7 @@ export type Database = {
         Update: {
           comment_rules?: Json
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           description?: string | null
           hard_scale_max?: number
           hard_scale_min?: number
@@ -855,6 +855,68 @@ export type Database = {
           },
           {
             foreignKeyName: "diagnostic_snapshot_jobs_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostic_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnostic_snapshot_runs: {
+        Row: {
+          error_count: number
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          inserted_count: number
+          processed_subjects: number
+          progress_percent: number
+          skipped_count: number
+          stage_id: string
+          started_at: string
+          started_by: string
+          status: string
+          summary_json: Json | null
+          total_subjects: number
+          versioned_count: number
+        }
+        Insert: {
+          error_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          inserted_count?: number
+          processed_subjects?: number
+          progress_percent?: number
+          skipped_count?: number
+          stage_id: string
+          started_at?: string
+          started_by: string
+          status?: string
+          summary_json?: Json | null
+          total_subjects?: number
+          versioned_count?: number
+        }
+        Update: {
+          error_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          inserted_count?: number
+          processed_subjects?: number
+          progress_percent?: number
+          skipped_count?: number
+          stage_id?: string
+          started_at?: string
+          started_by?: string
+          status?: string
+          summary_json?: Json | null
+          total_subjects?: number
+          versioned_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_snapshot_runs_stage_id_fkey"
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "diagnostic_stages"
@@ -2023,6 +2085,57 @@ export type Database = {
           },
         ]
       }
+      meeting_notifications: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          id: string
+          meeting_id: string | null
+          recipient_id: string
+          scenario_id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          meeting_id?: string | null
+          recipient_id: string
+          scenario_id: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          meeting_id?: string | null
+          recipient_id?: string
+          scenario_id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_notifications_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_private_notes: {
         Row: {
           created_at: string | null
@@ -2061,6 +2174,48 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_reschedules: {
+        Row: {
+          id: string
+          meeting_id: string
+          new_date: string
+          previous_date: string
+          rescheduled_at: string
+          rescheduled_by: string
+        }
+        Insert: {
+          id?: string
+          meeting_id: string
+          new_date: string
+          previous_date: string
+          rescheduled_at?: string
+          rescheduled_by: string
+        }
+        Update: {
+          id?: string
+          meeting_id?: string
+          new_date?: string
+          previous_date?: string
+          rescheduled_at?: string
+          rescheduled_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_reschedules_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_reschedules_rescheduled_by_fkey"
+            columns: ["rescheduled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2207,6 +2362,7 @@ export type Database = {
           submitted_at: string | null
           summary_saved_at: string | null
           summary_saved_by: string | null
+          summary_version: number
           updated_at: string
         }
         Insert: {
@@ -2240,6 +2396,7 @@ export type Database = {
           submitted_at?: string | null
           summary_saved_at?: string | null
           summary_saved_by?: string | null
+          summary_version?: number
           updated_at?: string
         }
         Update: {
@@ -2273,6 +2430,7 @@ export type Database = {
           submitted_at?: string | null
           summary_saved_at?: string | null
           summary_saved_by?: string | null
+          summary_version?: number
           updated_at?: string
         }
         Relationships: [
@@ -3920,6 +4078,9 @@ export type Database = {
       }
       users: {
         Row: {
+          bitrix_bot_enabled: boolean | null
+          bitrix_bot_status: string | null
+          bitrix_user_id: string | null
           cookies_consent: boolean | null
           cookies_consent_at: string | null
           created_at: string
@@ -3940,6 +4101,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bitrix_bot_enabled?: boolean | null
+          bitrix_bot_status?: string | null
+          bitrix_user_id?: string | null
           cookies_consent?: boolean | null
           cookies_consent_at?: string | null
           created_at?: string
@@ -3960,6 +4124,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bitrix_bot_enabled?: boolean | null
+          bitrix_bot_status?: string | null
+          bitrix_user_id?: string | null
           cookies_consent?: boolean | null
           cookies_consent_at?: string | null
           created_at?: string

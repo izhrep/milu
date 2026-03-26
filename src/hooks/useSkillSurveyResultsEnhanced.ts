@@ -34,12 +34,17 @@ export interface SkillDetailedResult {
   comments: CommentByEvaluator[];
 }
 
-export const useSkillSurveyResultsEnhanced = (userId?: string, diagnosticStageId?: string | null, snapshotContext?: SnapshotContext | null) => {
+export const useSkillSurveyResultsEnhanced = (userId?: string, diagnosticStageId?: string | null, snapshotContext?: SnapshotContext | null, snapshotResolved: boolean = true) => {
   const [skillResults, setSkillResults] = useState<SkillDetailedResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stable snapshot identifier
+  const snapshotId = snapshotContext?.snapshotId ?? null;
+
   useEffect(() => {
+    // Guard: wait for snapshot resolution before fetching
+    if (!snapshotResolved) return;
     if (userId && diagnosticStageId) {
       fetchResults();
     } else if (userId && diagnosticStageId === undefined) {
@@ -47,7 +52,7 @@ export const useSkillSurveyResultsEnhanced = (userId?: string, diagnosticStageId
     } else {
       setSkillResults([]);
     }
-  }, [userId, diagnosticStageId, snapshotContext]);
+  }, [userId, diagnosticStageId, snapshotId, snapshotResolved]);
 
   const fetchResults = async () => {
     try {

@@ -72,7 +72,8 @@ export const useCorrectAssessmentResults = (
   positionCategoryFilter: string = 'all',
   skillSetFilter: SkillSetFilterType = 'all',
   diagnosticStageId?: string | null,
-  snapshotContext?: SnapshotContext | null
+  snapshotContext?: SnapshotContext | null,
+  snapshotResolved: boolean = true
 ) => {
   const [radarData, setRadarData] = useState<AssessmentDataWithCounts[]>([]);
   const [overallResults, setOverallResults] = useState<AssessmentDataWithCounts | null>(null);
@@ -83,11 +84,16 @@ export const useCorrectAssessmentResults = (
   const [managerPositionCategory, setManagerPositionCategory] = useState<string | null>(null);
   const [evaluatorsInfo, setEvaluatorsInfo] = useState<Map<string, EvaluatorInfo>>(new Map());
 
+  // Stable snapshot identifier to avoid re-fetches on object reference changes
+  const snapshotId = snapshotContext?.snapshotId ?? null;
+
   useEffect(() => {
+    // Guard: wait for snapshot resolution before fetching
+    if (!snapshotResolved) return;
     if (userId) {
       fetchCorrectResults();
     }
-  }, [userId, filterType, positionCategoryFilter, skillSetFilter, diagnosticStageId, snapshotContext]);
+  }, [userId, filterType, positionCategoryFilter, skillSetFilter, diagnosticStageId, snapshotId, snapshotResolved]);
 
   const fetchCorrectResults = async () => {
     if (!userId) return;

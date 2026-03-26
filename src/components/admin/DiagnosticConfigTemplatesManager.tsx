@@ -399,16 +399,18 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
 
   return (
     <TableRow>
-      <TableCell colSpan={8} className="bg-muted/20 p-3">
-        <div className="space-y-3 text-sm">
+      <TableCell colSpan={9} className="bg-muted/20 p-4">
+        <div className="space-y-4 text-sm">
           {tpl.description && (
             <p className="text-muted-foreground">{tpl.description}</p>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Левый блок — Шкалы */}
+            <div className="border border-border rounded-lg p-3 bg-card space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Шкалы</h4>
               <div>
-                <span className="text-muted-foreground">Hard-навыки в опросе: </span>
+                <span className="text-muted-foreground">Hard-навыки: </span>
                 <span className="font-medium">{summary.hardSkillsLabel}</span>
               </div>
               <div>
@@ -420,7 +422,10 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
                 <span className="font-medium">{summary.softScaleLabel}</span>
               </div>
             </div>
-            <div className="space-y-1.5">
+
+            {/* Правый блок — Правила */}
+            <div className="border border-border rounded-lg p-3 bg-card space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Правила</h4>
               <div>
                 <span className="text-muted-foreground">Комментарии: </span>
                 <span className="font-medium">{summary.commentsLabel}</span>
@@ -432,11 +437,13 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
                 <span className="text-muted-foreground">Открытые вопросы: </span>
                 <span className="font-medium">{summary.openQuestionsLabel}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground">Johari: </span>
-                <span className="font-medium">{summary.johariLabel}</span>
-              </div>
             </div>
+          </div>
+
+          {/* Блок Johari */}
+          <div className="border border-border rounded-lg p-3 bg-card space-y-2">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Окно Джохари</h4>
+            <p className="font-medium">{summary.johariLabel}</p>
           </div>
 
           {/* Accordion: Подробнее */}

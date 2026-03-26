@@ -121,6 +121,10 @@ export type SnapshotContextResult = {
   snapshotContext: SnapshotContext | null;
   isHistorical: boolean;
   loading: boolean;
+  /** true once the snapshot resolution is complete (either loaded or confirmed absent) */
+  snapshotResolved: boolean;
+  /** Stable identifier for dependency tracking — avoids re-renders on object reference changes */
+  snapshotId: string | null;
   error: string | null;
 };
 
@@ -144,6 +148,7 @@ export function useSnapshotContext(
       return data;
     },
     enabled: !!stageId && !!userId,
+    staleTime: 5 * 60 * 1000, // Snapshot headers are immutable per stage+user, cache aggressively
   });
 
   const diagnosticId = snapshotHeader?.id;
@@ -354,11 +359,16 @@ export function useSnapshotContext(
 
   const loading = headerLoading || dataLoading;
 
+  // Resolved = header query finished AND (no snapshot OR snapshot data query finished)
+  const snapshotResolved = !headerLoading && (!diagnosticId || !dataLoading);
+
   if (!stageId || !userId || !snapshotData) {
     return {
       snapshotContext: null,
       isHistorical,
       loading,
+      snapshotResolved,
+      snapshotId: diagnosticId || null,
       error: dataError ? String(dataError) : null,
     };
   }
@@ -367,6 +377,8 @@ export function useSnapshotContext(
     snapshotContext: snapshotData,
     isHistorical: true,
     loading,
+    snapshotResolved,
+    snapshotId: diagnosticId || null,
     error: dataError ? String(dataError) : null,
   };
 }

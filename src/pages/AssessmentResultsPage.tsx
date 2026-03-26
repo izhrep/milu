@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle, Download, Calendar, Brain, FileSpreadsheet, His
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadarChartResults } from '@/components/RadarChartResults';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HorizontalBarChart, BarChartDataItem } from '@/components/HorizontalBarChart';
 import { CollapsibleHorizontalBarChart } from '@/components/CollapsibleHorizontalBarChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,7 +61,7 @@ const AssessmentResultsPage = () => {
   const selectedStageId = manualStageId || stageIdFromState || activeStage?.id || firstStageId || null;
   
   // Snapshot context for historical data
-  const { snapshotContext, isHistorical, loading: snapshotLoading } = useSnapshotContext(selectedStageId, userId);
+  const { snapshotContext, isHistorical, loading: snapshotLoading, snapshotResolved } = useSnapshotContext(selectedStageId, userId);
   
   // Stage template config (hard_skills_enabled toggle, scales, etc.)
   const { config: stageConfig, loading: stageConfigLoading } = useStageTemplateConfig(selectedStageId || undefined);
@@ -260,17 +261,17 @@ const AssessmentResultsPage = () => {
     loading,
     maxValue,
     managerPositionCategory
-  } = useCorrectAssessmentResults(userId, globalFilter, 'all', skillSetFilter, selectedStageId, snapshotContext);
+  } = useCorrectAssessmentResults(userId, globalFilter, 'all', skillSetFilter, selectedStageId, snapshotContext, snapshotResolved);
 
   // Получаем комментарии
   const {
     skillResults: enhancedSkillResults,
     loading: enhancedSkillLoading,
-  } = useSkillSurveyResultsEnhanced(userId, selectedStageId, snapshotContext);
+  } = useSkillSurveyResultsEnhanced(userId, selectedStageId, snapshotContext, snapshotResolved);
   const {
     qualityResults: enhancedQualityResults,
     loading: enhancedQualityLoading,
-  } = useSurvey360ResultsEnhanced(userId, selectedStageId, snapshotContext);
+  } = useSurvey360ResultsEnhanced(userId, selectedStageId, snapshotContext, snapshotResolved);
 
 
   // Функции для получения заголовков в зависимости от фильтра
@@ -308,7 +309,7 @@ const AssessmentResultsPage = () => {
   }, [location]);
 
   // Show loading state while checking access or loading data
-  if (!accessCheckComplete || accessDenied || loading) {
+  if (!accessCheckComplete || accessDenied || loading || snapshotLoading) {
     return (
       <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
         <div className="text-center">
@@ -542,14 +543,23 @@ const AssessmentResultsPage = () => {
             </div>
             <div className="flex gap-2">
               {canViewJohari && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setJohariSheetOpen(true)} 
-                  className="print:hidden bg-gradient-to-r from-purple-500 to-violet-600 text-white border-0 hover:from-purple-600 hover:to-violet-700 hover:text-white"
-                >
-                  <Brain className="w-4 h-4 mr-2" />
-                  Окно Джохари (AI)
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-block">
+                        <Button 
+                          variant="outline" 
+                          disabled
+                          className="print:hidden bg-gradient-to-r from-purple-500/50 to-violet-600/50 text-white border-0 cursor-not-allowed"
+                        >
+                          <Brain className="w-4 h-4 mr-2" />
+                          Окно Джохари (AI)
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Временно недоступно</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               {canViewJohari && (
                 <Button 

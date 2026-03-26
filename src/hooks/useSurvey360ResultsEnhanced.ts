@@ -38,13 +38,18 @@ export interface EnhancedAggregatedResults {
   };
 }
 
-export const useSurvey360ResultsEnhanced = (userId?: string, diagnosticStageId?: string | null, snapshotContext?: SnapshotContext | null) => {
+export const useSurvey360ResultsEnhanced = (userId?: string, diagnosticStageId?: string | null, snapshotContext?: SnapshotContext | null, snapshotResolved: boolean = true) => {
   const [qualityResults, setQualityResults] = useState<QualityDetailedResult[]>([]);
   const [summary, setSummary] = useState<EnhancedAggregatedResults['overall_summary'] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stable snapshot identifier
+  const snapshotId = snapshotContext?.snapshotId ?? null;
+
   useEffect(() => {
+    // Guard: wait for snapshot resolution before fetching
+    if (!snapshotResolved) return;
     if (userId && diagnosticStageId) {
       fetchResults();
     } else if (userId && diagnosticStageId === undefined) {
@@ -53,7 +58,7 @@ export const useSurvey360ResultsEnhanced = (userId?: string, diagnosticStageId?:
       setQualityResults([]);
       setSummary(null);
     }
-  }, [userId, diagnosticStageId, snapshotContext]);
+  }, [userId, diagnosticStageId, snapshotId, snapshotResolved]);
 
   const fetchResults = async () => {
     try {

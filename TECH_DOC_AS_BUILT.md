@@ -32,10 +32,10 @@ MILU — внутренняя HR-платформа для проведения 
 
 Определены в PostgreSQL enum `public.app_role`:
 
-- `admin` — полный доступ ко всем модулям
-- `hr_bp` — HR бизнес-партнёр, расширенный доступ к оценке и справочникам
-- `manager` — руководитель, доступ к командам и встречам
-- `employee` — базовая роль, самооценка и заполнение форм
+- `admin` — полный доступ ко всем модулям. `manager_id` автоматически очищается при назначении этой роли.
+- `hr_bp` — HR бизнес-партнёр, расширенный доступ к оценке и справочникам. `manager_id` автоматически очищается.
+- `manager` — руководитель, доступ к командам и встречам. **Может иметь собственного руководителя** (`manager_id`), что формирует многоуровневую иерархию.
+- `employee` — базовая роль, самооценка и заполнение форм. Может иметь `manager_id`.
 
 Роли хранятся в таблице `user_roles` (user_id, role), **не** в таблице `users`.
 
@@ -290,14 +290,49 @@ app_role (enum) → user_roles (таблица) → role_permissions → permiss
 |---|---|---|
 | `has_permission` | `(_permission_name text) → boolean` | Основная проверка. Использует `auth.uid()` внутри. SECURITY DEFINER |
 | `is_owner` | `(user_id_to_check uuid) → boolean` | Проверка владельца |
-| `is_users_manager` | `(employee_id uuid) → boolean` | Проверка руководитель ли текущий user для employee |
+| `is_users_manager` | `(employee_id uuid) → boolean` | Проверка: является ли текущий user **непосредственным** руководителем employee |
+| `is_in_management_subtree` | `(manager_id uuid, target_user_id uuid) → boolean` | Проверка: находится ли target_user в subtree manager (рекурсивно, до 10 уровней) |
+| `get_management_subtree_ids` | `(root_manager_id uuid) → setof uuid` | Возвращает все user_id из subtree руководителя (рекурсивно, до 10 уровней) |
 | `get_current_user_id` | `() → uuid` | Обёртка над `auth.uid()` |
 | `refresh_user_effective_permissions` | `(target_user_id uuid) → void` | Обновление кэша прав пользователя |
 | `refresh_role_effective_permissions` | `(target_role app_role) → void` | Обновление кэша прав для роли |
 
+### Управленческая иерархия (Management Subtree)
+
+Система поддерживает **многоуровневую управленческую иерархию**: пользователь с ролью `manager` может одновременно быть руководителем для подчинённых и сотрудником для своего руководителя (через `users.manager_id`).
+
+**Ключевые принципы:**
+
+1. **Subtree-видимость:** Руководитель имеет read-only доступ ко всему нисходящему дереву (subtree) — не только к прямым подчинённым.
+2. **Уровни доступа:**
+   - **Прямой руководитель** (`is_users_manager`) → полный CRUD (создание встреч, утверждение респондентов, редактирование)
+   - **Вышестоящий руководитель** (`is_in_management_subtree`) → только SELECT (read-only просмотр)
+3. **Ограничение глубины:** Рекурсия ограничена 10 уровнями для предотвращения performance-проблем.
+
+**Защита целостности иерархии:**
+
+| Механизм | Назначение |
+|---|---|
+| CHECK `no_self_manager` | Запрет `manager_id = id` (нельзя быть собственным руководителем) |
+| Рекурсивный триггер | Проход по цепочке `manager_id` (до 10 хопов) для обнаружения циклов (A→B→A) при INSERT/UPDATE |
+| Автоочистка `manager_id` | При смене роли на `admin` или `hr_bp` — `manager_id` обнуляется |
+
+**RLS-применение:**
+
+- **SELECT** политики на `users`, `one_on_one_meetings`, `meeting_decisions`, `tasks` — расширены до subtree (`is_in_management_subtree`)
+- **INSERT/UPDATE** политики — ограничены непосредственным руководителем (`is_users_manager`)
+- **Storage RLS** (bucket `meeting-artifacts`) — доступ участникам встречи + subtree-руководителям
+
+**Где в коде:**
+- `src/hooks/useSubordinateTree.ts` — загрузка subtree на фронтенде
+- `src/hooks/useSubordinates.ts` — прямые подчинённые
+- `src/hooks/useSupervisors.ts` — цепочка руководителей
+- `src/components/TeamMembersTable.tsx` — группировка по менеджерам, метки "через [Имя]" для непрямых
+- `src/pages/TeamPage.tsx` — фильтр по менеджеру для admin/hr_bp
+
 ### Enforcement
 
-- **БД (RLS):** ~70+ политик на всех таблицах. Используют `has_permission()`, `auth.uid()`, `is_users_manager()`, прямые проверки `user_roles`
+- **БД (RLS):** ~70+ политик на всех таблицах. Используют `has_permission()`, `auth.uid()`, `is_users_manager()`, `is_in_management_subtree()`, прямые проверки `user_roles`
 - **Edge Functions:** Проверка JWT + `has_permission` через service role client
 - **Фронтенд:** Hook `usePermission` (`src/hooks/usePermission.ts`) — вызывает `supabase.rpc('has_permission')`. Контролирует видимость UI-элементов
 

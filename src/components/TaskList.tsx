@@ -184,7 +184,15 @@ export const TaskList: React.FC<TaskListProps> = ({ userId }) => {
   }
 
   if (tasks.length === 0) {
-    return null;
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="w-12 h-12 rounded-full bg-accent/60 flex items-center justify-center mb-3">
+          <Calendar className="w-6 h-6 text-primary" />
+        </div>
+        <p className="text-base font-medium text-foreground">Сейчас активных задач нет</p>
+        <p className="text-sm text-muted-foreground mt-1">Все задачи выполнены — отличная работа!</p>
+      </div>
+    );
   }
 
   return (
