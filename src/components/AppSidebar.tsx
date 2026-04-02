@@ -59,9 +59,9 @@ export const AppSidebar = () => {
   // Собираем все пункты меню в один массив с условиями видимости
   const allMenuItems = [
     { title: 'Главная', url: '/', icon: iconHome, show: true, end: true, size: 'h-7 w-7' },
-    { title: 'Профиль', url: '/profile', icon: iconProfile, show: canViewTeam || canViewAdminPanel, end: false, size: 'h-7 w-7' },
+    { title: 'Профиль', url: '/profile', icon: iconProfile, show: true, end: false, size: 'h-7 w-7' },
     { title: 'Мои задачи', url: '/tasks', icon: iconTasks, show: true, end: false, size: 'h-7 w-7' },
-    { title: 'Карьерный трек', url: '/development/career-track', icon: iconCareer, show: showCareerTrack, end: false, size: 'h-7 w-7' },
+    { title: 'Карьерный трек', url: '/development/career-track', icon: iconCareer, show: showCareerTrack && user?.role === 'admin', end: false, size: 'h-7 w-7' },
     { title: 'Обратная связь 360', url: '/questionnaires', icon: iconFeedback360, show: true, end: false, size: 'h-8 w-8' },
     { title: 'Встречи 1:1', url: '/meetings', icon: iconMeetings, show: showMeetings, end: false, size: 'h-7 w-7' },
     { title: 'Мониторинг встреч 1:1', url: '/meetings-monitoring', icon: iconMeetingsMonitor, show: canViewTeam, end: false, size: 'h-7 w-7' },

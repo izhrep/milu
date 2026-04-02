@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useMinuteTick } from '@/hooks/useMinuteTick';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { formatMeetingDateFull } from '@/lib/meetingDateFormat';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermission } from '@/hooks/usePermission';
 import { useQuery } from '@tanstack/react-query';
@@ -76,6 +79,7 @@ const MeetingCardsSkeleton = ({ count = 3 }: { count?: number }) => (
 
 const MeetingsPage = () => {
   const { user } = useAuth();
+  useMinuteTick(); // Force re-render every 60s so getEffectiveStatus() picks up time changes
 
   // Permissions
   const { hasPermission: canViewSubordinateMeetings, isLoading: permLoading } = usePermission('team.view');
@@ -312,8 +316,26 @@ const MeetingsPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newMeetingId, setNewMeetingId] = useState<string | null>(null);
-  const [rescheduleTarget, setRescheduleTarget] = useState<{ id: string; date: string } | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<{ id: string; date: string; employeeId?: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  // Auto-open meeting from URL query param (e.g. from task card)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoOpenHandled = useRef(false);
+
+  useEffect(() => {
+    // Support both ?meetingId= (task cards) and ?meeting= (notification links)
+    const meetingId = searchParams.get('meetingId') || searchParams.get('meeting');
+    if (meetingId && !autoOpenHandled.current) {
+      autoOpenHandled.current = true;
+      setSelectedMeeting(meetingId);
+      setIsFormOpen(true);
+      // Clean up the URL params
+      searchParams.delete('meetingId');
+      searchParams.delete('meeting');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { rescheduleMeeting, deleteMeeting, isDeletingMeeting } = useOneOnOneMeetings();
 
@@ -362,8 +384,8 @@ const MeetingsPage = () => {
                 Встреча {total - index}
                 {meeting.meeting_date && (
                   <span className="font-normal text-muted-foreground ml-2">
-                    — {format(new Date(meeting.meeting_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
-                  </span>
+                      — {formatMeetingDateFull(meeting.meeting_date, user?.timezone)}
+                    </span>
                 )}
               </h3>
               <div className="flex items-center gap-3 mb-2">
@@ -405,7 +427,7 @@ const MeetingsPage = () => {
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground gap-1.5"
-                    onClick={() => setRescheduleTarget({ id: meeting.id, date: meeting.meeting_date || '' })}
+                    onClick={() => setRescheduleTarget({ id: meeting.id, date: meeting.meeting_date || '', employeeId: meeting.employee_id })}
                   >
                     <CalendarClock className="h-3.5 w-3.5" />
                     Перенести
@@ -526,7 +548,7 @@ const MeetingsPage = () => {
                           Встреча {myMeetings.length - index}
                           {meeting.meeting_date && (
                             <span className="font-normal text-muted-foreground ml-2">
-                              — {format(new Date(meeting.meeting_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
+                              — {formatMeetingDateFull(meeting.meeting_date, user?.timezone)}
                             </span>
                           )}
                         </h3>
@@ -557,7 +579,7 @@ const MeetingsPage = () => {
                               variant="ghost"
                               size="sm"
                               className="text-muted-foreground gap-1.5"
-                              onClick={() => setRescheduleTarget({ id: meeting.id, date: meeting.meeting_date || '' })}
+                              onClick={() => setRescheduleTarget({ id: meeting.id, date: meeting.meeting_date || '', employeeId: meeting.employee_id })}
                             >
                               <CalendarClock className="h-3.5 w-3.5" />
                               Перенести
@@ -740,6 +762,7 @@ const MeetingsPage = () => {
           onOpenChange={(open) => { if (!open) setRescheduleTarget(null); }}
           meetingId={rescheduleTarget.id}
           currentMeetingDate={rescheduleTarget.date}
+          employeeId={rescheduleTarget.employeeId}
           onReschedule={rescheduleMeeting}
         />
       )}

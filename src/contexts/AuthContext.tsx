@@ -12,6 +12,7 @@ export interface AuthUser {
   first_name?: string;
   last_name?: string;
   middle_name?: string;
+  timezone?: string;
 }
 
 interface AuthContextType {
@@ -111,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Получаем данные пользователя из таблицы users
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('first_name, last_name, middle_name, email')
+        .select('first_name, last_name, middle_name, email, timezone, timezone_manual')
         .eq('id', userId)
         .maybeSingle();
 
@@ -130,6 +131,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
 
+      // Resolve effective timezone: stored DB value or browser-detected
+      const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      let effectiveTz = (userData as any)?.timezone || detectedTz || 'Europe/Moscow';
+
+      // Auto-detect and save browser timezone (fire-and-forget)
+      // Respects timezone_manual flag: if user set timezone manually, don't overwrite
+      if (detectedTz && !(userData as any)?.timezone_manual) {
+        const storedTz = (userData as any)?.timezone;
+        if (storedTz !== detectedTz) {
+          effectiveTz = detectedTz;
+          supabase
+            .from('users')
+            .update({ timezone: detectedTz } as Record<string, unknown>)
+            .eq('id', userId)
+            .then(({ error: tzErr }) => {
+              if (tzErr) console.error('Failed to save timezone:', tzErr.message);
+            });
+        }
+      }
+
       // Устанавливаем пользователя с расшифрованными данными
       setUser({
         id: userId,
@@ -139,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         first_name: decryptedData?.first_name || '',
         last_name: decryptedData?.last_name || '',
         middle_name: decryptedData?.middle_name || '',
+        timezone: effectiveTz,
       });
     } catch (error) {
       console.error('Error loading user data:', error);

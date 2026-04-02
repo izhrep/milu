@@ -33,11 +33,30 @@ import {
   formatLocalDateInputValue,
   formatLocalTimeInputValue,
   parseMeetingDateTime,
+  getEffectiveTimezone,
+  getTimezoneOffsetLabel,
+  formatDateInTimezone,
+  formatTimeInTimezone,
+  localDateTimeToUtcIso,
 } from '@/lib/meetingDateTime';
+import { formatMeetingDateFull, formatMeetingDateTimeShort } from '@/lib/meetingDateFormat';
 import { validateMeetingDateTime, getFieldError } from '@/lib/meetingValidation';
 
+const meetingLinkSchema = z.string().optional().refine(
+  (val) => {
+    if (!val || val.trim() === '') return true;
+    try {
+      const url = new URL(val);
+      return url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  },
+  { message: 'Укажите корректную ссылку (https://...)' }
+);
+
 const meetingSchema = z.object({
-  meeting_link: z.string().optional(),
+  meeting_link: meetingLinkSchema,
   meeting_date: z.string().min(1, 'Укажите дату и время встречи'),
   emp_mood: z.string().optional(),
   emp_successes: z.string().optional(),
@@ -79,9 +98,11 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   const [summaryDraft, setSummaryDraft] = useState('');
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isSavingHrbpDate, setIsSavingHrbpDate] = useState(false);
   const { user } = useAuth();
   const { hasPermission: canViewAllMeetings } = usePermission('meetings.view_all');
   const { hasPermission: canDeleteMeetings } = usePermission('meetings.delete');
+  const { hasPermission: canEditSummaryDate } = usePermission('meetings.edit_summary_date');
 
   const { deleteMeeting, isDeletingMeeting } = useOneOnOneMeetings();
 
@@ -99,8 +120,12 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   });
 
   const isManager = meeting ? (user?.id !== meeting.employee_id) : isManagerProp;
-  const isHistorical = isManager && !!meeting && meeting.manager_id !== user?.id;
+  const isHistoricalRaw = isManager && !!meeting && meeting.manager_id !== user?.id;
+  const isParticipant = !!meeting && (user?.id === meeting.employee_id || user?.id === meeting.manager_id);
+  const isHrbpEdit = canEditSummaryDate && !isParticipant && !!meeting;
+  const isHistorical = isHistoricalRaw && !isHrbpEdit;
 
+  // Task 4: Always load original manager name for historical/any meetings
   const { data: originalManager } = useQuery({
     queryKey: ['user-name', meeting?.manager_id],
     queryFn: async () => {
@@ -111,7 +136,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         .single();
       return data;
     },
-    enabled: isHistorical && !!meeting?.manager_id,
+    enabled: !!meeting?.manager_id,
   });
 
   const originalManagerName = originalManager
@@ -180,7 +205,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   ]);
 
   // Any save in progress — used to block concurrent actions
-  const isAnySaving = isSavingMain || isSavingSummary || isUpsertingManagerFields;
+  const isAnySaving = isSavingMain || isSavingSummary || isUpsertingManagerFields || isSavingHrbpDate;
 
   // Permissions
   const canEditEmployeeFields = !isHistorical && !isManager && !!meeting && meeting.status !== 'recorded';
@@ -204,21 +229,23 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   // Overdue = date passed, no summary saved yet
   const isOverdue = isMeetingStarted && !!meeting && meeting.status !== 'recorded';
   const canEditSharedFields = !isHistorical && !isOverdue && !!meeting && meeting.status !== 'recorded';
+  const canEditDateTime = isHrbpEdit || canEditSharedFields;
   const canReschedule = isOverdue && !meeting?.meeting_summary && !isHistorical;
 
-  const canEditSummary = !isHistorical && !!meeting && isMeetingStarted;
+  const canEditSummary = isHrbpEdit || (!isHistorical && !!meeting && isMeetingStarted);
 
   // Date/time validation errors for save button (Bug 8)
   const hasDateTimeErrors = useMemo(() => {
-    if (!canEditSharedFields) return false; // Only validate when user can edit
+    if (!canEditDateTime) return false;
     const raw = watch('meeting_date') || '';
     const dt = parseMeetingDateTime(raw);
-    if (!dt) return true; // No date = invalid
-    const dateValue = formatLocalDateInputValue(dt);
-    const timeValue = formatLocalTimeInputValue(dt);
+    if (!dt) return true;
+    const tz = getEffectiveTimezone(user?.timezone);
+    const dateValue = formatDateInTimezone(dt, tz);
+    const timeValue = formatTimeInTimezone(dt, tz);
     const errs = validateMeetingDateTime(dateValue, timeValue);
     return errs.length > 0;
-  }, [watch('meeting_date'), canEditSharedFields, now]);
+  }, [watch('meeting_date'), canEditDateTime, now, user?.timezone]);
 
   // Reschedule history (visible to manager and HR only)
   const showRescheduleHistory = isManager || canViewAllMeetings;
@@ -255,6 +282,24 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   });
 
 
+  // HRBP date-only dirty check
+  const hrbpDateDirty = useMemo(() => {
+    if (!isHrbpEdit || !meeting) return false;
+    return (watch('meeting_date') || '') !== (meeting.meeting_date || '');
+  }, [isHrbpEdit, watch('meeting_date'), meeting?.meeting_date]);
+
+  const handleSaveHrbpDate = async () => {
+    if (!meeting || !hrbpDateDirty) return;
+    setIsSavingHrbpDate(true);
+    try {
+      await updateMeetingAsync({ id: meeting.id, meeting_date: watch('meeting_date') } as any);
+    } catch {
+      // error handled by mutation toast
+    } finally {
+      setIsSavingHrbpDate(false);
+    }
+  };
+
   const onSubmit = async (data: MeetingFormData) => {
     if (!meeting || !employeeDirty) return;
     setIsSavingMain(true);
@@ -273,12 +318,14 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     }
   };
 
+  // Task 9: Prevent saving empty/whitespace-only summary
+  const isSummaryValid = summaryDraft.trim().length > 0;
+
   const handleSaveSummary = async () => {
-    if (!summaryDirty) return;
+    if (!summaryDirty || !isSummaryValid) return;
     setIsSavingSummary(true);
     try {
-      // Bug 5: always use meetingId from props, not from query result
-      await saveSummaryAsync({ meetingId, summary: summaryDraft });
+      await saveSummaryAsync({ meetingId, summary: summaryDraft.trim() });
       setIsEditingSummary(false);
     } catch {
       // error handled by mutation toast
@@ -317,12 +364,22 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Historical banner */}
+      {/* Historical banner — Task 4: Show original manager FIO */}
       {isHistorical && (
         <Alert className="border-muted bg-muted/30">
           <History className="h-4 w-4" />
           <AlertDescription>
-            Историческая встреча (провёл {originalManagerName ? `${originalManagerName}` : 'другой руководитель'}). Только просмотр.
+            Историческая встреча (провёл {originalManagerName || 'другой руководитель'}). Только просмотр.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* HRBP banner */}
+      {isHrbpEdit && (
+        <Alert className="border-primary/30 bg-primary/5">
+          <Pencil className="h-4 w-4" />
+          <AlertDescription>
+            Режим HRBP — доступно редактирование итогов и даты/времени
           </AlertDescription>
         </Alert>
       )}
@@ -335,13 +392,18 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           </Badge>
           {meeting.meeting_date && (
             <span className="text-sm text-muted-foreground">
-              {new Date(meeting.meeting_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {formatMeetingDateFull(meeting.meeting_date, user?.timezone)}
             </span>
           )}
         </div>
         {canEditSharedFields && (
           <Button type="submit" size="sm" variant={employeeDirty ? 'default' : 'outline'} disabled={!employeeDirty || isSavingMain || isAnySaving || hasDateTimeErrors}>
             {isSavingMain ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Сохранение...</> : 'Сохранить'}
+          </Button>
+        )}
+        {isHrbpEdit && hrbpDateDirty && (
+          <Button type="button" size="sm" variant="default" onClick={handleSaveHrbpDate} disabled={isSavingHrbpDate || isAnySaving || hasDateTimeErrors}>
+            {isSavingHrbpDate ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Сохранение...</> : 'Сохранить дату'}
           </Button>
         )}
       </div>
@@ -354,16 +416,19 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
               <Label htmlFor="meeting_date" className="text-xs text-muted-foreground flex items-center gap-1 h-4">
                 {isOverdue && <Lock className="h-3 w-3 text-destructive/60" />}
                 Дата и время *
+                <span className="text-[10px]">({getTimezoneOffsetLabel(getEffectiveTimezone(user?.timezone))})</span>
               </Label>
               <div className="flex gap-2">
                 {(() => {
                   const raw = watch('meeting_date') || '';
                   const dt = parseMeetingDateTime(raw);
-                  const dateValue = dt ? formatLocalDateInputValue(dt) : '';
-                  const timeValue = dt ? formatLocalTimeInputValue(dt) : '';
+                  const userTz = getEffectiveTimezone(user?.timezone);
+                  // Display date/time in user's timezone
+                  const dateValue = dt ? formatDateInTimezone(dt, userTz) : '';
+                  const timeValue = dt ? formatTimeInTimezone(dt, userTz) : '';
 
                   const parsedDate = dateValue ? parse(dateValue, 'yyyy-MM-dd', new Date()) : undefined;
-                  const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: !canEditSharedFields });
+                  const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: !canEditDateTime });
                   const dtDateError = getFieldError(dtErrors, 'date');
 
                   return (
@@ -372,7 +437,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
-                            disabled={!canEditSharedFields}
+                            disabled={!canEditDateTime}
                             className={cn(
                               "flex-1 justify-start text-left font-normal",
                               !dateValue && "text-muted-foreground",
@@ -394,7 +459,10 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                               if (d) {
                                 const nextDate = format(d, 'yyyy-MM-dd');
                                 const nextTime = timeValue || '10:00';
-                                setValue('meeting_date', buildLocalDateTimeString(nextDate, nextTime), { shouldDirty: true });
+                                // Store as UTC ISO immediately
+                                setValue('meeting_date', localDateTimeToUtcIso(nextDate, nextTime, userTz), { shouldDirty: true });
+                              } else {
+                                setValue('meeting_date', '', { shouldDirty: true });
                               }
                             }}
                             disabled={(d) => {
@@ -412,17 +480,17 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                         onChange={(nextTime) => {
                           const nextDate = dateValue;
                           if (nextDate) {
-                            setValue('meeting_date', buildLocalDateTimeString(nextDate, nextTime), { shouldDirty: true });
+                            setValue('meeting_date', localDateTimeToUtcIso(nextDate, nextTime, userTz), { shouldDirty: true });
                           }
                         }}
-                        disabled={!canEditSharedFields}
+                        disabled={!canEditDateTime}
                         placeholder="Время"
                       />
                     </>
                   );
                 })()}
               </div>
-              {isOverdue && (
+              {isOverdue && !isHrbpEdit && (
                 <p className="text-xs text-muted-foreground/80 flex items-center gap-1 mt-1">
                   <Info className="h-3 w-3 shrink-0" />
                   Дата встречи прошла. Чтобы назначить новое время, используйте «Перенести».
@@ -430,11 +498,12 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
               )}
               <p className="text-xs text-destructive min-h-[1rem]">
                 {(() => {
-                  const skipPast = !canEditSharedFields;
+                  const skipPast = !canEditDateTime;
                   const raw = watch('meeting_date') || '';
                   const dt = parseMeetingDateTime(raw);
-                  const dateValue = dt ? formatLocalDateInputValue(dt) : '';
-                  const timeValue = dt ? formatLocalTimeInputValue(dt) : '';
+                  const tz = getEffectiveTimezone(user?.timezone);
+                  const dateValue = dt ? formatDateInTimezone(dt, tz) : '';
+                  const timeValue = dt ? formatTimeInTimezone(dt, tz) : '';
                   const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: skipPast });
                   const errMsg = getFieldError(dtErrors, 'date') || getFieldError(dtErrors, 'time');
                   return errMsg || errors.meeting_date?.message || '\u00A0';
@@ -446,12 +515,17 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                 <LinkIcon className="h-3 w-3" /> Ссылка
               </Label>
               {canEditSharedFields ? (
-                <Input
-                  type="url"
-                  {...register('meeting_link')}
-                  placeholder="https://meet.google.com/..."
-                  className="bg-background h-9"
-                />
+                <>
+                  <Input
+                    type="url"
+                    {...register('meeting_link')}
+                    placeholder="https://meet.google.com/..."
+                    className={cn("bg-background h-9", errors.meeting_link && "border-destructive")}
+                  />
+                  {errors.meeting_link && (
+                    <p className="text-xs text-destructive">{errors.meeting_link.message}</p>
+                  )}
+                </>
               ) : watch('meeting_link') ? (
                 <a href={watch('meeting_link')!} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline truncate max-w-[200px]">
@@ -460,7 +534,6 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
               ) : (
                 <span className="text-sm text-muted-foreground">—</span>
               )}
-              <p className="text-xs min-h-[1rem]">{'\u00A0'}</p>
             </div>
           </div>
 
@@ -493,11 +566,11 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                   const reschedAt = new Date(r.rescheduled_at);
                   return (
                     <p key={r.id} className="text-xs text-muted-foreground leading-relaxed flex items-center gap-1 flex-wrap">
-                      <span>{format(prevDt, 'd MMM HH:mm', { locale: ru })}</span>
+                      <span>{formatMeetingDateTimeShort(r.previous_date, user?.timezone)}</span>
                       <ArrowRight className="h-3 w-3 shrink-0" />
-                      <span className="font-medium text-foreground">{format(newDt, 'd MMM HH:mm', { locale: ru })}</span>
+                      <span className="font-medium text-foreground">{formatMeetingDateTimeShort(r.new_date, user?.timezone)}</span>
                       {authorName && <span>· {authorName}</span>}
-                      <span>· {format(reschedAt, 'd MMM', { locale: ru })}</span>
+                      <span>· {formatMeetingDateTimeShort(r.rescheduled_at, user?.timezone)}</span>
                     </p>
                   );
                 })}
@@ -596,7 +669,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
       </Card>
 
       {/* Manager block */}
-      {isManager && (
+      {(isManager || isHrbpEdit) && (
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -690,7 +763,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                 autoFocus
               />
               <div className="flex items-center gap-2">
-                <Button type="button" variant={summaryDirty ? 'default' : 'outline'} size="sm" onClick={handleSaveSummary} disabled={!summaryDirty || isSavingSummary}>
+                <Button type="button" variant={(summaryDirty && isSummaryValid) ? 'default' : 'outline'} size="sm" onClick={handleSaveSummary} disabled={!summaryDirty || !isSummaryValid || isSavingSummary}>
                   {isSavingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   {isSavingSummary ? 'Сохранение...' : 'Сохранить итоги'}
                 </Button>

@@ -135,8 +135,17 @@ export const useTasks = (userId?: string) => {
         }
       }
 
+      // Defensive filter: hide orphan meeting tasks whose meeting no longer exists
+      const validMeetingIds = new Set(Object.keys(meetingInfoMap));
+      const cleanFilteredTasks = filteredTasks.filter(t => {
+        if (meetingTaskTypes.includes(t.task_type || '') && t.assignment_id) {
+          return validMeetingIds.has(t.assignment_id);
+        }
+        return true;
+      });
+
       // Обогащаем assignment-задачи ПАРАЛЛЕЛЬНО
-      const tasksWithDetails = await Promise.all(filteredTasks.map(async (task) => {
+      const tasksWithDetails = await Promise.all(cleanFilteredTasks.map(async (task) => {
         let taskDetails: Task = { 
           ...task,
           assignment_type: task.assignment_type as any,

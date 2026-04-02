@@ -4098,6 +4098,8 @@ export type Database = {
           position_id: string | null
           start_date: string | null
           status: boolean
+          timezone: string
+          timezone_manual: boolean
           updated_at: string
         }
         Insert: {
@@ -4121,6 +4123,8 @@ export type Database = {
           position_id?: string | null
           start_date?: string | null
           status?: boolean
+          timezone?: string
+          timezone_manual?: boolean
           updated_at?: string
         }
         Update: {
@@ -4144,6 +4148,8 @@ export type Database = {
           position_id?: string | null
           start_date?: string | null
           status?: boolean
+          timezone?: string
+          timezone_manual?: boolean
           updated_at?: string
         }
         Relationships: [

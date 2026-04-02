@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, ClipboardCheck, TrendingUp, Calendar, Download, Settings, FileSpreadsheet } from 'lucide-react';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { ParticipantExpandableRow } from '@/components/ParticipantExpandableRow';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -336,6 +337,7 @@ export const DiagnosticMonitoringPage = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <Breadcrumbs />
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-text-primary">Мониторинг диагностики</h1>

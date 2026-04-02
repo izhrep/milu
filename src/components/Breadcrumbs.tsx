@@ -32,10 +32,11 @@ const routeNames: Record<string, string> = {
   '/diagnostic-monitoring': 'Мониторинг диагностики',
   '/admin': 'Администрирование',
   '/admin/dashboard': 'Панель управления',
-  '/admin/reference-tables': 'Справочники',
-  '/admin/diagnostics': 'Диагностика',
   '/admin/users': 'Пользователи',
-  '/admin/roles': 'Роли',
+  '/admin/stages': 'Управление этапами',
+  '/admin/diagnostics': 'Справочники диагностики',
+  '/admin/reports': 'Отчёты',
+  '/admin/companies': 'Компании',
   '/admin/departments': 'Подразделения',
   '/admin/positions': 'Должности',
   '/admin/position-categories': 'Категории должностей',
@@ -50,31 +51,61 @@ const routeNames: Record<string, string> = {
   '/admin/career-tracks': 'Карьерные треки',
   '/admin/track-types': 'Типы треков',
   '/admin/meeting-stages': 'Этапы встреч',
-  '/admin/stages': 'Управление этапами',
   '/admin/trade-points': 'Торговые точки',
-  '/admin/products': 'Товары',
+  '/admin/manufacturers': 'Производители',
+  '/admin/certifications': 'Сертификаты',
   '/admin/sprint-types': 'Типы спринтов',
+  '/admin/import-soft-skill-answers': 'Импорт ответов Soft Skills',
+  '/admin/import-soft-skill-questions': 'Импорт вопросов Soft Skills',
+  '/admin/reference-tables': 'Справочники',
+  '/admin/roles': 'Роли',
   '/security': 'Управление безопасностью',
   '/achievements': 'Достижения',
   '/gamification': 'Геймификация',
+};
+
+// Human-readable names for dynamic /admin/:tableId routes
+const adminTableNames: Record<string, string> = {
+  'users': 'Пользователи',
+  'companies': 'Компании',
+  'departments': 'Подразделения',
+  'positions': 'Должности',
+  'position-categories': 'Категории должностей',
+  'competency-levels': 'Уровни компетенций',
+  'trade-points': 'Торговые точки',
+  'manufacturers': 'Производители',
+  'grades': 'Грейды',
+  'career-tracks': 'Карьерные треки',
+  'track-types': 'Типы треков',
+  'certifications': 'Сертификаты',
+  'skills': 'Hard Skills',
+  'qualities': 'Soft Skills',
+  'hard-skill-questions': 'Вопросы Hard Skills',
+  'hard-skill-answers': 'Варианты ответов (Hard Skills)',
+  'soft-skill-questions': 'Вопросы Soft Skills',
+  'soft-skill-answers': 'Варианты ответов (360°)',
+  'sprint-types': 'Типы спринтов',
+  'stages': 'Управление этапами',
+  'diagnostics': 'Справочники диагностики',
+  'reports': 'Отчёты',
+  'import-soft-skill-answers': 'Импорт ответов Soft Skills',
+  'import-soft-skill-questions': 'Импорт вопросов Soft Skills',
 };
 
 export const Breadcrumbs = () => {
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter((x) => x);
   
-  // Проверяем, пришли ли со страницы команды
   const referrer = location.state?.from;
 
   if (pathnames.length === 0) return null;
 
-  // Helper function to check if a string is a UUID
   const isUUID = (str: string) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(str);
   };
 
-  // Специальная обработка для /assessment/results/:userId с referrer /team
+  // Special case: /assessment/results/:userId from /team
   if (referrer === '/team' && 
       pathnames[0] === 'assessment' && 
       pathnames[1] === 'results' && 
@@ -104,22 +135,21 @@ export const Breadcrumbs = () => {
       {pathnames.map((_, index) => {
         const segment = pathnames[index];
         
-        // Skip UUID segments in breadcrumbs
-        if (isUUID(segment)) {
-          return null;
-        }
-        
-        // Skip 'development' segment as it's not a standalone page
-        if (segment === 'development') {
-          return null;
-        }
+        if (isUUID(segment)) return null;
+        if (segment === 'development') return null;
         
         const routeTo = `/${pathnames.slice(0, index + 1).join('/')}`;
         const isLast = index === pathnames.length - 1 || 
           (index < pathnames.length - 1 && isUUID(pathnames[index + 1]));
         
-        // Get route name
-        let routeName = routeNames[routeTo] || segment;
+        // Resolve route name: static map → dynamic admin table → raw segment
+        let routeName = routeNames[routeTo];
+        if (!routeName && pathnames[0] === 'admin' && index === 1) {
+          routeName = adminTableNames[segment];
+        }
+        if (!routeName) {
+          routeName = segment;
+        }
 
         return (
           <div key={routeTo} className="flex items-center space-x-2">

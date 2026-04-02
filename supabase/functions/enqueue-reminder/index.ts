@@ -106,19 +106,50 @@ Deno.serve(async (req) => {
       // Determine who saved and who to notify
       const savedBy = summary_saved_by || meeting.summary_saved_by;
       const isManagerSaved = savedBy === meeting.manager_id;
-      const recipientId = isManagerSaved ? meeting.employee_id : meeting.manager_id;
-      const scenarioId = isManagerSaved ? "R6" : "R6a";
+      const isEmployeeSaved = savedBy === meeting.employee_id;
+      const isHrbpSaved = !isManagerSaved && !isEmployeeSaved;
 
-      await supabase.from("meeting_notifications").upsert(
-        {
-          meeting_id,
-          recipient_id: recipientId,
-          scenario_id: scenarioId,
-          scheduled_at: new Date().toISOString(),
-          status: "pending",
-        },
-        { onConflict: "meeting_id,recipient_id,scenario_id,scheduled_at" },
-      );
+      const now = new Date().toISOString();
+
+      if (isHrbpSaved) {
+        // HRBP: notify BOTH participants with neutral scenario R6h
+        const records = [
+          { meeting_id, recipient_id: meeting.employee_id, scenario_id: "R6h", scheduled_at: now, status: "pending" },
+          { meeting_id, recipient_id: meeting.manager_id, scenario_id: "R6h", scheduled_at: now, status: "pending" },
+        ];
+        await supabase.from("meeting_notifications").upsert(records, {
+          onConflict: "meeting_id,recipient_id,scenario_id,scheduled_at",
+        });
+      } else {
+        const recipientId = isManagerSaved ? meeting.employee_id : meeting.manager_id;
+        const scenarioId = isManagerSaved ? "R6" : "R6a";
+
+        await supabase.from("meeting_notifications").upsert(
+          {
+            meeting_id,
+            recipient_id: recipientId,
+            scenario_id: scenarioId,
+            scheduled_at: now,
+            status: "pending",
+          },
+          { onConflict: "meeting_id,recipient_id,scenario_id,scheduled_at" },
+        );
+      }
+
+      // Trigger immediate processing to avoid waiting for next cron tick
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (supabaseUrl && supabaseAnonKey) {
+        fetch(`${supabaseUrl}/functions/v1/process-reminders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+        }).catch((error) => {
+          console.error("Immediate process-reminders call failed:", error);
+        });
+      }
 
       return jsonOk({ action: "summary_saved", scenario: scenarioId });
     }
@@ -143,6 +174,21 @@ Deno.serve(async (req) => {
       await supabase
         .from("meeting_notifications")
         .upsert(r5aRecords, { onConflict: "meeting_id,recipient_id,scenario_id,scheduled_at" });
+
+      // Trigger immediate processing for R5a
+      const supabaseUrlR5a = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKeyR5a = Deno.env.get("SUPABASE_ANON_KEY");
+      if (supabaseUrlR5a && supabaseAnonKeyR5a) {
+        fetch(`${supabaseUrlR5a}/functions/v1/process-reminders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKeyR5a}`,
+          },
+        }).catch((error) => {
+          console.error("Immediate process-reminders call for R5a failed:", error);
+        });
+      }
 
       // Fall through to create new R1–R4
     }

@@ -88,6 +88,8 @@ serve(async (req) => {
       position_id,
       department_id,
       status,
+      bitrix_bot_enabled,
+      bitrix_user_id,
     } = body;
 
     // --- Validate user_id (required UUID) ---
@@ -127,10 +129,10 @@ serve(async (req) => {
 
     console.log("Input validation passed for user:", user_id);
 
-    // Check if user exists
+    // Check if user exists and fetch current bitrix_bot_enabled for audit
     const { data: existingUser, error: getUserError } = await supabaseAdmin
       .from("users")
-      .select("id")
+      .select("id, bitrix_bot_enabled")
       .eq("id", user_id)
       .single();
 
@@ -151,6 +153,8 @@ serve(async (req) => {
     if (position_id !== undefined) updateData.position_id = position_id;
     if (department_id !== undefined) updateData.department_id = department_id;
     if (status !== undefined) updateData.status = status;
+    if (bitrix_bot_enabled !== undefined) updateData.bitrix_bot_enabled = !!bitrix_bot_enabled;
+    if (bitrix_user_id !== undefined) updateData.bitrix_user_id = bitrix_user_id;
 
     // Update user record
     const { data: updatedUser, error: updateError } = await supabaseAdmin
@@ -187,6 +191,28 @@ serve(async (req) => {
       _details: { updated_fields: Object.keys(updateData) },
     });
     if (logError) console.error("Failed to log admin action:", logError);
+
+    // Audit bitrix_bot_enabled change if value actually changed
+    if (
+      bitrix_bot_enabled !== undefined &&
+      !!existingUser.bitrix_bot_enabled !== !!bitrix_bot_enabled
+    ) {
+      const oldVal = String(!!existingUser.bitrix_bot_enabled);
+      const newVal = String(!!bitrix_bot_enabled);
+      console.log(`bitrix_bot_enabled changed: ${oldVal} -> ${newVal} for user ${user_id}`);
+      const { error: auditErr } = await supabaseAdmin.rpc("log_admin_action", {
+        _admin_id: callingUser.id,
+        _action_type: "bitrix_bot_enabled_changed",
+        _target_user_id: user_id,
+        _details: {
+          field: "bitrix_bot_enabled",
+          old_value: oldVal,
+          new_value: newVal,
+          source: "update_user_function",
+        },
+      });
+      if (auditErr) console.error("Failed to log bitrix_bot_enabled audit:", auditErr);
+    }
 
     console.log("=== USER UPDATE COMPLETED ===");
 

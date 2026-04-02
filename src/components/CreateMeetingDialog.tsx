@@ -7,7 +7,7 @@ import { TimePicker } from '@/components/ui/time-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Search } from 'lucide-react';
 import { format, parse } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useSubordinateTree } from '@/hooks/useSubordinateTree';
 import { Loader2 } from 'lucide-react';
 import { validateMeetingCreation, getFieldError, type MeetingValidationError } from '@/lib/meetingValidation';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { localDateTimeToUtcIso, getEffectiveTimezone, getTimezoneOffsetLabel, getMinTimeForDate } from '@/lib/meetingDateTime';
 
 const MAX_INCOMPLETE_MEETINGS = 2;
 
@@ -44,6 +46,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const [meetingDate, setMeetingDate] = useState<string>('');
   const [meetingTime, setMeetingTime] = useState<string>('10:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isHrOrAdmin = canViewAll;
 
@@ -65,8 +68,6 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   }, [allSubtreeUsers, isDirect, user, isHrOrAdmin]);
 
   // Manager options depend on selected employee
-  // For indirect reports: only the employee's direct manager can be set as manager_id
-  // This prevents manager+1 from creating meetings where they are the manager
   const managerOptions = useMemo(() => {
     if (!user || !selectedEmployee || isHrOrAdmin) return [];
     const emp = allSubtreeUsers.find(u => u.id === selectedEmployee);
@@ -75,11 +76,9 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     const isDirectReport = isDirect(selectedEmployee);
 
     if (isDirectReport) {
-      // Direct report: only current user can be manager
       return [{ id: user.id, first_name: user.first_name ?? null, last_name: user.last_name ?? null }];
     }
 
-    // Indirect report: ONLY the employee's direct manager (not manager+1)
     if (emp.manager_id) {
       const directMgr = allSubtreeUsers.find(u => u.id === emp.manager_id);
       if (directMgr) {
@@ -91,7 +90,6 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
       }
     }
 
-    // Fallback if direct manager not found in subtree (shouldn't happen normally)
     return [{ id: user.id, first_name: user.first_name ?? null, last_name: user.last_name ?? null }];
   }, [selectedEmployee, allSubtreeUsers, isDirect, user, isHrOrAdmin]);
 
@@ -106,10 +104,8 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     }
     const isDirectReport = isDirect(selectedEmployee);
     if (isDirectReport && user) {
-      // Direct: always current user
       setSelectedManager(user.id);
     } else {
-      // Indirect: ALWAYS use the employee's direct manager
       const emp = allSubtreeUsers.find(u => u.id === selectedEmployee);
       if (emp?.manager_id) {
         setSelectedManager(emp.manager_id);
@@ -164,23 +160,55 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
 
   const needsManualManagerSelect = !isManager && !isHrOrAdmin && !currentUserData?.manager_id;
 
-  // --- HR/Admin: all users ---
+  // --- HR/Admin: all users with manager_id (org-linked only) ---
   const { data: allUsers } = useQuery({
     queryKey: ['all-users-for-meeting'],
     queryFn: async () => {
       const { data } = await supabase
         .from('users')
-        .select('id, first_name, last_name, manager_id')
+        .select('id, first_name, last_name, email, manager_id')
+        .eq('status', true)
         .order('last_name');
       return data || [];
     },
     enabled: isHrOrAdmin,
   });
 
-  const managersForEmployee = useMemo(() => {
+  // Task 2: HRBP restricted to existing org links only
+  // Employees that have a manager_id set
+  const hrEmployeeOptions = useMemo(() => {
     if (!isHrOrAdmin || !allUsers) return [];
-    return allUsers.filter(u => u.id !== selectedEmployee);
-  }, [isHrOrAdmin, allUsers, selectedEmployee]);
+    return allUsers.filter(u => !!u.manager_id);
+  }, [isHrOrAdmin, allUsers]);
+
+  // Task 1: Search filter for HRBP employee list
+  const filteredHrEmployees = useMemo(() => {
+    if (!searchQuery.trim()) return hrEmployeeOptions;
+    const q = searchQuery.toLowerCase().trim();
+    return hrEmployeeOptions.filter(u => {
+      const fullName = [u.last_name, u.first_name].filter(Boolean).join(' ').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      return fullName.includes(q) || email.includes(q);
+    });
+  }, [hrEmployeeOptions, searchQuery]);
+
+  // Task 2: Auto-set manager from employee's org link
+  useEffect(() => {
+    if (!isHrOrAdmin || !selectedEmployee || !allUsers) return;
+    const emp = allUsers.find(u => u.id === selectedEmployee);
+    if (emp?.manager_id) {
+      setSelectedManager(emp.manager_id);
+    } else {
+      setSelectedManager('');
+    }
+  }, [isHrOrAdmin, selectedEmployee, allUsers]);
+
+  // Resolve the manager name for display
+  const hrSelectedManagerName = useMemo(() => {
+    if (!isHrOrAdmin || !selectedManager || !allUsers) return null;
+    const mgr = allUsers.find(u => u.id === selectedManager);
+    return mgr ? formatUserName(mgr) : null;
+  }, [isHrOrAdmin, selectedManager, allUsers]);
 
   const handleCreate = async () => {
     if (!meetingDate) return;
@@ -208,11 +236,13 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
 
     setIsSubmitting(true);
     try {
+      const userTz = getEffectiveTimezone(user?.timezone);
+      const meetingDateUtc = localDateTimeToUtcIso(meetingDate, meetingTime, userTz);
       await onCreateMeeting({
         employee_id: employeeId,
         manager_id: managerId,
         stage_id: stageId || null,
-        meeting_date: `${meetingDate}T${meetingTime}:00`,
+        meeting_date: meetingDateUtc,
       });
       onOpenChange(false);
       resetForm();
@@ -228,6 +258,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     setSelectedManager('');
     setMeetingDate('');
     setMeetingTime('10:00');
+    setSearchQuery('');
   };
 
   // Resolve effective employee/manager IDs for validation
@@ -242,7 +273,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     return currentUserData?.manager_id || '';
   }, [isHrOrAdmin, isManager, needsManualManagerSelect, selectedManager, currentUserData]);
 
-  // Check incomplete meetings count for the selected employee
+  // Task 10: Unified incomplete meetings count — only scheduled/awaiting_summary
   const { data: incompleteMeetingsCount } = useQuery({
     queryKey: ['incomplete-meetings-count', effectiveEmployeeId],
     queryFn: async () => {
@@ -293,7 +324,12 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
         <div className="space-y-4">
           {/* Date & time */}
           <div className="space-y-2">
-            <Label>Дата и время встречи *</Label>
+            <Label className="flex items-center gap-2">
+              Дата и время встречи *
+              <span className="text-xs font-normal text-muted-foreground">
+                ({getTimezoneOffsetLabel(getEffectiveTimezone(user?.timezone))})
+              </span>
+            </Label>
             <div className="flex gap-2 items-center">
               <Popover>
                 <PopoverTrigger asChild>
@@ -329,6 +365,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
               <TimePicker
                 value={meetingTime}
                 onChange={(v) => setMeetingTime(v)}
+                minTime={getMinTimeForDate(meetingDate, getEffectiveTimezone(user?.timezone))}
               />
             </div>
             {(dateError || timeError) && (
@@ -411,35 +448,48 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
             </>
           )}
 
-          {/* === HR/Admin: arbitrary pair === */}
+          {/* === HR/Admin: org-linked pairs only (Task 1 & 2) === */}
           {isHrOrAdmin && (
             <>
               <div className="space-y-2">
                 <Label>Сотрудник</Label>
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                {/* Task 1: Search field */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Поиск по ФИО или email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={selectedEmployee} onValueChange={(v) => { setSelectedEmployee(v); setSearchQuery(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите сотрудника" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {allUsers?.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{formatUserName(u)}</SelectItem>
-                    ))}
+                  <SelectContent className="max-h-[300px]">
+                    {filteredHrEmployees.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">Не найдено</div>
+                    ) : (
+                      filteredHrEmployees.map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {formatUserName(u)}
+                          {u.email && <span className="ml-1 text-xs text-muted-foreground">({u.email})</span>}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Руководитель</Label>
-                <Select value={selectedManager} onValueChange={setSelectedManager}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите руководителя" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managersForEmployee.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{formatUserName(u)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Task 2: Manager auto-filled from org link, read-only */}
+              {selectedEmployee && (
+                <div className="space-y-2">
+                  <Label>Руководитель</Label>
+                  <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-sm">
+                    {hrSelectedManagerName || '—'}
+                  </div>
+                </div>
+              )}
             </>
           )}
           {meetingLimitReached && (

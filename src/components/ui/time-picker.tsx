@@ -9,6 +9,8 @@ interface TimePickerProps {
   disabled?: boolean;
   className?: string;
   placeholder?: string;
+  /** If set, slots before this time (HH:MM) are disabled in the dropdown */
+  minTime?: string | null;
 }
 
 const SLOTS: string[] = [];
@@ -17,7 +19,7 @@ for (let h = 0; h < 24; h++) {
   SLOTS.push(`${String(h).padStart(2, "0")}:30`);
 }
 
-export function TimePicker({ value, onChange, disabled, className, placeholder }: TimePickerProps) {
+export function TimePicker({ value, onChange, disabled, className, placeholder, minTime }: TimePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState("");
@@ -52,6 +54,21 @@ export function TimePicker({ value, onChange, disabled, className, placeholder }
       onChange(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
     setEditing(false);
+  };
+
+  // Task 7: Auto-insert colon in draft as user types digits
+  const handleDraftChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value;
+    // Strip non-digit, non-colon
+    raw = raw.replace(/[^\d:]/g, "");
+    // Auto-insert colon after 2 digits if user hasn't typed one
+    const digits = raw.replace(/:/g, "");
+    if (digits.length >= 2 && !raw.includes(":")) {
+      raw = digits.slice(0, 2) + ":" + digits.slice(2, 4);
+    }
+    // Cap length
+    if (raw.length > 5) raw = raw.slice(0, 5);
+    setDraft(raw);
   };
 
   const startEditing = (e: React.MouseEvent) => {
@@ -103,7 +120,7 @@ export function TimePicker({ value, onChange, disabled, className, placeholder }
               disabled={disabled}
               className="w-full bg-transparent outline-none tabular-nums tracking-wider text-sm"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={handleDraftChange}
               onBlur={commitDraft}
               onKeyDown={(e) => {
                 if (e.key === "Enter") { commitDraft(); setOpen(false); }
@@ -139,16 +156,20 @@ export function TimePicker({ value, onChange, disabled, className, placeholder }
         >
           {SLOTS.map((slot) => {
             const isSelected = slot === displayValue;
+            const isDisabledByMin = !!minTime && slot < minTime;
             return (
               <button
                 key={slot}
                 type="button"
                 data-selected={isSelected}
-                onClick={() => { onChange(slot); setOpen(false); }}
+                disabled={isDisabledByMin}
+                onClick={() => { if (!isDisabledByMin) { onChange(slot); setOpen(false); } }}
                 className={cn(
                   "block w-full rounded px-3 py-1.5 text-sm tabular-nums text-left transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  isSelected ? "bg-primary/10 text-primary font-medium" : "text-foreground",
+                  isDisabledByMin
+                    ? "text-muted-foreground/40 cursor-not-allowed"
+                    : "hover:bg-accent hover:text-accent-foreground",
+                  isSelected && !isDisabledByMin ? "bg-primary/10 text-primary font-medium" : !isDisabledByMin && "text-foreground",
                 )}
               >
                 {slot}

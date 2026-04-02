@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookOpen, Star, HelpCircle, Layers, FolderTree, Folder, Upload, Settings2 } from 'lucide-react';
 import { SkillsManagement } from '@/components/admin/SkillsManagement';
@@ -38,6 +39,7 @@ export default function DiagnosticsAdminPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <Breadcrumbs />
       <div>
         <h1 className="text-3xl font-bold text-text-primary">Справочники диагностики</h1>
         <p className="text-text-secondary mt-2">

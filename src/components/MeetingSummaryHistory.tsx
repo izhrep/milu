@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { ExpandableTextarea } from '@/components/ui/expandable-textarea';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { LinkedText } from '@/components/ui/linked-text';
 import { History, Pencil, Save, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatMeetingDateFull } from '@/lib/meetingDateFormat';
 
 const TRUNCATE_LIMIT = 200;
 
@@ -54,6 +55,7 @@ export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
   isSaving,
   isSaveDirty,
 }) => {
+  const { user } = useAuth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const { data: history } = useQuery({
@@ -144,8 +146,8 @@ export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
               : entry.meeting_summary;
 
             const dateStr = entry.meeting_date
-              ? format(new Date(entry.meeting_date), 'd MMMM yyyy', { locale: ru })
-              : format(new Date(entry.created_at), 'd MMMM yyyy', { locale: ru });
+              ? formatMeetingDateFull(entry.meeting_date, user?.timezone)
+              : formatMeetingDateFull(entry.created_at, user?.timezone);
 
             const authorName = entry.summary_saved_by && authors?.[entry.summary_saved_by];
 
@@ -183,7 +185,7 @@ export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
                       autoFocus
                     />
                     <div className="flex items-center gap-2">
-                      <Button type="button" variant={isSaveDirty ? 'default' : 'outline'} size="sm" onClick={onSave} disabled={!isSaveDirty || isSaving}>
+                      <Button type="button" variant={(isSaveDirty && editValue?.trim()) ? 'default' : 'outline'} size="sm" onClick={onSave} disabled={!isSaveDirty || !editValue?.trim() || isSaving}>
                         {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         {isSaving ? 'Сохранение...' : 'Сохранить итоги'}
                       </Button>
@@ -195,7 +197,7 @@ export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
                 ) : (
                   <>
                     <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">
-                      {displayText}
+                      <LinkedText text={displayText} />
                     </p>
                     {isLong && (
                       <Button

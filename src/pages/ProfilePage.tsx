@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Mail, Calendar, MapPin, Building2, Briefcase, 
-  Phone, Users
+  Phone, Users, Globe
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserProfile {
@@ -31,6 +33,8 @@ const ProfilePage = () => {
   
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [userTimezone, setUserTimezone] = useState<string>('Europe/Moscow');
+  const [timezoneSaving, setTimezoneSaving] = useState(false);
   
   // Get user ID from query params or use auth user
   const queryParams = new URLSearchParams(window.location.search);
@@ -91,8 +95,61 @@ const ProfilePage = () => {
 
     fetchUserProfile();
   }, [targetUserId]);
+  // Fetch user timezone (own profile only)
+  const isOwnProfile = targetUserId === authUser?.id;
+  useEffect(() => {
+    if (!isOwnProfile || !targetUserId) return;
+    supabase
+      .from('users')
+      .select('timezone')
+      .eq('id', targetUserId)
+      .single()
+      .then(({ data }) => {
+        if (data?.timezone) setUserTimezone(data.timezone);
+      });
+  }, [targetUserId, isOwnProfile]);
+
+  const COMMON_TIMEZONES: { value: string; label: string }[] = [
+    { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
+    { value: 'Europe/Moscow', label: 'Москва (UTC+3)' },
+    { value: 'Europe/Samara', label: 'Самара (UTC+4)' },
+    { value: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)' },
+    { value: 'Asia/Omsk', label: 'Омск (UTC+6)' },
+    { value: 'Asia/Krasnoyarsk', label: 'Красноярск (UTC+7)' },
+    { value: 'Asia/Irkutsk', label: 'Иркутск (UTC+8)' },
+    { value: 'Asia/Yakutsk', label: 'Якутск (UTC+9)' },
+    { value: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)' },
+    { value: 'Asia/Magadan', label: 'Магадан (UTC+11)' },
+    { value: 'Asia/Kamchatka', label: 'Камчатка (UTC+12)' },
+    { value: 'Europe/Minsk', label: 'Минск (UTC+3)' },
+    { value: 'Europe/Kiev', label: 'Киев (UTC+2)' },
+    { value: 'Asia/Almaty', label: 'Алматы (UTC+6)' },
+    { value: 'Asia/Tashkent', label: 'Ташкент (UTC+5)' },
+  ];
+
+  const handleTimezoneChange = async (tz: string) => {
+    setUserTimezone(tz);
+    setTimezoneSaving(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ timezone: tz, timezone_manual: true } as Record<string, unknown>)
+        .eq('id', authUser!.id);
+      if (error) throw error;
+      toast.success('Часовой пояс сохранён');
+    } catch (err) {
+      console.error('Failed to save timezone:', err);
+      toast.error('Не удалось сохранить часовой пояс');
+    } finally {
+      setTimezoneSaving(false);
+    }
+  };
 
   const loading = usersLoading || profileLoading;
+  const userRole = authUser?.role;
+  const isLimitedRole = userRole === 'employee' || userRole === 'manager';
+  // Employee/manager can only view own profile
+  const isViewingOtherProfile = !isOwnProfile;
 
   if (!authUser || loading) {
     return (
@@ -100,6 +157,17 @@ const ProfilePage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
           <p className="mt-4 text-text-secondary">Загрузка профиля...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Block limited roles from viewing other users' profiles
+  if (isLimitedRole && isViewingOtherProfile) {
+    return (
+      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-text-secondary">У вас нет доступа к этому профилю</p>
         </div>
       </div>
     );
@@ -114,6 +182,10 @@ const ProfilePage = () => {
       </div>
     );
   }
+
+  // Hide sensitive fields for employee/manager
+  const showEmployeeNumber = !isLimitedRole;
+  const showDepartment = !isLimitedRole;
 
   const initials = [currentUser.last_name?.[0], currentUser.first_name?.[0]]
     .filter(Boolean)
@@ -235,6 +307,7 @@ const ProfilePage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {showEmployeeNumber && (
             <div className="flex items-start gap-3">
               <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
                 <MapPin className="w-4 h-4 text-brand-orange" />
@@ -244,6 +317,7 @@ const ProfilePage = () => {
                 <p className="font-medium text-text-primary">{currentUser.employee_number}</p>
               </div>
             </div>
+            )}
             
             <div className="flex items-start gap-3">
               <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
@@ -257,6 +331,7 @@ const ProfilePage = () => {
               </div>
             </div>
             
+            {showDepartment && (
             <div className="flex items-start gap-3">
               <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
                 <Building2 className="w-4 h-4 text-brand-orange" />
@@ -268,6 +343,7 @@ const ProfilePage = () => {
                 </p>
               </div>
             </div>
+            )}
             
             <div className="flex items-start gap-3">
               <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
@@ -373,6 +449,40 @@ const ProfilePage = () => {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Timezone Settings — own profile only */}
+      {isOwnProfile && (
+        <Card className="border-0 shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-brand-blue" />
+              Часовой пояс
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex-1 max-w-xs">
+                <Select value={userTimezone} onValueChange={handleTimezoneChange} disabled={timezoneSaving}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите часовой пояс" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMMON_TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {timezoneSaving && (
+                <span className="text-sm text-text-secondary">Сохранение...</span>
+              )}
+              <p className="text-sm text-text-secondary">
+                Используется для уведомлений о встречах
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

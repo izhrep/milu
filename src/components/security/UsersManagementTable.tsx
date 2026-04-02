@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Search, Download, Power, History, Edit, UserPlus, Trash2, Eye, Upload } from 'lucide-react';
+import { Search, Download, Power, History, Edit, UserPlus, Trash2, Eye, Upload, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -84,6 +84,8 @@ const UsersManagementTable = () => {
   const [departmentsList, setDepartmentsList] = useState<Array<{id: string; name: string}>>([]);
   const [gradesList, setGradesList] = useState<Array<{id: string; name: string; position_id: string | null; level: number}>>([]);
   const [filteredGrades, setFilteredGrades] = useState<Array<{id: string; name: string; level: number}>>([]);
+  const tableScrollerRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollHint, setShowScrollHint] = useState(true);
 
   useEffect(() => {
     fetchUsers();
@@ -97,6 +99,18 @@ const UsersManagementTable = () => {
   useEffect(() => {
     filterUsers();
   }, [users, searchTerm, roleFilter, statusFilter, positionFilter, positionCategoryFilter, departmentFilter, userTypeFilter]);
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      const el = tableScrollerRef.current;
+      if (el) {
+        setShowScrollHint(el.scrollWidth > el.clientWidth && el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+      }
+    };
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [filteredUsers.length]);
 
   const fetchUsers = async () => {
     try {
@@ -556,23 +570,22 @@ const UsersManagementTable = () => {
         return;
       }
 
-      // Update user in database directly (no encryption)
-      const { error } = await supabase
-        .from('users')
-        .update({
+      // Update user via edge function (audited path)
+      const { error } = await supabase.functions.invoke('update-user', {
+        body: {
+          user_id: editUser.id,
           first_name: editUser.first_name,
           last_name: editUser.last_name,
           middle_name: editUser.middle_name || '',
-          email: editUser.email,
+          plain_email: editUser.email,
           manager_id: editUser.manager_id || null,
           position_id: editUser.position_id || null,
           department_id: editUser.department_id || null,
-          grade_id: editUser.grade_id || null,
           status: editUser.status,
           bitrix_user_id: editUser.bitrix_user_id || null,
           bitrix_bot_enabled: editUser.bitrix_bot_enabled || false
-        })
-        .eq('id', editUser.id);
+        }
+      });
 
       if (error) throw error;
 
@@ -813,10 +826,22 @@ const UsersManagementTable = () => {
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <div className="overflow-x-auto scrollbar-visible scrollbar-top">
-          <Table className="min-w-[1200px]">
+      <div className="rounded-md border relative">
+        {/* Right-edge scroll hint chevron */}
+        {showScrollHint && (
+          <div className="absolute right-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center pointer-events-none">
+            <ChevronRight className="h-5 w-5 text-muted-foreground/60" />
+          </div>
+        )}
+        <div
+          ref={tableScrollerRef}
+          className="overflow-x-auto always-show-scrollbar"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            setShowScrollHint(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+          }}
+        >
+          <Table className="min-w-[1400px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">ФИО</TableHead>
@@ -880,7 +905,10 @@ const UsersManagementTable = () => {
                           return;
                         }
                         try {
-                          await supabase.from('users').update({ bitrix_bot_enabled: checked }).eq('id', user.id);
+                          const { error } = await supabase.functions.invoke('update-user', {
+                            body: { user_id: user.id, bitrix_bot_enabled: checked }
+                          });
+                          if (error) throw error;
                           setUsers(users.map(u => u.id === user.id ? { ...u, bitrix_bot_enabled: checked } : u));
                           toast.success(checked ? 'Bitrix бот включён' : 'Bitrix бот выключен');
                         } catch { toast.error('Ошибка обновления'); }
@@ -1004,9 +1032,9 @@ const UsersManagementTable = () => {
         </AlertDialog>
       )}
 
-      {/* Create User Dialog */}
+      {/* Create User Dialog — Task 3: scrollable */}
       <Dialog open={createUserDialog} onOpenChange={setCreateUserDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Создать нового пользователя</DialogTitle>
             <DialogDescription>

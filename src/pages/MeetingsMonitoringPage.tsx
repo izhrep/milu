@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { useMinuteTick } from '@/hooks/useMinuteTick';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInDays, format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, isToday, isYesterday } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { formatMeetingDateShort, formatMeetingDateOnly } from '@/lib/meetingDateFormat';
 import {
   AlertTriangle, CheckCircle, Clock, MinusCircle, Users,
   CalendarClock, TrendingUp, Search, List, Network,
@@ -34,6 +37,7 @@ interface BasicUser {
 }
 
 interface MeetingRow {
+  id: string;
   employee_id: string;
   manager_id: string;
   status: string;
@@ -68,6 +72,21 @@ const PRIORITY_ORDER: Record<MonitoringStatus, number> = {
   overdue: 0, awaiting_summary: 1, scheduled: 2, not_in_cycle: 3, ok: 4,
 };
 
+/**
+ * Client-side status compensation: if DB still says 'scheduled' but meeting_date
+ * is in the past and no summary exists, treat as 'awaiting_summary'.
+ * Mirrors getEffectiveStatus() from MeetingsPage to avoid stale status display.
+ */
+const getEffectiveMeetingStatus = (m: MeetingRow): string => {
+  if (m.status === 'scheduled' && m.meeting_date && !m.meeting_summary) {
+    const meetingTime = new Date(m.meeting_date).getTime();
+    if (!Number.isNaN(meetingTime) && meetingTime <= Date.now()) {
+      return 'awaiting_summary';
+    }
+  }
+  return m.status;
+};
+
 /* ─── helpers ─── */
 
 const formatRelativeDate = (date: Date): string => {
@@ -98,16 +117,27 @@ const getStatusConfig = (status: MonitoringStatus) => {
   }
 };
 
-const formatDateTime = (date: Date): string => {
-  return format(date, 'd MMM, HH:mm', { locale: ru });
+const formatDateTime = (date: Date, timezone?: string): string => {
+  if (!timezone) {
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { timezone = 'UTC'; }
+  }
+  try {
+    return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: timezone });
+  } catch {
+    return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
 };
 
-const getContextText = (emp: EmployeeSummary): string => {
+const getContextText = (emp: EmployeeSummary, timezone?: string): string => {
   if (emp.monitoringStatus === 'not_in_cycle') return 'Встреч не было';
-  if (emp.monitoringStatus === 'awaiting_summary' && emp.awaitingMeetingDate) return `Была запланирована на ${formatDateTime(emp.awaitingMeetingDate)}`;
-  if (emp.monitoringStatus === 'scheduled' && emp.scheduledMeetingDate) return `Запланирована на ${formatDateTime(emp.scheduledMeetingDate)}`;
+  if (emp.monitoringStatus === 'awaiting_summary' && emp.awaitingMeetingDate) return `Была запланирована на ${formatDateTime(emp.awaitingMeetingDate, timezone)}`;
+  if (emp.monitoringStatus === 'scheduled' && emp.scheduledMeetingDate) return `Запланирована на ${formatDateTime(emp.scheduledMeetingDate, timezone)}`;
   if (emp.monitoringStatus === 'scheduled') return 'Есть запланированная встреча';
-  if (emp.lastMeetingDate && emp.daysSinceLast !== null) return `Последняя: ${format(emp.lastMeetingDate, 'd MMM', { locale: ru })}, ${formatDaysAgo(emp.daysSinceLast)}`;
+  if (emp.lastMeetingDate && emp.daysSinceLast !== null) {
+    const tz = timezone || ((() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })());
+    const dateOnly = (() => { try { return emp.lastMeetingDate!.toLocaleString('ru-RU', { day: 'numeric', month: 'short', timeZone: tz }); } catch { return format(emp.lastMeetingDate!, 'd MMM', { locale: ru }); } })();
+    return `Последняя: ${dateOnly}, ${formatDaysAgo(emp.daysSinceLast)}`;
+  }
   return '—';
 };
 
@@ -147,6 +177,7 @@ interface EmployeeSummary extends BasicUser {
   managerName: string | null;
   scheduledMeetingDate: Date | null;
   awaitingMeetingDate: Date | null;
+  actionMeetingId: string | null;
 }
 
 /* ─── Subordination path helper ─── */
@@ -188,6 +219,8 @@ const getSubordinationText = (
 
 const MeetingsMonitoringPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const _tick = useMinuteTick();
   const isAdminOrHr = user?.role === 'admin' || user?.role === 'hr_bp';
   const { allSubtreeUsers, isDirect } = useSubordinateTree();
   const [selectedPeriod, setSelectedPeriod] = useState('current_month');
@@ -264,7 +297,7 @@ const MeetingsMonitoringPage = () => {
       if (userIds.length === 0) return [];
       const { data, error } = await supabase
         .from('one_on_one_meetings')
-        .select('employee_id, manager_id, status, meeting_date, updated_at, meeting_summary, summary_saved_by')
+        .select('id, employee_id, manager_id, status, meeting_date, updated_at, meeting_summary, summary_saved_by')
         .in('employee_id', userIds)
         .order('meeting_date', { ascending: false, nullsFirst: false });
       if (error) throw error;
@@ -280,12 +313,12 @@ const MeetingsMonitoringPage = () => {
     return usersToShow.map(emp => {
       const meetings = meetingsData?.filter(m => m.employee_id === emp.id) || [];
       const hasMeetings = meetings.length > 0;
-      const lastRecorded = meetings.find(m => m.status === 'recorded');
-      const hasScheduled = meetings.some(m => m.status === 'scheduled');
-      const hasAwaiting = meetings.some(m => m.status === 'awaiting_summary');
+      const lastRecorded = meetings.find(m => getEffectiveMeetingStatus(m) === 'recorded');
+      const hasScheduled = meetings.some(m => getEffectiveMeetingStatus(m) === 'scheduled');
+      const hasAwaiting = meetings.some(m => getEffectiveMeetingStatus(m) === 'awaiting_summary');
 
-      const scheduledMeeting = meetings.find(m => m.status === 'scheduled');
-      const awaitingMeeting = meetings.find(m => m.status === 'awaiting_summary');
+      const scheduledMeeting = meetings.find(m => getEffectiveMeetingStatus(m) === 'scheduled');
+      const awaitingMeeting = meetings.find(m => getEffectiveMeetingStatus(m) === 'awaiting_summary');
 
       const scheduledMeetingDate = scheduledMeeting?.meeting_date ? new Date(scheduledMeeting.meeting_date) : null;
       const awaitingMeetingDate = awaitingMeeting?.meeting_date ? new Date(awaitingMeeting.meeting_date) : null;
@@ -315,6 +348,16 @@ const MeetingsMonitoringPage = () => {
 
       const managerName = emp.manager_id ? allUsersMap?.get(emp.manager_id) || null : null;
 
+      // Pick the meeting ID most relevant to the current action
+      let actionMeetingId: string | null = null;
+      if (monitoringStatus === 'awaiting_summary' && awaitingMeeting) {
+        actionMeetingId = awaitingMeeting.id;
+      } else if (monitoringStatus === 'scheduled' && scheduledMeeting) {
+        actionMeetingId = scheduledMeeting.id;
+      } else if (monitoringStatus === 'ok' && lastRecorded) {
+        actionMeetingId = lastRecorded.id;
+      }
+
       return {
         ...emp,
         isDirect: isAdminOrHr ? true : isDirect(emp.id),
@@ -328,9 +371,10 @@ const MeetingsMonitoringPage = () => {
         managerName,
         scheduledMeetingDate,
         awaitingMeetingDate,
+        actionMeetingId,
       };
     });
-  }, [usersToShow, meetingsData, allUsersMap, isAdminOrHr, isDirect]);
+  }, [usersToShow, meetingsData, allUsersMap, isAdminOrHr, isDirect, _tick]);
 
   /* Unique managers for filter */
   const managerOptions = useMemo(() => {
@@ -431,9 +475,9 @@ const MeetingsMonitoringPage = () => {
       const d = new Date(m.meeting_date);
       return d >= period.from && d <= period.to;
     });
-    const scheduled = periodMeetings.filter(m => m.status === 'scheduled').length;
-    const awaiting = periodMeetings.filter(m => m.status === 'awaiting_summary').length;
-    const recorded = periodMeetings.filter(m => m.status === 'recorded').length;
+    const scheduled = periodMeetings.filter(m => getEffectiveMeetingStatus(m) === 'scheduled').length;
+    const awaiting = periodMeetings.filter(m => getEffectiveMeetingStatus(m) === 'awaiting_summary').length;
+    const recorded = periodMeetings.filter(m => getEffectiveMeetingStatus(m) === 'recorded').length;
     const total = periodMeetings.length;
     return {
       scheduled,
@@ -632,6 +676,8 @@ const MeetingsMonitoringPage = () => {
                   currentUserId={user?.id}
                   allUsersMap={allUsersMap}
                   allUsers={usersToShow}
+                  timezone={user?.timezone}
+                  onActionClick={(meetingId) => navigate(`/meetings?meetingId=${meetingId}`)}
                 />
               ) : (
                 <StructureView
@@ -641,6 +687,8 @@ const MeetingsMonitoringPage = () => {
                   currentUserId={user?.id}
                   allUsersMap={allUsersMap}
                   allUsers={usersToShow}
+                  timezone={user?.timezone}
+                  onActionClick={(meetingId) => navigate(`/meetings?meetingId=${meetingId}`)}
                 />
               )}
             </CardContent>
@@ -662,7 +710,9 @@ const ListView: React.FC<{
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
-}> = ({ employees, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers }) => {
+  timezone?: string;
+  onActionClick?: (meetingId: string) => void;
+}> = ({ employees, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
   if (isMobile) {
     return (
       <div className="divide-y divide-border/40">
@@ -675,6 +725,8 @@ const ListView: React.FC<{
             currentUserId={currentUserId}
             allUsersMap={allUsersMap}
             allUsers={allUsers}
+            timezone={timezone}
+            onActionClick={onActionClick}
           />
         ))}
       </div>
@@ -702,6 +754,8 @@ const ListView: React.FC<{
               allUsersMap={allUsersMap}
               allUsers={allUsers}
               indentLevel={0}
+              timezone={timezone}
+              onActionClick={onActionClick}
             />
           ))}
         </tbody>
@@ -721,7 +775,9 @@ const StructureView: React.FC<{
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
-}> = ({ groups, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers }) => {
+  timezone?: string;
+  onActionClick?: (meetingId: string) => void;
+}> = ({ groups, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
   return (
     <div className="divide-y divide-border/40">
       {groups.map(group => (
@@ -733,6 +789,8 @@ const StructureView: React.FC<{
           currentUserId={currentUserId}
           allUsersMap={allUsersMap}
           allUsers={allUsers}
+          timezone={timezone}
+          onActionClick={onActionClick}
         />
       ))}
     </div>
@@ -746,7 +804,9 @@ const ManagerGroup: React.FC<{
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
-}> = ({ group, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers }) => {
+  timezone?: string;
+  onActionClick?: (meetingId: string) => void;
+}> = ({ group, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
   const [open, setOpen] = useState(true);
   const actionCount = group.members.filter(m => isActionRequired(m.monitoringStatus)).length;
   const okCount = group.members.filter(m => m.monitoringStatus === 'ok').length;
@@ -798,6 +858,8 @@ const ManagerGroup: React.FC<{
                 allUsersMap={allUsersMap}
                 allUsers={allUsers}
                 indent
+                timezone={timezone}
+                onActionClick={onActionClick}
               />
             ))}
           </div>
@@ -813,6 +875,8 @@ const ManagerGroup: React.FC<{
                   allUsersMap={allUsersMap}
                   allUsers={allUsers}
                   indentLevel={1}
+                  timezone={timezone}
+                  onActionClick={onActionClick}
                 />
               ))}
             </tbody>
@@ -834,10 +898,13 @@ const EmployeeRow: React.FC<{
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   indentLevel: number;
-}> = ({ emp, isAdminOrHr, currentUserId, allUsersMap, allUsers, indentLevel }) => {
+  timezone?: string;
+  onActionClick?: (meetingId: string) => void;
+}> = ({ emp, isAdminOrHr, currentUserId, allUsersMap, allUsers, indentLevel, timezone, onActionClick }) => {
   const cfg = getStatusConfig(emp.monitoringStatus);
   const isProblematic = isActionRequired(emp.monitoringStatus);
   const subText = getSubordinationText(emp, isAdminOrHr, currentUserId, allUsersMap, allUsers);
+  const canClick = isProblematic && !!emp.actionMeetingId;
 
   return (
     <tr
@@ -859,10 +926,26 @@ const EmployeeRow: React.FC<{
           {cfg.icon}{cfg.label}
         </Badge>
       </td>
-      <td className="px-2 py-2.5 text-xs text-muted-foreground">{getContextText(emp)}</td>
+      <td className="px-2 py-2.5 text-xs text-muted-foreground">{getContextText(emp, timezone)}</td>
       <td className={`pl-2 pr-4 py-2.5 text-xs ${getActionClass(emp.monitoringStatus)}`}>
-        {isProblematic && <span className="mr-1">→</span>}
-        {getActionText(emp.monitoringStatus)}
+        {canClick ? (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              onActionClick?.(emp.actionMeetingId!);
+            }}
+          >
+            <span>→</span>
+            {getActionText(emp.monitoringStatus)}
+          </button>
+        ) : (
+          <>
+            {isProblematic && <span className="mr-1">→</span>}
+            {getActionText(emp.monitoringStatus)}
+          </>
+        )}
       </td>
     </tr>
   );
@@ -880,8 +963,12 @@ const EmployeeMobileCard: React.FC<{
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   indent?: boolean;
-}> = ({ emp, showManager, isAdminOrHr, currentUserId, allUsersMap, allUsers, indent }) => {
+  timezone?: string;
+  onActionClick?: (meetingId: string) => void;
+}> = ({ emp, showManager, isAdminOrHr, currentUserId, allUsersMap, allUsers, indent, timezone, onActionClick }) => {
   const cfg = getStatusConfig(emp.monitoringStatus);
+  const isProblematic = isActionRequired(emp.monitoringStatus);
+  const canClick = isProblematic && !!emp.actionMeetingId;
   const subText = showManager
     ? getSubordinationText(emp, isAdminOrHr, currentUserId, allUsersMap, allUsers)
     : '';
@@ -895,8 +982,21 @@ const EmployeeMobileCard: React.FC<{
         </Badge>
       </div>
       {subText && <p className="text-[11px] text-muted-foreground/70">{subText}</p>}
-      <p className="text-xs text-muted-foreground">{getContextText(emp)}</p>
-      <p className={`text-xs ${getActionClass(emp.monitoringStatus)}`}>→ {getActionText(emp.monitoringStatus)}</p>
+      <p className="text-xs text-muted-foreground">{getContextText(emp, timezone)}</p>
+      {canClick ? (
+        <button
+          type="button"
+          className={`text-xs ${getActionClass(emp.monitoringStatus)} hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onActionClick?.(emp.actionMeetingId!);
+          }}
+        >
+          → {getActionText(emp.monitoringStatus)}
+        </button>
+      ) : (
+        <p className={`text-xs ${getActionClass(emp.monitoringStatus)}`}>→ {getActionText(emp.monitoringStatus)}</p>
+      )}
     </div>
   );
 };

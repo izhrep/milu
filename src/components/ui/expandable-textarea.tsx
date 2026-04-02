@@ -9,8 +9,9 @@ export interface ExpandableTextareaProps
 }
 
 const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTextareaProps>(
-  ({ className, disabled, value, maxCollapsedRows = 6, maxExpandedRows = 20, onChange, ...props }, ref) => {
+  ({ className, disabled, value, maxCollapsedRows = 6, maxExpandedRows = 20, onChange, onFocus, onBlur, ...props }, ref) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
+    const [isFocused, setIsFocused] = React.useState(false);
     const [isOverflowing, setIsOverflowing] = React.useState(false);
     const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
     const wrapperRef = React.useRef<HTMLDivElement | null>(null);
@@ -28,16 +29,19 @@ const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTexta
     const maxCollapsedHeight = maxCollapsedRows * lineHeight + 16;
     const maxExpandedHeight = maxExpandedRows * lineHeight + 16;
 
+    // Auto-expand when focused and content overflows collapsed height
+    const effectiveExpanded = isExpanded || (isFocused && isOverflowing);
+
     React.useEffect(() => {
       const el = textareaRef.current;
       if (!el) return;
       el.style.height = "auto";
       const naturalHeight = el.scrollHeight;
 
-      if (!isExpanded && naturalHeight > maxCollapsedHeight) {
+      if (!effectiveExpanded && naturalHeight > maxCollapsedHeight) {
         setIsOverflowing(true);
         el.style.height = `${maxCollapsedHeight}px`;
-      } else if (isExpanded) {
+      } else if (effectiveExpanded) {
         setIsOverflowing(naturalHeight > maxCollapsedHeight);
         if (naturalHeight > maxExpandedHeight) {
           el.style.height = `${maxExpandedHeight}px`;
@@ -48,14 +52,38 @@ const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTexta
         setIsOverflowing(false);
         el.style.height = `${naturalHeight}px`;
       }
-    }, [value, isExpanded, maxCollapsedHeight, maxExpandedHeight, props.defaultValue]);
+    }, [value, effectiveExpanded, maxCollapsedHeight, maxExpandedHeight, props.defaultValue]);
 
     const handleCollapse = () => {
       setIsExpanded(false);
-      // Scroll the wrapper into view after collapse
       requestAnimationFrame(() => {
         wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      setIsFocused(true);
+      onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      setIsFocused(false);
+      onBlur?.(e);
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      // After paste, scroll textarea to cursor position
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          const pos = el.selectionStart;
+          el.scrollTop = el.scrollHeight;
+          // Restore cursor visibility
+          el.setSelectionRange(pos, pos);
+          el.scrollTop = el.scrollHeight;
+        }
+      });
+      props.onPaste?.(e);
     };
 
     return (
@@ -64,16 +92,19 @@ const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTexta
           ref={setRefs}
           className={cn(
             "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground/40 placeholder:italic focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-70 resize-none transition-[height] duration-200",
-            !isExpanded && isOverflowing && "overflow-hidden mask-fade",
-            isExpanded ? "overflow-y-auto" : "overflow-hidden",
+            !effectiveExpanded && isOverflowing && "overflow-hidden mask-fade",
+            effectiveExpanded ? "overflow-y-auto" : "overflow-hidden",
             className
           )}
           disabled={disabled}
           value={value}
           onChange={onChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onPaste={handlePaste}
           {...props}
         />
-        {isOverflowing && !isExpanded && (
+        {isOverflowing && !effectiveExpanded && (
           <button
             type="button"
             onClick={() => setIsExpanded(true)}
@@ -83,7 +114,7 @@ const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTexta
             Показать полностью
           </button>
         )}
-        {isExpanded && isOverflowing && (
+        {isExpanded && isOverflowing && !isFocused && (
           <button
             type="button"
             onClick={handleCollapse}

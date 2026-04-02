@@ -16,15 +16,22 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
   buildLocalDateTimeString,
-  normalizeMeetingDateToUtcIso,
+  localDateTimeToUtcIso,
   parseMeetingDateTime,
+  getEffectiveTimezone,
+  getTimezoneOffsetLabel,
+  getMinTimeForDate,
 } from '@/lib/meetingDateTime';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RescheduleMeetingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   meetingId: string;
   currentMeetingDate: string;
+  employeeId?: string;
   onReschedule: (params: { meetingId: string; previousDate: string; newDateIso: string }) => Promise<void>;
 }
 
@@ -33,11 +40,15 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
   onOpenChange,
   meetingId,
   currentMeetingDate,
+  employeeId,
   onReschedule,
 }) => {
+  const { user } = useAuth();
+  const userTz = getEffectiveTimezone(user?.timezone);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('10:00');
   const [isSaving, setIsSaving] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
 
   const isValid = useMemo(() => {
     if (!selectedDate || !selectedTime) return false;
@@ -62,13 +73,40 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
     return null;
   }, [selectedDate, selectedTime]);
 
+  // Task 6: Check for conflicting meetings at the same date/time for same employee
+  const newDateIsoForCheck = useMemo(() => {
+    if (!selectedDate || !selectedTime) return null;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return localDateTimeToUtcIso(dateStr, selectedTime, userTz);
+  }, [selectedDate, selectedTime, userTz]);
+
+  const { data: conflictingMeeting } = useQuery({
+    queryKey: ['meeting-conflict-check', employeeId, newDateIsoForCheck, meetingId],
+    queryFn: async () => {
+      if (!employeeId || !newDateIsoForCheck) return null;
+      const { data, error } = await supabase
+        .from('one_on_one_meetings')
+        .select('id')
+        .eq('employee_id', employeeId)
+        .eq('meeting_date', newDateIsoForCheck)
+        .in('status', ['scheduled', 'awaiting_summary'])
+        .neq('id', meetingId)
+        .limit(1);
+      if (error) throw error;
+      return data && data.length > 0 ? data[0] : null;
+    },
+    enabled: !!employeeId && !!newDateIsoForCheck,
+  });
+
+  const hasConflict = !!conflictingMeeting;
+
   const handleConfirm = async () => {
-    if (!isValid || !selectedDate) return;
+    if (!isValid || !selectedDate || hasConflict) return;
     setIsSaving(true);
+    setConflictError(null);
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const localStr = buildLocalDateTimeString(dateStr, selectedTime);
-      const newDateIso = normalizeMeetingDateToUtcIso(localStr);
+      const newDateIso = localDateTimeToUtcIso(dateStr, selectedTime, userTz);
       await onReschedule({ meetingId, previousDate: currentMeetingDate, newDateIso });
       onOpenChange(false);
       setSelectedDate(undefined);
@@ -82,6 +120,7 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
     if (!v) {
       setSelectedDate(undefined);
       setSelectedTime('10:00');
+      setConflictError(null);
     }
     onOpenChange(v);
   };
@@ -113,10 +152,13 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
           />
 
           <div className="flex items-center gap-3">
-            <Label className="text-sm text-muted-foreground shrink-0">Время</Label>
+            <Label className="text-sm text-muted-foreground shrink-0">
+              Время <span className="text-xs">({getTimezoneOffsetLabel(userTz)})</span>
+            </Label>
             <TimePicker
               value={selectedTime}
               onChange={setSelectedTime}
+              minTime={selectedDate ? getMinTimeForDate(format(selectedDate, 'yyyy-MM-dd'), userTz) : null}
             />
             {summaryLabel && (
               <span className="text-sm font-medium text-foreground truncate ml-auto">
@@ -130,13 +172,20 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
               Выбранное время уже прошло.
             </p>
           )}
+
+          {/* Task 6: Conflict warning */}
+          {hasConflict && (
+            <p className="text-xs text-destructive">
+              У сотрудника уже есть активная встреча на выбранные дату и время.
+            </p>
+          )}
         </div>
 
         <DialogFooter className="flex flex-row gap-2 pt-1">
           <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)} disabled={isSaving}>
             Отмена
           </Button>
-          <Button size="sm" onClick={handleConfirm} disabled={!isValid || isSaving} className="min-w-[140px]">
+          <Button size="sm" onClick={handleConfirm} disabled={!isValid || hasConflict || isSaving} className="min-w-[140px]">
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {!isValid && !isSaving ? (missingHint || 'Перенести') : 'Перенести'}
           </Button>

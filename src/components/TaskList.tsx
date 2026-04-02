@@ -130,8 +130,12 @@ export const TaskList: React.FC<TaskListProps> = ({ userId }) => {
     navigate('/questionnaires');
   };
 
-  const handleGoToMeetings = () => {
-    navigate('/meetings');
+  const handleGoToMeetings = (meetingId?: string) => {
+    if (meetingId) {
+      navigate(`/meetings?meetingId=${meetingId}`);
+    } else {
+      navigate('/meetings');
+    }
   };
 
   const handleGoToDevelopment = () => {
@@ -339,7 +343,7 @@ export const TaskList: React.FC<TaskListProps> = ({ userId }) => {
                   </>
                 ) : showMeetingButton ? (
                   <Button 
-                    onClick={handleGoToMeetings}
+                    onClick={() => handleGoToMeetings(task.assignment_id)}
                   >
                     <Video className="w-4 h-4 mr-2" />
                     Перейти к встрече 1:1

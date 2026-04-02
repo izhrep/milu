@@ -1,6 +1,7 @@
 import { UnifiedStagesManager } from '@/components/UnifiedStagesManager';
 import { DataCleanupWidget } from '@/components/DataCleanupWidget';
 import { Navigate } from 'react-router-dom';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { usePermission } from '@/hooks/usePermission';
 
 const StagesPage = () => {
@@ -24,6 +25,7 @@ const StagesPage = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <Breadcrumbs />
       <UnifiedStagesManager />
       
       <div className="mt-8">

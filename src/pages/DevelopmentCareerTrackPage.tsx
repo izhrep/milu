@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CareerTrackDetails } from '@/components/CareerTrackDetails';
@@ -14,6 +14,11 @@ const DevelopmentCareerTrackPage = () => {
   const { user: currentUser } = useAuth();
   const { profile, loading: profileLoading } = useCompetencyProfile(currentUser?.id);
   const { tracks, loading: tracksLoading } = useCareerTracks(currentUser?.id, profile);
+
+  // Временно: карьерный трек доступен только для admin
+  if (currentUser && currentUser.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
 
   const isLoading = !currentUser || profileLoading || tracksLoading;
 

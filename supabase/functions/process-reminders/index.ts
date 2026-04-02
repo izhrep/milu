@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonOk, serverError } from "../_shared/validation.ts";
+import { formatMeetingDateRu, resolveTimezone } from "../_shared/timezone.ts";
 
 // ─── Link Builder ───
 function buildMiluLink(type: "meeting" | "fallback", meetingId?: string): string {
@@ -38,6 +39,8 @@ function getScenarioText(scenarioId: string, ctx: MessageContext): string {
       return `По встрече One-to-one руководитель внес итоги. Ты можешь увидеть их на платформе. ${link}`;
     case "R6a":
       return `По встрече One-to-one сотрудник внес итоги. Ты можешь увидеть их на платформе. ${link}`;
+    case "R6h":
+      return `HR внёс изменения в итоги встречи One-to-one. Проверь обновления на платформе. ${link}`;
     case "R1n": {
       const fallbackLink = buildMiluLink("fallback");
       return `Привет! Я Мила, помощница от HR-платформы по развитию Milu в Ракете. Буду помогать тебе не пропускать важные события по one-to-one: напоминать о встречах, подсказывать, когда пора зафиксировать итоги и присылать важные уведомления из Milu. ${fallbackLink}`;
@@ -47,13 +50,24 @@ function getScenarioText(scenarioId: string, ctx: MessageContext): string {
   }
 }
 
-function formatDateRu(dateStr: string): string {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
-  } catch {
-    return dateStr;
+/**
+ * Fetch recipient timezone from users table, with fallback + logging.
+ */
+async function getRecipientTimezone(
+  supabase: ReturnType<typeof createClient>,
+  recipientId: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("timezone")
+    .eq("id", recipientId)
+    .single();
+  const rawTz = data?.timezone ?? null;
+  const resolved = resolveTimezone(rawTz, recipientId);
+  if (rawTz !== resolved || !rawTz) {
+    console.warn(`[tz-diag] recipient=${recipientId} raw_tz=${JSON.stringify(rawTz)} resolved=${resolved} db_error=${error?.message ?? "none"}`);
   }
+  return resolved;
 }
 
 Deno.serve(async (req) => {
@@ -164,11 +178,23 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Fetch recipient's timezone for localized date formatting
+        const recipientTz = await getRecipientTimezone(supabase, job.recipient_id);
+
+        // Diagnostic logging for timezone-sensitive scenarios
+        const formattedDate = meeting.meeting_date
+          ? formatMeetingDateRu(meeting.meeting_date, recipientTz)
+          : undefined;
+
+        if (["R5a", "R1", "R2", "R3", "R4"].includes(job.scenario_id)) {
+          console.log(`[tz-diag] scenario=${job.scenario_id} recipient=${job.recipient_id} tz_resolved=${recipientTz} meeting_date_raw=${meeting.meeting_date} formatted="${formattedDate}"`);
+        }
+
         // Build message text
         const text = getScenarioText(job.scenario_id, {
           meetingId: job.meeting_id,
           managerPosition,
-          newDate: meeting.meeting_date ? formatDateRu(meeting.meeting_date) : undefined,
+          newDate: formattedDate,
         });
 
         // Call send-bitrix-message
