@@ -212,6 +212,28 @@ serve(async (req) => {
         },
       });
       if (auditErr) console.error("Failed to log bitrix_bot_enabled audit:", auditErr);
+
+      // Trigger R1n welcome notification when bot is enabled
+      if (!!bitrix_bot_enabled && !existingUser.bitrix_bot_enabled) {
+        try {
+          const enqueueUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enqueue-reminder`;
+          const enqueueRes = await fetch(enqueueUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              action: "bitrix_user_connected",
+              user_id: user_id,
+            }),
+          });
+          const enqueueResult = await enqueueRes.json();
+          console.log("R1n enqueue result:", JSON.stringify(enqueueResult));
+        } catch (enqueueErr) {
+          console.error("Failed to enqueue R1n:", enqueueErr);
+        }
+      }
     }
 
     console.log("=== USER UPDATE COMPLETED ===");

@@ -28,6 +28,8 @@ interface CreateMeetingDialogProps {
   onOpenChange: (open: boolean) => void;
   onCreateMeeting: (params: { employee_id: string; manager_id: string; stage_id?: string | null; meeting_date: string }) => Promise<any>;
   stageId?: string | null;
+  initialEmployeeId?: string;
+  initialManagerId?: string;
 }
 
 const formatUserName = (u: { first_name: string | null; last_name: string | null }) =>
@@ -38,6 +40,8 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   onOpenChange,
   onCreateMeeting,
   stageId,
+  initialEmployeeId,
+  initialManagerId,
 }) => {
   const { user } = useAuth();
   const { hasPermission: canViewAll } = usePermission('meetings.view_all');
@@ -47,7 +51,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const [meetingTime, setMeetingTime] = useState<string>('10:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
+  const [managerSearchQuery, setManagerSearchQuery] = useState('');
   const isHrOrAdmin = canViewAll;
 
   // Subtree data for manager/manager+1 scenarios
@@ -58,14 +62,22 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   // Employee list: all subtree users (direct + indirect)
   const employeeOptions = useMemo(() => {
     if (!user || isHrOrAdmin) return [];
-    return allSubtreeUsers.map(u => ({
+    const options = allSubtreeUsers.map(u => ({
       id: u.id,
       first_name: u.first_name,
       last_name: u.last_name,
+      email: (u as any).email ?? '',
       manager_id: u.manager_id,
       direct: isDirect(u.id),
     }));
-  }, [allSubtreeUsers, isDirect, user, isHrOrAdmin]);
+    if (!managerSearchQuery.trim()) return options;
+    const q = managerSearchQuery.toLowerCase().trim();
+    return options.filter(u => {
+      const fullName = [u.last_name, u.first_name].filter(Boolean).join(' ').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      return fullName.includes(q) || email.includes(q);
+    });
+  }, [allSubtreeUsers, isDirect, user, isHrOrAdmin, managerSearchQuery]);
 
   // Manager options depend on selected employee
   const managerOptions = useMemo(() => {
@@ -181,7 +193,6 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     return allUsers.filter(u => !!u.manager_id);
   }, [isHrOrAdmin, allUsers]);
 
-  // Task 1: Search filter for HRBP employee list
   const filteredHrEmployees = useMemo(() => {
     if (!searchQuery.trim()) return hrEmployeeOptions;
     const q = searchQuery.toLowerCase().trim();
@@ -202,6 +213,18 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
       setSelectedManager('');
     }
   }, [isHrOrAdmin, selectedEmployee, allUsers]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialEmployeeId) {
+      setSelectedEmployee(initialEmployeeId);
+    }
+
+    if (initialManagerId) {
+      setSelectedManager(initialManagerId);
+    }
+  }, [open, initialEmployeeId, initialManagerId]);
 
   // Resolve the manager name for display
   const hrSelectedManagerName = useMemo(() => {
@@ -259,6 +282,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
     setMeetingDate('');
     setMeetingTime('10:00');
     setSearchQuery('');
+    setManagerSearchQuery('');
   };
 
   // Resolve effective employee/manager IDs for validation
@@ -407,19 +431,39 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
             <>
               <div className="space-y-2">
                 <Label>Сотрудник</Label>
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <Select value={selectedEmployee} onValueChange={(v) => { setSelectedEmployee(v); setManagerSearchQuery(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder={subtreeLoading ? 'Загрузка...' : 'Выберите сотрудника'} />
                   </SelectTrigger>
-                  <SelectContent>
-                    {employeeOptions.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {formatUserName(emp)}
-                        {!emp.direct && (
-                          <span className="ml-1 text-xs text-muted-foreground">(непрямой)</span>
-                        )}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-[300px]">
+                    <div className="px-2 pb-2 sticky top-0 bg-popover z-10">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Поиск по ФИО или email..."
+                          value={managerSearchQuery}
+                          onChange={(e) => setManagerSearchQuery(e.target.value)}
+                          className="pl-7 h-9"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          data-1p-ignore
+                          data-lpignore="true"
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    {employeeOptions.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">Не найдено</div>
+                    ) : (
+                      employeeOptions.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {formatUserName(emp)}
+                          {!emp.direct && (
+                            <span className="ml-1 text-xs text-muted-foreground">(непрямой)</span>
+                          )}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -453,28 +497,33 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
             <>
               <div className="space-y-2">
                 <Label>Сотрудник</Label>
-                {/* Task 1: Search field */}
-                <div className="relative mb-2">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Поиск по ФИО или email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
                 <Select value={selectedEmployee} onValueChange={(v) => { setSelectedEmployee(v); setSearchQuery(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите сотрудника" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
+                    <div className="px-2 pb-2 sticky top-0 bg-popover z-10">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Поиск по ФИО или email..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-7 h-9"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          data-1p-ignore
+                          data-lpignore="true"
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
                     {filteredHrEmployees.length === 0 ? (
                       <div className="px-3 py-2 text-sm text-muted-foreground">Не найдено</div>
                     ) : (
                       filteredHrEmployees.map(u => (
                         <SelectItem key={u.id} value={u.id}>
                           {formatUserName(u)}
-                          {u.email && <span className="ml-1 text-xs text-muted-foreground">({u.email})</span>}
                         </SelectItem>
                       ))
                     )}

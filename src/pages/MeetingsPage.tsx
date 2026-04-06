@@ -318,6 +318,8 @@ const MeetingsPage = () => {
   const [newMeetingId, setNewMeetingId] = useState<string | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<{ id: string; date: string; employeeId?: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [prefillEmployeeId, setPrefillEmployeeId] = useState<string>('');
+  const [prefillManagerId, setPrefillManagerId] = useState<string>('');
 
   // Auto-open meeting from URL query param (e.g. from task card)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -326,14 +328,29 @@ const MeetingsPage = () => {
   useEffect(() => {
     // Support both ?meetingId= (task cards) and ?meeting= (notification links)
     const meetingId = searchParams.get('meetingId') || searchParams.get('meeting');
+    const shouldCreateMeeting = searchParams.get('createMeeting') === '1';
+    const employeeId = searchParams.get('employeeId') || '';
+    const managerId = searchParams.get('managerId') || '';
+
     if (meetingId && !autoOpenHandled.current) {
       autoOpenHandled.current = true;
       setSelectedMeeting(meetingId);
       setIsFormOpen(true);
-      // Clean up the URL params
-      searchParams.delete('meetingId');
-      searchParams.delete('meeting');
-      setSearchParams(searchParams, { replace: true });
+    } else if (shouldCreateMeeting && !autoOpenHandled.current) {
+      autoOpenHandled.current = true;
+      setPrefillEmployeeId(employeeId);
+      setPrefillManagerId(managerId);
+      setIsCreateOpen(true);
+    }
+
+    if ((meetingId || shouldCreateMeeting) && autoOpenHandled.current) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('meetingId');
+      nextParams.delete('meeting');
+      nextParams.delete('createMeeting');
+      nextParams.delete('employeeId');
+      nextParams.delete('managerId');
+      setSearchParams(nextParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
@@ -369,10 +386,9 @@ const MeetingsPage = () => {
     meeting: typeof subordinateMeetings extends (infer T)[] | undefined ? T : never,
     index: number,
     total: number,
-    options: { isManager?: boolean; isHistorical?: boolean; isAdminView?: boolean }
+    options: { isManager?: boolean; isHistorical?: boolean }
   ) => {
     const isHistorical = options.isHistorical ?? (options.isManager ? meeting.manager_id !== user?.id : false);
-    const isAdminView = options.isAdminView ?? false;
     const effectiveStatus = getEffectiveStatus(meeting);
 
     return (
@@ -390,16 +406,16 @@ const MeetingsPage = () => {
               </h3>
               <div className="flex items-center gap-3 mb-2">
                 {getStatusBadge(effectiveStatus)}
-                {(isHistorical || isAdminView) && (
+                {isHistorical && (
                   <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
                     <History className="h-3 w-3" />
-                    {isAdminView ? 'Просмотр' : 'Историческая'}
+                    Историческая
                   </Badge>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {!isHistorical && !isAdminView && effectiveStatus === 'awaiting_summary' ? (
+              {!isHistorical && effectiveStatus === 'awaiting_summary' ? (
                 <>
                   <Dialog open={isFormOpen && selectedMeeting === meeting.id} onOpenChange={(open) => {
                     setIsFormOpen(open);
@@ -440,18 +456,18 @@ const MeetingsPage = () => {
                 }}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" onClick={() => setSelectedMeeting(meeting.id)}>
-                      {getButtonLabel(effectiveStatus, isHistorical || isAdminView)}
+                      {getButtonLabel(effectiveStatus, isHistorical)}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>
-                        {isAdminView ? 'Встреча one-to-one — Просмотр' : options.isManager ? 'Встреча one-to-one — Сотрудник' : 'Встреча one-to-one'}
+                        {options.isManager ? 'Встреча one-to-one — Сотрудник' : 'Встреча one-to-one'}
                       </DialogTitle>
                     </DialogHeader>
                     <MeetingForm
                       meetingId={meeting.id}
-                      isManager={options.isManager && !isHistorical && !isAdminView}
+                      isManager={options.isManager && !isHistorical}
                       onClose={() => setIsFormOpen(false)}
                     />
                   </DialogContent>
@@ -503,8 +519,16 @@ const MeetingsPage = () => {
 
       <CreateMeetingDialog
         open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
+        onOpenChange={(open) => {
+          setIsCreateOpen(open);
+          if (!open) {
+            setPrefillEmployeeId('');
+            setPrefillManagerId('');
+          }
+        }}
         onCreateMeeting={handleCreateMeeting}
+        initialEmployeeId={prefillEmployeeId || undefined}
+        initialManagerId={prefillManagerId || undefined}
       />
 
       <Dialog open={isFormOpen && newMeetingId !== null} onOpenChange={handleCloseDialog}>
@@ -738,7 +762,6 @@ const MeetingsPage = () => {
                 {allEmployeeMeetings.map((meeting, index) =>
                   renderMeetingCard(meeting, index, allEmployeeMeetings.length, {
                     isManager: false,
-                    isAdminView: true,
                   })
                 )}
               </div>

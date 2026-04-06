@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { useMinuteTick } from '@/hooks/useMinuteTick';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,10 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermission } from '@/hooks/usePermission';
 import { useSubordinateTree } from '@/hooks/useSubordinateTree';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { differenceInDays, format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, isToday, isYesterday } from 'date-fns';
+import {
+  differenceInDays, format, startOfMonth, endOfMonth, subMonths, subDays,
+  startOfQuarter, endOfQuarter, isToday, isYesterday,
+} from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { formatMeetingDateShort, formatMeetingDateOnly } from '@/lib/meetingDateFormat';
 import {
@@ -60,23 +64,10 @@ const STATUS_OPTIONS: { value: MonitoringStatus | 'all'; label: string }[] = [
   { value: 'not_in_cycle', label: 'Цикл встреч не начат' },
 ];
 
-const now = new Date();
-const periods = [
-  { value: 'current_month', label: 'Текущий месяц', from: startOfMonth(now), to: endOfMonth(now) },
-  { value: 'prev_month', label: 'Прошлый месяц', from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) },
-  { value: 'current_quarter', label: 'Текущий квартал', from: startOfQuarter(now), to: endOfQuarter(now) },
-  { value: 'last_90', label: 'Последние 90 дней', from: subMonths(now, 3), to: now },
-];
-
 const PRIORITY_ORDER: Record<MonitoringStatus, number> = {
   overdue: 0, awaiting_summary: 1, scheduled: 2, not_in_cycle: 3, ok: 4,
 };
 
-/**
- * Client-side status compensation: if DB still says 'scheduled' but meeting_date
- * is in the past and no summary exists, treat as 'awaiting_summary'.
- * Mirrors getEffectiveStatus() from MeetingsPage to avoid stale status display.
- */
 const getEffectiveMeetingStatus = (m: MeetingRow): string => {
   if (m.status === 'scheduled' && m.meeting_date && !m.meeting_summary) {
     const meetingTime = new Date(m.meeting_date).getTime();
@@ -89,10 +80,15 @@ const getEffectiveMeetingStatus = (m: MeetingRow): string => {
 
 /* ─── helpers ─── */
 
-const formatRelativeDate = (date: Date): string => {
-  if (isToday(date)) return 'сегодня';
-  if (isYesterday(date)) return 'вчера';
-  return format(date, 'd MMM', { locale: ru });
+const formatDateTime = (date: Date, timezone?: string): string => {
+  if (!timezone) {
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { timezone = 'UTC'; }
+  }
+  try {
+    return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: timezone });
+  } catch {
+    return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
 };
 
 const formatDaysAgo = (days: number): string => {
@@ -115,30 +111,6 @@ const getStatusConfig = (status: MonitoringStatus) => {
     case 'ok':
       return { label: 'В норме', badgeClass: 'bg-success/10 text-success border-success/20', icon: <CheckCircle className="h-3 w-3" /> };
   }
-};
-
-const formatDateTime = (date: Date, timezone?: string): string => {
-  if (!timezone) {
-    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { timezone = 'UTC'; }
-  }
-  try {
-    return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: timezone });
-  } catch {
-    return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  }
-};
-
-const getContextText = (emp: EmployeeSummary, timezone?: string): string => {
-  if (emp.monitoringStatus === 'not_in_cycle') return 'Встреч не было';
-  if (emp.monitoringStatus === 'awaiting_summary' && emp.awaitingMeetingDate) return `Была запланирована на ${formatDateTime(emp.awaitingMeetingDate, timezone)}`;
-  if (emp.monitoringStatus === 'scheduled' && emp.scheduledMeetingDate) return `Запланирована на ${formatDateTime(emp.scheduledMeetingDate, timezone)}`;
-  if (emp.monitoringStatus === 'scheduled') return 'Есть запланированная встреча';
-  if (emp.lastMeetingDate && emp.daysSinceLast !== null) {
-    const tz = timezone || ((() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })());
-    const dateOnly = (() => { try { return emp.lastMeetingDate!.toLocaleString('ru-RU', { day: 'numeric', month: 'short', timeZone: tz }); } catch { return format(emp.lastMeetingDate!, 'd MMM', { locale: ru }); } })();
-    return `Последняя: ${dateOnly}, ${formatDaysAgo(emp.daysSinceLast)}`;
-  }
-  return '—';
 };
 
 const getActionText = (status: MonitoringStatus): string => {
@@ -165,41 +137,57 @@ const getActionClass = (status: MonitoringStatus): string => {
 const isActionRequired = (status: MonitoringStatus) =>
   status === 'overdue' || status === 'awaiting_summary' || status === 'not_in_cycle';
 
-interface EmployeeSummary extends BasicUser {
+interface DisplayRow {
+  rowKey: string;
+  employeeId: string;
+  first_name: string | null;
+  last_name: string | null;
+  manager_id: string | null;
+  position_id: string | null;
+  status: boolean | null;
   isDirect: boolean;
-  totalMeetings: number;
+  managerName: string | null;
+  monitoringStatus: MonitoringStatus;
+  meetingId: string | null;
+  meetingDate: Date | null;
   lastMeetingDate: Date | null;
   daysSinceLast: number | null;
-  monitoringStatus: MonitoringStatus;
-  hasScheduled: boolean;
-  hasAwaiting: boolean;
   lastSummarySavedBy: string | null;
-  managerName: string | null;
-  scheduledMeetingDate: Date | null;
-  awaitingMeetingDate: Date | null;
-  actionMeetingId: string | null;
 }
+
+type ActionIntent =
+  | { kind: 'meeting'; meetingId: string }
+  | { kind: 'create'; employeeId: string; managerId: string | null };
+
+const getActionIntent = (row: DisplayRow): ActionIntent | null => {
+  if (row.monitoringStatus === 'awaiting_summary' && row.meetingId) {
+    return { kind: 'meeting', meetingId: row.meetingId };
+  }
+
+  if (row.monitoringStatus === 'overdue' || row.monitoringStatus === 'not_in_cycle') {
+    return {
+      kind: 'create',
+      employeeId: row.employeeId,
+      managerId: row.manager_id,
+    };
+  }
+
+  return null;
+};
 
 /* ─── Subordination path helper ─── */
 const getSubordinationText = (
-  emp: EmployeeSummary,
+  row: DisplayRow,
   isAdminOrHr: boolean,
   currentUserId: string | undefined,
   allUsersMap?: Map<string, string>,
   allUsers?: BasicUser[],
 ): string => {
-  if (!emp.manager_id || !emp.managerName) return '';
-
-  // Direct report — just show manager
-  if (emp.isDirect && !isAdminOrHr) {
-    return '';
-  }
-
-  // For indirect, try to build a short path
-  if (!emp.isDirect && !isAdminOrHr && allUsersMap && allUsers && currentUserId) {
-    // Walk up from emp.manager_id to currentUserId
+  if (!row.manager_id || !row.managerName) return '';
+  if (row.isDirect && !isAdminOrHr) return '';
+  if (!row.isDirect && !isAdminOrHr && allUsersMap && allUsers && currentUserId) {
     const path: string[] = [];
-    let cursor = emp.manager_id;
+    let cursor = row.manager_id;
     let safety = 10;
     while (cursor && cursor !== currentUserId && safety-- > 0) {
       const name = allUsersMap.get(cursor);
@@ -207,20 +195,48 @@ const getSubordinationText = (
       const cursorUser = allUsers.find(u => u.id === cursor);
       cursor = cursorUser?.manager_id || '';
     }
-    if (path.length > 0) {
-      return `Через: ${path.join(' → ')}`;
-    }
+    if (path.length > 0) return `Через: ${path.join(' → ')}`;
   }
-
-  return `Менеджер: ${emp.managerName}`;
+  return `Менеджер: ${row.managerName}`;
 };
 
-/* ─── main component ─── */
+const getContextText = (row: DisplayRow, timezone?: string): string => {
+  if (row.monitoringStatus === 'not_in_cycle') return 'Встреч не было';
+  if (row.monitoringStatus === 'awaiting_summary' && row.meetingDate) return `Была запланирована на ${formatDateTime(row.meetingDate, timezone)}`;
+  if (row.monitoringStatus === 'scheduled' && row.meetingDate) return `Запланирована на ${formatDateTime(row.meetingDate, timezone)}`;
+  if (row.lastMeetingDate && row.daysSinceLast !== null) {
+    const tz = timezone || ((() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })());
+    const dateOnly = (() => { try { return row.lastMeetingDate!.toLocaleString('ru-RU', { day: 'numeric', month: 'short', timeZone: tz }); } catch { return format(row.lastMeetingDate!, 'd MMM', { locale: ru }); } })();
+    return `Последняя: ${dateOnly}, ${formatDaysAgo(row.daysSinceLast)}`;
+  }
+  return '—';
+};
+
+/* ─── Build admin subtree client-side ─── */
+const buildSubtreeIds = (managerId: string, users: BasicUser[]): Set<string> => {
+  const result = new Set<string>();
+  const queue = [managerId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const u of users) {
+      if (u.manager_id === current && !result.has(u.id)) {
+        result.add(u.id);
+        queue.push(u.id);
+      }
+    }
+  }
+  return result;
+};
+
+/* ═══════════════════════════════════════════
+   Main component
+   ═══════════════════════════════════════════ */
 
 const MeetingsMonitoringPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const _tick = useMinuteTick();
+  const { hasPermission: canViewTeam, isLoading: permLoading } = usePermission('team.view');
   const isAdminOrHr = user?.role === 'admin' || user?.role === 'hr_bp';
   const { allSubtreeUsers, isDirect } = useSubordinateTree();
   const [selectedPeriod, setSelectedPeriod] = useState('current_month');
@@ -232,8 +248,18 @@ const MeetingsMonitoringPage = () => {
   const [actionOnly, setActionOnly] = useState(false);
   const isMobile = useIsMobile();
 
+  /* ─── Dynamic periods ─── */
+  const now = new Date();
+  const periods = useMemo(() => [
+    { value: 'current_month', label: 'Текущий месяц', from: startOfMonth(now), to: endOfMonth(now) },
+    { value: 'prev_month', label: 'Прошлый месяц', from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) },
+    { value: 'current_quarter', label: 'Текущий квартал', from: startOfQuarter(now), to: endOfQuarter(now) },
+    { value: 'last_90', label: 'Последние 90 дней', from: subDays(now, 90), to: now },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [_tick]);
   const period = periods.find(p => p.value === selectedPeriod) || periods[0];
 
+  /* ─── Data queries ─── */
   const { data: allCompanyUsers, isLoading: loadingAllUsers } = useQuery({
     queryKey: ['all-company-users-monitoring'],
     queryFn: async () => {
@@ -308,177 +334,272 @@ const MeetingsMonitoringPage = () => {
 
   const isLoading = isAdminOrHr ? loadingAllUsers || loadingMeetings : loadingMeetings;
 
-  /* Build employee summaries */
-  const employeeSummaries = useMemo((): EmployeeSummary[] => {
+  /* ─── Admin subtree for selected manager ─── */
+  const adminSubtreeIds = useMemo(() => {
+    if (!isAdminOrHr || managerFilter === 'all' || !allCompanyUsers) return null;
+    return buildSubtreeIds(managerFilter, allCompanyUsers);
+  }, [isAdminOrHr, managerFilter, allCompanyUsers]);
+
+  /* ─── isDirect relative to context ─── */
+  const getIsDirect = useCallback((emp: BasicUser): boolean => {
+    if (!isAdminOrHr) return isDirect(emp.id);
+    if (managerFilter === 'all') return true;
+    return emp.manager_id === managerFilter;
+  }, [isAdminOrHr, isDirect, managerFilter]);
+
+  /* ─── Period-filtered meetings ─── */
+  const periodMeetings = useMemo(() => {
+    if (!meetingsData) return [];
+    return meetingsData.filter(m => {
+      if (!m.meeting_date) return false;
+      const d = new Date(m.meeting_date);
+      return d >= period.from && d <= period.to;
+    });
+  }, [meetingsData, period]);
+
+  /* ─── Employee KPI data (one per employee, for upper KPI block) ─── */
+  const employeeKpis = useMemo(() => {
     return usersToShow.map(emp => {
-      const meetings = meetingsData?.filter(m => m.employee_id === emp.id) || [];
-      const hasMeetings = meetings.length > 0;
-      const lastRecorded = meetings.find(m => getEffectiveMeetingStatus(m) === 'recorded');
-      const hasScheduled = meetings.some(m => getEffectiveMeetingStatus(m) === 'scheduled');
-      const hasAwaiting = meetings.some(m => getEffectiveMeetingStatus(m) === 'awaiting_summary');
+      const empAllMeetings = meetingsData?.filter(m => m.employee_id === emp.id) || [];
+      const empPeriodMeetings = periodMeetings.filter(m => m.employee_id === emp.id);
 
-      const scheduledMeeting = meetings.find(m => getEffectiveMeetingStatus(m) === 'scheduled');
-      const awaitingMeeting = meetings.find(m => getEffectiveMeetingStatus(m) === 'awaiting_summary');
+      const activeInPeriod = empPeriodMeetings.filter(m => {
+        const es = getEffectiveMeetingStatus(m);
+        return es === 'scheduled' || es === 'awaiting_summary';
+      });
 
-      const scheduledMeetingDate = scheduledMeeting?.meeting_date ? new Date(scheduledMeeting.meeting_date) : null;
-      const awaitingMeetingDate = awaitingMeeting?.meeting_date ? new Date(awaitingMeeting.meeting_date) : null;
+      const hasAwaiting = activeInPeriod.some(m => getEffectiveMeetingStatus(m) === 'awaiting_summary');
+      const hasScheduled = activeInPeriod.some(m => getEffectiveMeetingStatus(m) === 'scheduled');
 
-      const lastMeetingDate = lastRecorded?.meeting_date
-        ? new Date(lastRecorded.meeting_date)
-        : lastRecorded?.updated_at ? new Date(lastRecorded.updated_at) : null;
-
+      // Regularity from all-time data
+      const lastRecorded = empAllMeetings.find(m => getEffectiveMeetingStatus(m) === 'recorded');
+      const lastMeetingDate = lastRecorded?.meeting_date ? new Date(lastRecorded.meeting_date) : null;
       const daysSinceLast = lastMeetingDate ? differenceInDays(new Date(), lastMeetingDate) : null;
 
-      let monitoringStatus: MonitoringStatus;
-      if (!hasMeetings) {
-        monitoringStatus = 'not_in_cycle';
-      } else if (hasAwaiting) {
-        monitoringStatus = 'awaiting_summary';
-      } else if (hasScheduled) {
-        monitoringStatus = 'scheduled';
-      } else if (daysSinceLast === null || daysSinceLast > REGULARITY_THRESHOLD_DAYS) {
-        monitoringStatus = 'overdue';
-      } else {
-        monitoringStatus = 'ok';
-      }
+      let status: MonitoringStatus;
+      if (hasAwaiting) status = 'awaiting_summary';
+      else if (empAllMeetings.length === 0) status = 'not_in_cycle';
+      else if (daysSinceLast === null || daysSinceLast > REGULARITY_THRESHOLD_DAYS) status = 'overdue';
+      else if (hasScheduled) status = 'scheduled';
+      else status = 'ok';
 
+      const empIsDirect = getIsDirect(emp);
+      const managerName = emp.manager_id ? allUsersMap?.get(emp.manager_id) || null : null;
+
+      return {
+        employeeId: emp.id,
+        monitoringStatus: status,
+        isDirect: empIsDirect,
+        managerId: emp.manager_id,
+        managerName,
+      };
+    });
+  }, [usersToShow, meetingsData, periodMeetings, allUsersMap, getIsDirect, _tick]);
+
+  /* ─── List rows (one per active meeting, or one employee-level row) ─── */
+  const listRows = useMemo((): DisplayRow[] => {
+    const rows: DisplayRow[] = [];
+
+    usersToShow.forEach(emp => {
+      const empAllMeetings = meetingsData?.filter(m => m.employee_id === emp.id) || [];
+      const empPeriodMeetings = periodMeetings.filter(m => m.employee_id === emp.id);
+
+      const activePeriodMeetings = empPeriodMeetings.filter(m => {
+        const es = getEffectiveMeetingStatus(m);
+        return es === 'scheduled' || es === 'awaiting_summary';
+      });
+
+      // Regularity from all-time
+      const lastRecorded = empAllMeetings.find(m => getEffectiveMeetingStatus(m) === 'recorded');
+      const lastMeetingDate = lastRecorded?.meeting_date ? new Date(lastRecorded.meeting_date) : null;
+      const daysSinceLast = lastMeetingDate ? differenceInDays(new Date(), lastMeetingDate) : null;
       const lastSummarySavedBy = lastRecorded?.summary_saved_by
         ? allUsersMap?.get(lastRecorded.summary_saved_by) || null
         : null;
-
+      const empIsDirect = getIsDirect(emp);
       const managerName = emp.manager_id ? allUsersMap?.get(emp.manager_id) || null : null;
 
-      // Pick the meeting ID most relevant to the current action
-      let actionMeetingId: string | null = null;
-      if (monitoringStatus === 'awaiting_summary' && awaitingMeeting) {
-        actionMeetingId = awaitingMeeting.id;
-      } else if (monitoringStatus === 'scheduled' && scheduledMeeting) {
-        actionMeetingId = scheduledMeeting.id;
-      } else if (monitoringStatus === 'ok' && lastRecorded) {
-        actionMeetingId = lastRecorded.id;
-      }
-
-      return {
-        ...emp,
-        isDirect: isAdminOrHr ? true : isDirect(emp.id),
-        totalMeetings: meetings.length,
+      const baseRow = {
+        employeeId: emp.id,
+        first_name: emp.first_name,
+        last_name: emp.last_name,
+        manager_id: emp.manager_id,
+        position_id: emp.position_id,
+        status: emp.status,
+        isDirect: empIsDirect,
+        managerName,
         lastMeetingDate,
         daysSinceLast,
-        monitoringStatus,
-        hasScheduled,
-        hasAwaiting,
         lastSummarySavedBy,
-        managerName,
-        scheduledMeetingDate,
-        awaitingMeetingDate,
-        actionMeetingId,
       };
+
+      if (activePeriodMeetings.length > 0) {
+        // One row per active meeting
+        activePeriodMeetings.forEach(m => {
+          const es = getEffectiveMeetingStatus(m) as MonitoringStatus;
+          const mDate = m.meeting_date ? new Date(m.meeting_date) : null;
+          rows.push({
+            ...baseRow,
+            rowKey: m.id,
+            monitoringStatus: es,
+            meetingId: m.id,
+            meetingDate: mDate,
+          });
+        });
+      } else {
+        // Single employee-level row
+        let empStatus: MonitoringStatus;
+        if (empAllMeetings.length === 0) empStatus = 'not_in_cycle';
+        else if (daysSinceLast === null || daysSinceLast > REGULARITY_THRESHOLD_DAYS) empStatus = 'overdue';
+        else empStatus = 'ok';
+
+        rows.push({
+          ...baseRow,
+          rowKey: emp.id,
+          monitoringStatus: empStatus,
+          meetingId: empStatus === 'ok' && lastRecorded ? lastRecorded.id : null,
+          meetingDate: null,
+        });
+      }
     });
-  }, [usersToShow, meetingsData, allUsersMap, isAdminOrHr, isDirect, _tick]);
+
+    return rows;
+  }, [usersToShow, meetingsData, periodMeetings, allUsersMap, getIsDirect, _tick]);
 
   /* Unique managers for filter */
   const managerOptions = useMemo(() => {
     const managers = new Map<string, string>();
-    employeeSummaries.forEach(emp => {
-      if (emp.manager_id && emp.managerName) {
-        managers.set(emp.manager_id, emp.managerName);
+    usersToShow.forEach(emp => {
+      if (emp.manager_id) {
+        const name = allUsersMap?.get(emp.manager_id);
+        if (name) managers.set(emp.manager_id, name);
       }
     });
     return Array.from(managers.entries())
       .map(([id, name]) => ({ value: id, label: name }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [employeeSummaries]);
+  }, [usersToShow, allUsersMap]);
 
   /* Subordination filter enabled? For admin/hr it requires a manager to be selected */
   const subordinationEnabled = isAdminOrHr ? managerFilter !== 'all' : true;
 
-  /* Apply filters */
-  const filteredSummaries = useMemo(() => {
-    let result = employeeSummaries;
+  /* Apply filters to list rows */
+  const filteredRows = useMemo(() => {
+    let result = listRows;
+
+    // Manager filter: for admin with selected manager, show full subtree
+    if (managerFilter !== 'all') {
+      if (isAdminOrHr && adminSubtreeIds) {
+        result = result.filter(r => adminSubtreeIds.has(r.employeeId));
+      } else if (!isAdminOrHr) {
+        // For regular managers, manager filter already handled by allSubtreeUsers
+        result = result.filter(r => r.manager_id === managerFilter);
+      }
+    }
+
+    // Subordination filter (relative to selected manager)
+    if (subordinationEnabled && subordinationFilter !== 'all') {
+      if (subordinationFilter === 'direct') {
+        result = result.filter(r => r.isDirect);
+      } else if (subordinationFilter === 'indirect') {
+        result = result.filter(r => !r.isDirect);
+      }
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      result = result.filter(e =>
-        formatUserName(e).toLowerCase().includes(q) ||
-        (e.managerName && e.managerName.toLowerCase().includes(q))
+      result = result.filter(r =>
+        formatUserName(r).toLowerCase().includes(q) ||
+        (r.managerName && r.managerName.toLowerCase().includes(q))
       );
     }
+
     if (statusFilter !== 'all') {
-      result = result.filter(e => e.monitoringStatus === statusFilter);
+      result = result.filter(r => r.monitoringStatus === statusFilter);
     }
-    if (managerFilter !== 'all') {
-      result = result.filter(e => e.manager_id === managerFilter);
-    }
-    if (subordinationEnabled && subordinationFilter !== 'all') {
-      if (subordinationFilter === 'direct') {
-        result = result.filter(e => e.isDirect);
-      } else if (subordinationFilter === 'indirect') {
-        result = result.filter(e => !e.isDirect);
-      }
-    }
+
     if (actionOnly) {
-      result = result.filter(e => isActionRequired(e.monitoringStatus));
+      result = result.filter(r => isActionRequired(r.monitoringStatus));
     }
 
     return result;
-  }, [employeeSummaries, searchQuery, statusFilter, managerFilter, subordinationFilter, subordinationEnabled, actionOnly]);
+  }, [listRows, searchQuery, statusFilter, managerFilter, subordinationFilter, subordinationEnabled, actionOnly, isAdminOrHr, adminSubtreeIds]);
 
-  /* Sorted by priority for list view */
-  const sortedByPriority = useMemo(() => {
-    return [...filteredSummaries].sort((a, b) => {
+  /* Sorted by priority */
+  const sortedRows = useMemo(() => {
+    return [...filteredRows].sort((a, b) => {
       const diff = PRIORITY_ORDER[a.monitoringStatus] - PRIORITY_ORDER[b.monitoringStatus];
       if (diff !== 0) return diff;
       return (b.daysSinceLast ?? 999) - (a.daysSinceLast ?? 999);
     });
-  }, [filteredSummaries]);
+  }, [filteredRows]);
 
   /* Grouped by manager for structure view */
   const groupedByManager = useMemo(() => {
-    const groups = new Map<string, { managerId: string; managerName: string; members: EmployeeSummary[] }>();
-
-    filteredSummaries.forEach(emp => {
-      const mgrId = emp.manager_id || '__none__';
+    const groups = new Map<string, { managerId: string; managerName: string; members: DisplayRow[] }>();
+    filteredRows.forEach(row => {
+      const mgrId = row.manager_id || '__none__';
       if (!groups.has(mgrId)) {
         groups.set(mgrId, {
           managerId: mgrId,
-          managerName: emp.managerName || 'Без руководителя',
+          managerName: row.managerName || 'Без руководителя',
           members: [],
         });
       }
-      groups.get(mgrId)!.members.push(emp);
+      groups.get(mgrId)!.members.push(row);
     });
-
     return Array.from(groups.values()).sort((a, b) => {
       const aActions = a.members.filter(m => isActionRequired(m.monitoringStatus)).length;
       const bActions = b.members.filter(m => isActionRequired(m.monitoringStatus)).length;
       if (aActions !== bActions) return bActions - aActions;
       return a.managerName.localeCompare(b.managerName);
     });
-  }, [filteredSummaries]);
+  }, [filteredRows]);
 
-  /* KPI from filtered data */
+  /* ─── KPI from employee-level data (filtered by same criteria) ─── */
   const kpi = useMemo(() => {
+    let kpiData = employeeKpis;
+    // Apply same manager/subordination/search/action filters to keep consistency
+    if (managerFilter !== 'all') {
+      if (isAdminOrHr && adminSubtreeIds) {
+        kpiData = kpiData.filter(e => adminSubtreeIds.has(e.employeeId));
+      } else if (!isAdminOrHr) {
+        kpiData = kpiData.filter(e => e.managerId === managerFilter);
+      }
+    }
+    if (subordinationEnabled && subordinationFilter !== 'all') {
+      if (subordinationFilter === 'direct') kpiData = kpiData.filter(e => e.isDirect);
+      else if (subordinationFilter === 'indirect') kpiData = kpiData.filter(e => !e.isDirect);
+    }
+    if (searchQuery.trim()) {
+      // Need to match by employee name — look up from usersToShow
+      const q = searchQuery.toLowerCase().trim();
+      const matchIds = new Set(usersToShow.filter(u => formatUserName(u).toLowerCase().includes(q)).map(u => u.id));
+      kpiData = kpiData.filter(e => matchIds.has(e.employeeId));
+    }
+    if (actionOnly) {
+      kpiData = kpiData.filter(e => isActionRequired(e.monitoringStatus));
+    }
+
     const counts = { total: 0, not_in_cycle: 0, overdue: 0, awaiting_summary: 0, scheduled: 0, ok: 0 };
-    filteredSummaries.forEach(e => {
+    kpiData.forEach(e => {
       counts.total++;
       counts[e.monitoringStatus]++;
     });
     return counts;
-  }, [filteredSummaries]);
+  }, [employeeKpis, managerFilter, subordinationFilter, subordinationEnabled, searchQuery, actionOnly, isAdminOrHr, adminSubtreeIds, usersToShow]);
 
+  /* ─── Meeting aggregates for bottom block ─── */
   const meetingAggregates = useMemo(() => {
-    if (!meetingsData) return { scheduled: 0, awaiting_summary: 0, recorded: 0, total: 0, recordedPercent: 0 };
-    const filteredIds = new Set(filteredSummaries.map(e => e.id));
-    const periodMeetings = meetingsData.filter(m => {
-      if (!m.meeting_date) return false;
-      if (!filteredIds.has(m.employee_id)) return false;
-      const d = new Date(m.meeting_date);
-      return d >= period.from && d <= period.to;
-    });
-    const scheduled = periodMeetings.filter(m => getEffectiveMeetingStatus(m) === 'scheduled').length;
-    const awaiting = periodMeetings.filter(m => getEffectiveMeetingStatus(m) === 'awaiting_summary').length;
-    const recorded = periodMeetings.filter(m => getEffectiveMeetingStatus(m) === 'recorded').length;
-    const total = periodMeetings.length;
+    if (!periodMeetings.length) return { scheduled: 0, awaiting_summary: 0, recorded: 0, total: 0, recordedPercent: 0 };
+    // Apply same filters to narrow to relevant employees
+    const filteredEmpIds = new Set(filteredRows.map(r => r.employeeId));
+    const relevantMeetings = periodMeetings.filter(m => filteredEmpIds.has(m.employee_id));
+
+    const scheduled = relevantMeetings.filter(m => getEffectiveMeetingStatus(m) === 'scheduled').length;
+    const awaiting = relevantMeetings.filter(m => getEffectiveMeetingStatus(m) === 'awaiting_summary').length;
+    const recorded = relevantMeetings.filter(m => getEffectiveMeetingStatus(m) === 'recorded').length;
+    const total = relevantMeetings.length;
     return {
       scheduled,
       awaiting_summary: awaiting,
@@ -486,7 +607,7 @@ const MeetingsMonitoringPage = () => {
       total,
       recordedPercent: total > 0 ? Math.round((recorded / total) * 100) : 0,
     };
-  }, [meetingsData, period, filteredSummaries]);
+  }, [periodMeetings, filteredRows]);
 
   const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || managerFilter !== 'all' || subordinationFilter !== 'all' || actionOnly;
 
@@ -497,6 +618,21 @@ const MeetingsMonitoringPage = () => {
     setSubordinationFilter('all');
     setActionOnly(false);
   }, []);
+
+  /* ─── access guard ─── */
+  const hasAccess = canViewTeam || isAdminOrHr || allSubtreeUsers.length > 0;
+
+  if (permLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return <Navigate to="/" replace />;
+  }
 
   /* ─── render ─── */
 
@@ -526,34 +662,38 @@ const MeetingsMonitoringPage = () => {
         <div className="text-center py-12 text-muted-foreground text-sm">Загрузка...</div>
       ) : (
         <>
-          {/* KPI strip */}
-          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
-            <KpiCard icon={<Users className="h-3.5 w-3.5" />} label="Всего" value={kpi.total} />
-            <KpiCard icon={<CheckCircle className="h-3.5 w-3.5" />} label="В норме" value={kpi.ok} accent="text-success" />
-            <KpiCard icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Просрочено" value={kpi.overdue} accent="text-destructive" highlight={kpi.overdue > 0} />
-            <KpiCard icon={<Clock className="h-3.5 w-3.5" />} label="Ожидает итогов" value={kpi.awaiting_summary} accent="text-warning" highlight={kpi.awaiting_summary > 0} />
-            <KpiCard icon={<CalendarClock className="h-3.5 w-3.5" />} label="Запланировано" value={kpi.scheduled} accent="text-primary" />
-            <KpiCard icon={<MinusCircle className="h-3.5 w-3.5" />} label="Не начаты" value={kpi.not_in_cycle} />
+          {/* ═══ Upper block: Employees by status ═══ */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Сотрудники по статусу</p>
+            <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+              <KpiCard icon={<Users className="h-3.5 w-3.5" />} label="Всего" value={kpi.total} />
+              <KpiCard icon={<CheckCircle className="h-3.5 w-3.5" />} label="В норме" value={kpi.ok} accent="text-success" />
+              <KpiCard icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Просрочено" value={kpi.overdue} accent="text-destructive" highlight={kpi.overdue > 0} />
+              <KpiCard icon={<Clock className="h-3.5 w-3.5" />} label="Ожидает итогов" value={kpi.awaiting_summary} accent="text-warning" highlight={kpi.awaiting_summary > 0} />
+              <KpiCard icon={<CalendarClock className="h-3.5 w-3.5" />} label="Запланировано" value={kpi.scheduled} accent="text-primary" />
+              <KpiCard icon={<MinusCircle className="h-3.5 w-3.5" />} label="Не начаты" value={kpi.not_in_cycle} />
+            </div>
           </div>
 
-          {/* Period aggregates */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{period.label}:</span>
-            <span>Встреч: <strong className="text-foreground">{meetingAggregates.total}</strong></span>
-            <span>Зафиксировано: <strong className="text-foreground">{meetingAggregates.recorded}</strong></span>
-            <span>Ожидает итогов: <strong className="text-foreground">{meetingAggregates.awaiting_summary}</strong></span>
-            <span className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              <strong className="text-foreground">{meetingAggregates.recordedPercent}%</strong> зафиксировано
-            </span>
+          {/* ═══ Lower block: Meetings in period ═══ */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Встречи за период</p>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{period.label}:</span>
+              <span>Всего: <strong className="text-foreground">{meetingAggregates.total}</strong></span>
+              <span>Зафиксировано: <strong className="text-foreground">{meetingAggregates.recorded}</strong></span>
+              <span>Ожидает итогов: <strong className="text-foreground">{meetingAggregates.awaiting_summary}</strong></span>
+              <span className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                <strong className="text-foreground">{meetingAggregates.recordedPercent}%</strong> зафиксировано
+              </span>
+            </div>
           </div>
 
           {/* ═══ Controls ═══ */}
           <div className="space-y-2.5">
-
             {/* Row 1: View mode + Search */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* View mode — primary segmented control */}
               <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
                 <button
                   onClick={() => setViewMode('list')}
@@ -579,7 +719,6 @@ const MeetingsMonitoringPage = () => {
                 </button>
               </div>
 
-              {/* Search */}
               <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
@@ -593,7 +732,6 @@ const MeetingsMonitoringPage = () => {
 
             {/* Row 2: Filters */}
             <div className="flex flex-wrap items-center gap-2">
-              {/* Status */}
               <Select value={statusFilter} onValueChange={v => setStatusFilter(v as MonitoringStatus | 'all')}>
                 <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs bg-background">
                   <SelectValue placeholder="Статус" />
@@ -605,11 +743,10 @@ const MeetingsMonitoringPage = () => {
                 </SelectContent>
               </Select>
 
-              {/* Subordination — segmented control */}
               {subordinationEnabled && (
                 <div className="flex rounded-md border border-border bg-muted/30 p-0.5">
                   {([
-                    { value: 'all' as SubordinationFilter, label: 'Все в subtree' },
+                    { value: 'all' as SubordinationFilter, label: 'Вся команда' },
                     { value: 'direct' as SubordinationFilter, label: 'Только прямые' },
                     { value: 'indirect' as SubordinationFilter, label: 'Только непрямые' },
                   ]).map(opt => (
@@ -628,7 +765,6 @@ const MeetingsMonitoringPage = () => {
                 </div>
               )}
 
-              {/* Action only */}
               <Button
                 variant={actionOnly ? 'default' : 'outline'}
                 size="sm"
@@ -638,7 +774,6 @@ const MeetingsMonitoringPage = () => {
                 Только требующие действий
               </Button>
 
-              {/* Manager filter */}
               {managerOptions.length > 1 && (
                 <Select value={managerFilter} onValueChange={setManagerFilter}>
                   <SelectTrigger className="h-8 w-auto min-w-[160px] text-xs bg-background">
@@ -664,20 +799,37 @@ const MeetingsMonitoringPage = () => {
           {/* Content */}
           <Card className="border-border/50">
             <CardContent className="p-0">
-              {filteredSummaries.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   {hasActiveFilters ? 'Нет сотрудников по заданным фильтрам' : 'Нет сотрудников для мониторинга'}
                 </div>
               ) : viewMode === 'list' ? (
                 <ListView
-                  employees={sortedByPriority}
+                  rows={sortedRows}
                   isMobile={isMobile}
                   isAdminOrHr={isAdminOrHr}
                   currentUserId={user?.id}
                   allUsersMap={allUsersMap}
                   allUsers={usersToShow}
                   timezone={user?.timezone}
-                  onActionClick={(meetingId) => navigate(`/meetings?meetingId=${meetingId}`)}
+                  onActionClick={(row) => {
+                    const actionIntent = getActionIntent(row);
+                    if (!actionIntent) return;
+
+                    const params = new URLSearchParams();
+
+                    if (actionIntent.kind === 'meeting') {
+                      params.set('meetingId', actionIntent.meetingId);
+                    } else {
+                      params.set('createMeeting', '1');
+                      params.set('employeeId', actionIntent.employeeId);
+                      if (actionIntent.managerId) {
+                        params.set('managerId', actionIntent.managerId);
+                      }
+                    }
+
+                    navigate(`/meetings?${params.toString()}`);
+                  }}
                 />
               ) : (
                 <StructureView
@@ -688,7 +840,24 @@ const MeetingsMonitoringPage = () => {
                   allUsersMap={allUsersMap}
                   allUsers={usersToShow}
                   timezone={user?.timezone}
-                  onActionClick={(meetingId) => navigate(`/meetings?meetingId=${meetingId}`)}
+                  onActionClick={(row) => {
+                    const actionIntent = getActionIntent(row);
+                    if (!actionIntent) return;
+
+                    const params = new URLSearchParams();
+
+                    if (actionIntent.kind === 'meeting') {
+                      params.set('meetingId', actionIntent.meetingId);
+                    } else {
+                      params.set('createMeeting', '1');
+                      params.set('employeeId', actionIntent.employeeId);
+                      if (actionIntent.managerId) {
+                        params.set('managerId', actionIntent.managerId);
+                      }
+                    }
+
+                    navigate(`/meetings?${params.toString()}`);
+                  }}
                 />
               )}
             </CardContent>
@@ -700,26 +869,26 @@ const MeetingsMonitoringPage = () => {
 };
 
 /* ═══════════════════════════════════════════
-   List View — flat priority-sorted table
+   List View
    ═══════════════════════════════════════════ */
 
 const ListView: React.FC<{
-  employees: EmployeeSummary[];
+  rows: DisplayRow[];
   isMobile: boolean;
   isAdminOrHr: boolean;
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   timezone?: string;
-  onActionClick?: (meetingId: string) => void;
-}> = ({ employees, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
+  onActionClick?: (row: DisplayRow) => void;
+}> = ({ rows, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
   if (isMobile) {
     return (
       <div className="divide-y divide-border/40">
-        {employees.map(emp => (
-          <EmployeeMobileCard
-            key={emp.id}
-            emp={emp}
+        {rows.map(row => (
+          <RowMobileCard
+            key={row.rowKey}
+            row={row}
             showManager
             isAdminOrHr={isAdminOrHr}
             currentUserId={currentUserId}
@@ -745,10 +914,10 @@ const ListView: React.FC<{
           </tr>
         </thead>
         <tbody>
-          {employees.map(emp => (
-            <EmployeeRow
-              key={emp.id}
-              emp={emp}
+          {rows.map(row => (
+            <RowDesktop
+              key={row.rowKey}
+              row={row}
               isAdminOrHr={isAdminOrHr}
               currentUserId={currentUserId}
               allUsersMap={allUsersMap}
@@ -765,18 +934,18 @@ const ListView: React.FC<{
 };
 
 /* ═══════════════════════════════════════════
-   Structure View — grouped by manager
+   Structure View
    ═══════════════════════════════════════════ */
 
 const StructureView: React.FC<{
-  groups: { managerId: string; managerName: string; members: EmployeeSummary[] }[];
+  groups: { managerId: string; managerName: string; members: DisplayRow[] }[];
   isMobile: boolean;
   isAdminOrHr: boolean;
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   timezone?: string;
-  onActionClick?: (meetingId: string) => void;
+  onActionClick?: (row: DisplayRow) => void;
 }> = ({ groups, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
   return (
     <div className="divide-y divide-border/40">
@@ -798,14 +967,14 @@ const StructureView: React.FC<{
 };
 
 const ManagerGroup: React.FC<{
-  group: { managerId: string; managerName: string; members: EmployeeSummary[] };
+  group: { managerId: string; managerName: string; members: DisplayRow[] };
   isMobile: boolean;
   isAdminOrHr: boolean;
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   timezone?: string;
-  onActionClick?: (meetingId: string) => void;
+  onActionClick?: (row: DisplayRow) => void;
 }> = ({ group, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
   const [open, setOpen] = useState(true);
   const actionCount = group.members.filter(m => isActionRequired(m.monitoringStatus)).length;
@@ -827,7 +996,7 @@ const ManagerGroup: React.FC<{
           }
           <span className="font-semibold text-sm text-foreground">{group.managerName}</span>
           <span className="text-xs text-muted-foreground">
-            {totalCount} {totalCount === 1 ? 'сотрудник' : totalCount < 5 ? 'сотрудника' : 'сотрудников'}
+            {totalCount} {totalCount === 1 ? 'строка' : totalCount < 5 ? 'строки' : 'строк'}
           </span>
           <div className="ml-auto flex items-center gap-3 text-[11px]">
             {actionCount > 0 && (
@@ -848,10 +1017,10 @@ const ManagerGroup: React.FC<{
       <CollapsibleContent>
         {isMobile ? (
           <div className="divide-y divide-border/30">
-            {sortedMembers.map(emp => (
-              <EmployeeMobileCard
-                key={emp.id}
-                emp={emp}
+            {sortedMembers.map(row => (
+              <RowMobileCard
+                key={row.rowKey}
+                row={row}
                 showManager={false}
                 isAdminOrHr={isAdminOrHr}
                 currentUserId={currentUserId}
@@ -866,10 +1035,10 @@ const ManagerGroup: React.FC<{
         ) : (
           <table className="w-full text-sm">
             <tbody>
-              {sortedMembers.map(emp => (
-                <EmployeeRow
-                  key={emp.id}
-                  emp={emp}
+              {sortedMembers.map(row => (
+                <RowDesktop
+                  key={row.rowKey}
+                  row={row}
                   isAdminOrHr={isAdminOrHr}
                   currentUserId={currentUserId}
                   allUsersMap={allUsersMap}
@@ -888,37 +1057,37 @@ const ManagerGroup: React.FC<{
 };
 
 /* ═══════════════════════════════════════════
-   Shared: desktop employee row
+   Desktop row
    ═══════════════════════════════════════════ */
 
-const EmployeeRow: React.FC<{
-  emp: EmployeeSummary;
+const RowDesktop: React.FC<{
+  row: DisplayRow;
   isAdminOrHr: boolean;
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   indentLevel: number;
   timezone?: string;
-  onActionClick?: (meetingId: string) => void;
-}> = ({ emp, isAdminOrHr, currentUserId, allUsersMap, allUsers, indentLevel, timezone, onActionClick }) => {
-  const cfg = getStatusConfig(emp.monitoringStatus);
-  const isProblematic = isActionRequired(emp.monitoringStatus);
-  const subText = getSubordinationText(emp, isAdminOrHr, currentUserId, allUsersMap, allUsers);
-  const canClick = isProblematic && !!emp.actionMeetingId;
+  onActionClick?: (row: DisplayRow) => void;
+}> = ({ row, isAdminOrHr, currentUserId, allUsersMap, allUsers, indentLevel, timezone, onActionClick }) => {
+  const cfg = getStatusConfig(row.monitoringStatus);
+  const isProblematic = isActionRequired(row.monitoringStatus);
+  const subText = getSubordinationText(row, isAdminOrHr, currentUserId, allUsersMap, allUsers);
+  const canClick = isProblematic && !!getActionIntent(row);
 
   return (
     <tr
       className={`border-b border-border/30 transition-colors hover:bg-muted/20 ${
-        emp.monitoringStatus === 'overdue' ? 'bg-destructive/[0.03]' : ''
+        row.monitoringStatus === 'overdue' ? 'bg-destructive/[0.03]' : ''
       }`}
     >
       <td className={`pr-2 py-2.5 ${indentLevel > 0 ? 'pl-10' : 'pl-4'}`}>
-        <div className="font-medium text-foreground">{formatUserName(emp)}</div>
+        <div className="font-medium text-foreground">{formatUserName(row)}</div>
         {subText && (
           <div className="text-[11px] text-muted-foreground/70 leading-snug mt-0.5">{subText}</div>
         )}
-        {emp.lastSummarySavedBy && (
-          <div className="text-[11px] text-muted-foreground/50 leading-snug">Итоги: {emp.lastSummarySavedBy}</div>
+        {row.lastSummarySavedBy && (
+          <div className="text-[11px] text-muted-foreground/50 leading-snug">Итоги: {row.lastSummarySavedBy}</div>
         )}
       </td>
       <td className="px-2 py-2.5">
@@ -926,24 +1095,24 @@ const EmployeeRow: React.FC<{
           {cfg.icon}{cfg.label}
         </Badge>
       </td>
-      <td className="px-2 py-2.5 text-xs text-muted-foreground">{getContextText(emp, timezone)}</td>
-      <td className={`pl-2 pr-4 py-2.5 text-xs ${getActionClass(emp.monitoringStatus)}`}>
+      <td className="px-2 py-2.5 text-xs text-muted-foreground">{getContextText(row, timezone)}</td>
+      <td className={`pl-2 pr-4 py-2.5 text-xs ${getActionClass(row.monitoringStatus)}`}>
         {canClick ? (
           <button
             type="button"
             className="inline-flex items-center gap-1 hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
             onClick={(e) => {
               e.stopPropagation();
-              onActionClick?.(emp.actionMeetingId!);
+              onActionClick?.(row);
             }}
           >
             <span>→</span>
-            {getActionText(emp.monitoringStatus)}
+            {getActionText(row.monitoringStatus)}
           </button>
         ) : (
           <>
             {isProblematic && <span className="mr-1">→</span>}
-            {getActionText(emp.monitoringStatus)}
+            {getActionText(row.monitoringStatus)}
           </>
         )}
       </td>
@@ -952,11 +1121,11 @@ const EmployeeRow: React.FC<{
 };
 
 /* ═══════════════════════════════════════════
-   Mobile employee card (shared)
+   Mobile card
    ═══════════════════════════════════════════ */
 
-const EmployeeMobileCard: React.FC<{
-  emp: EmployeeSummary;
+const RowMobileCard: React.FC<{
+  row: DisplayRow;
   showManager: boolean;
   isAdminOrHr: boolean;
   currentUserId?: string;
@@ -964,38 +1133,38 @@ const EmployeeMobileCard: React.FC<{
   allUsers: BasicUser[];
   indent?: boolean;
   timezone?: string;
-  onActionClick?: (meetingId: string) => void;
-}> = ({ emp, showManager, isAdminOrHr, currentUserId, allUsersMap, allUsers, indent, timezone, onActionClick }) => {
-  const cfg = getStatusConfig(emp.monitoringStatus);
-  const isProblematic = isActionRequired(emp.monitoringStatus);
-  const canClick = isProblematic && !!emp.actionMeetingId;
+  onActionClick?: (row: DisplayRow) => void;
+}> = ({ row, showManager, isAdminOrHr, currentUserId, allUsersMap, allUsers, indent, timezone, onActionClick }) => {
+  const cfg = getStatusConfig(row.monitoringStatus);
+  const isProblematic = isActionRequired(row.monitoringStatus);
+  const canClick = isProblematic && !!getActionIntent(row);
   const subText = showManager
-    ? getSubordinationText(emp, isAdminOrHr, currentUserId, allUsersMap, allUsers)
+    ? getSubordinationText(row, isAdminOrHr, currentUserId, allUsersMap, allUsers)
     : '';
 
   return (
-    <div className={`px-3 py-2.5 space-y-1 ${indent ? 'pl-6' : ''} ${emp.monitoringStatus === 'overdue' ? 'bg-destructive/5' : ''}`}>
+    <div className={`px-3 py-2.5 space-y-1 ${indent ? 'pl-6' : ''} ${row.monitoringStatus === 'overdue' ? 'bg-destructive/5' : ''}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-sm text-foreground truncate">{formatUserName(emp)}</span>
+        <span className="font-medium text-sm text-foreground truncate">{formatUserName(row)}</span>
         <Badge variant="outline" className={`shrink-0 gap-1 text-[11px] px-2 py-0.5 ${cfg.badgeClass}`}>
           {cfg.icon}{cfg.label}
         </Badge>
       </div>
       {subText && <p className="text-[11px] text-muted-foreground/70">{subText}</p>}
-      <p className="text-xs text-muted-foreground">{getContextText(emp, timezone)}</p>
+      <p className="text-xs text-muted-foreground">{getContextText(row, timezone)}</p>
       {canClick ? (
         <button
           type="button"
-          className={`text-xs ${getActionClass(emp.monitoringStatus)} hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded`}
+          className={`text-xs ${getActionClass(row.monitoringStatus)} hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded`}
           onClick={(e) => {
             e.stopPropagation();
-            onActionClick?.(emp.actionMeetingId!);
+            onActionClick?.(row);
           }}
         >
-          → {getActionText(emp.monitoringStatus)}
+          → {getActionText(row.monitoringStatus)}
         </button>
       ) : (
-        <p className={`text-xs ${getActionClass(emp.monitoringStatus)}`}>→ {getActionText(emp.monitoringStatus)}</p>
+        <p className={`text-xs ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
       )}
     </div>
   );

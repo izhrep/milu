@@ -4475,6 +4475,7 @@ export type Database = {
             Args: { _permission_name: string; _user_id: string }
             Returns: boolean
           }
+      invoke_process_reminders: { Args: never; Returns: undefined }
       is_diagnostic_stage_participant: {
         Args: { _stage_id: string; _user_id: string }
         Returns: boolean
