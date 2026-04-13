@@ -6,6 +6,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { toast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { isNotObserved } from '@/lib/diagnosticResultContract';
 import { loadCyrillicFont } from '@/lib/pdfFontLoader';
 
 interface RawScore {
@@ -29,7 +30,7 @@ function aggregateScores(scores: RawScore[], evaluatedUserId: string) {
   const peerScores: number[] = [];
 
   scores.forEach(s => {
-    if (s.numeric_value === 0) return;
+    if (isNotObserved(s.numeric_value)) return;
     const isSelf = s.evaluating_user_id === evaluatedUserId || s.assignment_type === 'self';
     const isManager = s.assignment_type === 'manager';
     if (isSelf) selfScores.push(s.numeric_value);

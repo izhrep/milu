@@ -1,0 +1,2 @@
+ALTER TABLE public.tasks DROP CONSTRAINT check_status;
+ALTER TABLE public.tasks ADD CONSTRAINT check_status CHECK (status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text, 'expired'::text, 'closed'::text]));

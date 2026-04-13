@@ -9,6 +9,7 @@ import {
   profileStatusColors,
   actionLabel,
 } from './profileTypes';
+import ProjectSelect from './ProjectSelect';
 
 interface Employee {
   id: string;
@@ -19,6 +20,7 @@ interface Employee {
   manager_id?: string | null;
   hire_date?: string | null;
   profileStatus: ProfileStatus;
+  currentProject?: string;
 }
 
 interface Props {
@@ -26,9 +28,10 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   getManagerName: (id: string | null) => string;
+  onProjectChange?: (employeeId: string, project: string) => void;
 }
 
-const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName }: Props) => {
+const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName, onProjectChange }: Props) => {
   return (
     <Card className="border-0 shadow-card">
       <CardHeader className="pb-3">
@@ -44,6 +47,7 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName }
               <TableRow>
                 <TableHead className="pl-4">ФИО</TableHead>
                 <TableHead>Должность</TableHead>
+                <TableHead>Проект</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead className="pr-4">Действие</TableHead>
               </TableRow>
@@ -60,6 +64,18 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName }
                   >
                     <TableCell className="pl-4 font-medium text-text-primary">{fullName}</TableCell>
                     <TableCell className="text-text-secondary text-sm">{e.positions?.name || '—'}</TableCell>
+                    <TableCell className="text-sm" onClick={(ev) => ev.stopPropagation()}>
+                      {onProjectChange ? (
+                        <ProjectSelect
+                          value={e.currentProject || ''}
+                          onChange={(v) => onProjectChange(e.id, v)}
+                          compact
+                          placeholder="—"
+                        />
+                      ) : (
+                        <span className="text-text-secondary">{e.currentProject || '—'}</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`text-xs ${profileStatusColors[e.profileStatus]}`}>
                         {profileStatusLabels[e.profileStatus]}
@@ -80,7 +96,7 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName }
               })}
               {employees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={5} className="text-center py-8 text-text-secondary">
                     Нет сотрудников по выбранным фильтрам
                   </TableCell>
                 </TableRow>

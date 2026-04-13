@@ -2,11 +2,12 @@ import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import type { SkillMetrics } from '@/hooks/useJohariReport';
-import { computeMarkers, MARKER_DESCRIPTIONS, type MarkerCode } from '@/lib/johariMarkers';
+import { computeMarkers, MARKER_DESCRIPTIONS, type MarkerCode, type ScaleConfig } from '@/lib/johariMarkers';
 
 interface JohariSkillCardProps {
   skill: SkillMetrics;
   scaleMax: number;
+  scaleMin?: number;
   externalOnly?: boolean;
 }
 
@@ -15,10 +16,10 @@ const getMetricColumns = (externalOnly: boolean) => [
   { key: 'others_avg' as const, label: externalOnly ? 'Внешние' : 'Все кроме меня', tooltip: externalOnly ? 'Только внешние оценщики' : 'Все кроме сотрудника' },
 ] as const;
 
-export const JohariSkillCard: React.FC<JohariSkillCardProps> = ({ skill, scaleMax, externalOnly = false }) => {
+export const JohariSkillCard: React.FC<JohariSkillCardProps> = ({ skill, scaleMax, scaleMin = 1, externalOnly = false }) => {
   const metricColumns = getMetricColumns(externalOnly);
   const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(2));
-  const markers = computeMarkers(skill);
+  const markers = computeMarkers(skill, { min: scaleMin, max: scaleMax });
   const isPreliminary = skill.confidence_tier === 'preliminary';
   const isInsufficient = skill.confidence_tier === 'insufficient';
 

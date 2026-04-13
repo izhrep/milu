@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, MessageSquare, User, Users, Crown } from 'lucid
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { getSkillScoreLabel, getScoreColor, getScoreBgColor } from '@/lib/scoreLabels';
+import { getSkillScoreLabel, getScoreColor, getScoreBgColor, type ScaleConfig } from '@/lib/scoreLabels';
 import { CommentByEvaluator, SubSkillResult } from '@/hooks/useSkillSurveyResultsEnhanced';
 import { SubSkillsDetailedReport } from './SubSkillsDetailedReport';
 import { CommentsGroupedReport } from './CommentsGroupedReport';
@@ -18,6 +18,8 @@ interface ExpandableSkillCardProps {
   colleague_score?: number;
   sub_skills: SubSkillResult[];
   comments: CommentByEvaluator[];
+  /** Pass from StageTemplateConfig.scaleLabels.hard to use template labels instead of legacy defaults */
+  scaleConfig?: ScaleConfig;
 }
 
 export const ExpandableSkillCard: React.FC<ExpandableSkillCardProps> = ({
@@ -29,7 +31,8 @@ export const ExpandableSkillCard: React.FC<ExpandableSkillCardProps> = ({
   supervisor_score,
   colleague_score,
   sub_skills,
-  comments
+  comments,
+  scaleConfig,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -61,7 +64,7 @@ export const ExpandableSkillCard: React.FC<ExpandableSkillCardProps> = ({
                   {average_score.toFixed(1)}
                 </span>
                 <span className="text-text-tertiary text-xs">
-                  ({getSkillScoreLabel(average_score)})
+                  ({getSkillScoreLabel(average_score, scaleConfig)})
                 </span>
               </div>
               {self_score !== undefined && (

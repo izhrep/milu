@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CompetencyFilterType, SkillSetFilterType } from '@/components/CompetencyFilter';
 import { getHardSkillsRoleVisibility, getSoftSkillsRoleVisibility } from './useSkillRoleVisibility';
 import type { SnapshotContext } from './useSnapshotContext';
+import { isNotObserved, getScaleDomain, getEffectiveNumericValue, type StageScaleConfig } from '@/lib/diagnosticResultContract';
 
 export interface AssessmentDataWithCounts {
   name: string;
@@ -73,7 +74,8 @@ export const useCorrectAssessmentResults = (
   skillSetFilter: SkillSetFilterType = 'all',
   diagnosticStageId?: string | null,
   snapshotContext?: SnapshotContext | null,
-  snapshotResolved: boolean = true
+  snapshotResolved: boolean = true,
+  stageScaleConfig?: StageScaleConfig | null
 ) => {
   const [radarData, setRadarData] = useState<AssessmentDataWithCounts[]>([]);
   const [overallResults, setOverallResults] = useState<AssessmentDataWithCounts | null>(null);
@@ -402,18 +404,20 @@ export const useCorrectAssessmentResults = (
     }
   };
 
-  // Helper: map normalized result to RawScore
+  // Helper: map normalized result to RawScore, applying reverse scale if configured
   const toRawScore = (
     r: any,
     evalInfo: Map<string, EvaluatorInfo>,
-    assignmentsMap: Map<string, string>
+    assignmentsMap: Map<string, string>,
+    skillType: 'hard' | 'soft' = 'hard'
   ): RawScore => {
     const info = evalInfo.get(r.evaluating_user_id);
     const assignmentType = r.assignment_id ? assignmentsMap.get(r.assignment_id) : undefined;
+    const domain = getScaleDomain(skillType, stageScaleConfig);
     return {
       evaluating_user_id: r.evaluating_user_id,
       evaluated_user_id: r.evaluated_user_id,
-      numeric_value: r._numeric_value,
+      numeric_value: isNotObserved(r._numeric_value) ? 0 : getEffectiveNumericValue(r._numeric_value, domain),
       assignment_type: assignmentType,
       evaluator_position_category_id: info?.position_category_id || undefined,
       evaluator_position_category_name: info?.position_category_name || undefined
@@ -593,7 +597,7 @@ export const useCorrectAssessmentResults = (
 
       const skillScores = rawResults.filter((r) => 
         r._skill_id === skill.id
-      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap, 'hard'));
 
       // Пропускаем навыки без результатов
       if (skillScores.length === 0) {
@@ -689,7 +693,7 @@ export const useCorrectAssessmentResults = (
     setSkillResults(skillsDetailed);
     setQualityResults([]);
     setOverallResults({ name: 'Общая оценка', ...overallAggregated });
-    setMaxValue(4);
+    setMaxValue(getScaleDomain('hard', stageScaleConfig).max);
   };
 
   // ============= SOFT SKILLS =============
@@ -784,7 +788,7 @@ export const useCorrectAssessmentResults = (
 
       const qualityScores = rawResults.filter((r) => 
         r._quality_id === quality.id
-      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap, 'soft'));
 
       if (qualityScores.length === 0) {
         continue;
@@ -840,7 +844,7 @@ export const useCorrectAssessmentResults = (
     setSkillResults([]);
     setQualityResults(qualitiesDetailed);
     setOverallResults({ name: 'Общая оценка', ...overallAggregated });
-    setMaxValue(5);
+    setMaxValue(getScaleDomain('soft', stageScaleConfig).max);
   };
 
   // ============= HARD CATEGORIES =============
@@ -899,7 +903,7 @@ export const useCorrectAssessmentResults = (
 
       const skillScores = rawResults.filter((r) => 
         r._skill_id === skill.id
-      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap, 'hard'));
 
       if (!categoryMap.has(category.id)) {
         categoryMap.set(category.id, { name: category.name, scores: [], skillsDetailed: [] });
@@ -935,7 +939,7 @@ export const useCorrectAssessmentResults = (
     setSkillResults(allSkillsDetailed);
     setQualityResults([]);
     setOverallResults({ name: 'Общая оценка', ...overallAggregated });
-    setMaxValue(4);
+    setMaxValue(getScaleDomain('hard', stageScaleConfig).max);
   };
 
   // ============= SOFT CATEGORIES =============
@@ -985,7 +989,7 @@ export const useCorrectAssessmentResults = (
 
       const qualityScores = rawResults.filter((r) => 
         r._quality_id === quality.id
-      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap, 'soft'));
 
       if (!categoryMap.has(category.id)) {
         categoryMap.set(category.id, { name: category.name, scores: [], qualitiesDetailed: [] });
@@ -1021,7 +1025,7 @@ export const useCorrectAssessmentResults = (
     setSkillResults([]);
     setQualityResults(allQualitiesDetailed);
     setOverallResults({ name: 'Общая оценка', ...overallAggregated });
-    setMaxValue(5);
+    setMaxValue(getScaleDomain('soft', stageScaleConfig).max);
   };
 
   // ============= HARD SUBCATEGORIES =============
@@ -1072,7 +1076,7 @@ export const useCorrectAssessmentResults = (
 
       const skillScores = rawResults.filter((r) => 
         r._skill_id === skill.id
-      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap, 'hard'));
 
       if (!subcategoryMap.has(subcategory.id)) {
         subcategoryMap.set(subcategory.id, { name: subcategory.name, scores: [], skillsDetailed: [] });
@@ -1108,7 +1112,7 @@ export const useCorrectAssessmentResults = (
     setSkillResults(allSkillsDetailed);
     setQualityResults([]);
     setOverallResults({ name: 'Общая оценка', ...overallAggregated });
-    setMaxValue(4);
+    setMaxValue(getScaleDomain('hard', stageScaleConfig).max);
   };
 
   // ============= SOFT SUBCATEGORIES =============
@@ -1159,7 +1163,7 @@ export const useCorrectAssessmentResults = (
 
       const qualityScores = rawResults.filter((r) => 
         r._quality_id === quality.id
-      ).map((r) => toRawScore(r, evalInfo, assignmentsMap));
+      ).map((r) => toRawScore(r, evalInfo, assignmentsMap, 'soft'));
 
       if (!subcategoryMap.has(subcategory.id)) {
         subcategoryMap.set(subcategory.id, { name: subcategory.name, scores: [], qualitiesDetailed: [] });
@@ -1195,7 +1199,7 @@ export const useCorrectAssessmentResults = (
     setSkillResults([]);
     setQualityResults(allQualitiesDetailed);
     setOverallResults({ name: 'Общая оценка', ...overallAggregated });
-    setMaxValue(5);
+    setMaxValue(getScaleDomain('soft', stageScaleConfig).max);
   };
 
   // ============= АГРЕГАЦИЯ ОЦЕНОК =============
@@ -1220,7 +1224,7 @@ export const useCorrectAssessmentResults = (
     const peersByCategory = new Map<string, { scores: number[]; users: Set<string>; name: string }>();
 
     scores.forEach(score => {
-      if (score.numeric_value === 0) return;
+      if (isNotObserved(score.numeric_value)) return;
 
       const isSelf = score.evaluating_user_id === evaluatedUserId || score.assignment_type === 'self';
       const isManager = score.assignment_type === 'manager';

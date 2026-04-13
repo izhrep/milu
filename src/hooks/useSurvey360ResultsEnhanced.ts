@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { decryptUserData } from '@/lib/userDataDecryption';
 import type { SnapshotContext } from './useSnapshotContext';
+import { isNotObserved, computeScoredAverage } from '@/lib/diagnosticResultContract';
 
 export interface CommentByEvaluator {
   evaluator_id: string;
@@ -313,12 +314,14 @@ export const useSurvey360ResultsEnhanced = (userId?: string, diagnosticStageId?:
         const isSelf = evaluatingUserId === userId || assignmentType === 'self';
         const isManager = assignmentType === 'manager';
         
-        if (isSelf) {
-          qualityGroups[qualityId].self_scores.push(score);
-        } else if (isManager) {
-          qualityGroups[qualityId].supervisor_scores.push(score);
-        } else {
-          qualityGroups[qualityId].colleague_scores.push(score);
+        if (!isNotObserved(score)) {
+          if (isSelf) {
+            qualityGroups[qualityId].self_scores.push(score);
+          } else if (isManager) {
+            qualityGroups[qualityId].supervisor_scores.push(score);
+          } else {
+            qualityGroups[qualityId].colleague_scores.push(score);
+          }
         }
 
         // Добавляем комментарий
@@ -346,16 +349,10 @@ export const useSurvey360ResultsEnhanced = (userId?: string, diagnosticStageId?:
 
       // Формируем итоговые результаты
       const detailedResults: QualityDetailedResult[] = Object.entries(qualityGroups).map(([qualityId, data]) => {
-        const averageScore = data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length;
-        const selfScore = data.self_scores.length > 0
-          ? data.self_scores.reduce((sum, score) => sum + score, 0) / data.self_scores.length
-          : undefined;
-        const supervisorScore = data.supervisor_scores.length > 0
-          ? data.supervisor_scores.reduce((sum, score) => sum + score, 0) / data.supervisor_scores.length
-          : undefined;
-        const colleagueScore = data.colleague_scores.length > 0
-          ? data.colleague_scores.reduce((sum, score) => sum + score, 0) / data.colleague_scores.length
-          : undefined;
+        const averageScore = computeScoredAverage(data.scores) ?? 0;
+        const selfScore = computeScoredAverage(data.self_scores) ?? undefined;
+        const supervisorScore = computeScoredAverage(data.supervisor_scores) ?? undefined;
+        const colleagueScore = computeScoredAverage(data.colleague_scores) ?? undefined;
 
         return {
           quality_id: qualityId,

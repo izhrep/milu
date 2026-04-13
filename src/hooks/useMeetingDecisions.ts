@@ -33,7 +33,7 @@ export const useMeetingDecisions = (meetingId?: string) => {
 
       const { data: currentMeeting } = await supabase
         .from('one_on_one_meetings')
-        .select('employee_id, stage_id, created_at')
+        .select('employee_id, created_at')
         .eq('id', meetingId)
         .single();
 

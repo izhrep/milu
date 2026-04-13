@@ -2330,6 +2330,125 @@ export type Database = {
           },
         ]
       }
+      meeting_status_events: {
+        Row: {
+          change_source: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          meeting_id: string
+          new_status: string
+          previous_status: string | null
+        }
+        Insert: {
+          change_source?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          meeting_id: string
+          new_status: string
+          previous_status?: string | null
+        }
+        Update: {
+          change_source?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          new_status?: string
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_status_events_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_summary_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          meeting_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          meeting_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          meeting_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_summary_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_summary_comments_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_summary_views: {
+        Row: {
+          meeting_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          meeting_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          meeting_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_summary_views_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_summary_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       one_on_one_meetings: {
         Row: {
           approved_at: string | null
@@ -4556,6 +4675,10 @@ export type Database = {
         Returns: undefined
       }
       reopen_expired_stage: { Args: { stage_id: string }; Returns: undefined }
+      reschedule_meeting_silent: {
+        Args: { p_meeting_id: string; p_new_date: string }
+        Returns: undefined
+      }
       review_johari_snapshot: {
         Args: { p_snapshot_id: string }
         Returns: undefined

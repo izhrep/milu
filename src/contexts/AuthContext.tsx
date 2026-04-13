@@ -18,6 +18,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   logout: () => void;
+  updateTimezone: (tz: string) => void;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -179,9 +180,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateTimezone = (tz: string) => {
+    setUser(prev => prev ? { ...prev, timezone: tz } : prev);
+  };
+
   const value = {
     user,
     logout,
+    updateTimezone,
     isAuthenticated: !!user,
     loading
   };

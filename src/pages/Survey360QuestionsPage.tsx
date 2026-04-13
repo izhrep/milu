@@ -30,6 +30,7 @@ const Survey360QuestionsPage = () => {
 
   const { config: stageConfig } = useStageTemplateConfig(diagnosticStageId);
 
+  // @input-side-legacy: answer labels come from live table, not from frozen_config
   // Filter answer options by frozen scale bounds for template-based stages
   const filteredAnswerOptions = useMemo(() => {
     if (stageConfig.isLegacy) return answerOptions;

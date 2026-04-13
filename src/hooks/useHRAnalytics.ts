@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isNotObserved } from '@/lib/diagnosticResultContract';
 
 export interface AnalyticsFilters {
   startDate?: string;
@@ -145,7 +146,7 @@ export const useHRAnalytics = (filters?: AnalyticsFilters) => {
         const categoryName = skill?.category_hard_skills?.name;
         const numericValue = (result as any).raw_numeric_value ?? (result as any).hard_skill_answer_options?.numeric_value;
         
-        if (skill && numericValue != null) {
+        if (skill && numericValue != null && !isNotObserved(numericValue)) {
           const key = skill.name;
           const existing = skillMap.get(key) || { name: skill.name, category: categoryName || 'Общие', total: 0, count: 0 };
           existing.total += numericValue;
@@ -161,7 +162,7 @@ export const useHRAnalytics = (filters?: AnalyticsFilters) => {
         const categoryName = quality?.category_soft_skills?.name;
         const numericValue = (result as any).raw_numeric_value ?? (result as any).soft_skill_answer_options?.numeric_value;
         
-        if (quality && numericValue != null) {
+        if (quality && numericValue != null && !isNotObserved(numericValue)) {
           const key = quality.name;
           const existing = qualityMap.get(key) || { name: quality.name, category: categoryName || 'Качества', total: 0, count: 0 };
           existing.total += numericValue;
@@ -188,6 +189,7 @@ export const useHRAnalytics = (filters?: AnalyticsFilters) => {
       setCompetencies(competencyAverages);
 
       // Growth areas (lowest 10)
+      // @legacy: gap computed against hardcoded max=5; should use stage ScaleDomain when available
       const growth: GrowthArea[] = competencyAverages.slice(0, 10).map(c => ({
         name: c.name,
         type: skillMap.has(c.name) ? 'skill' : 'quality',

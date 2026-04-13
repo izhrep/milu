@@ -18,16 +18,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useSubordinateTree } from '@/hooks/useSubordinateTree';
 import { Loader2 } from 'lucide-react';
 import { validateMeetingCreation, getFieldError, type MeetingValidationError } from '@/lib/meetingValidation';
+import { useLiveNow } from '@/hooks/useLiveNow';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { localDateTimeToUtcIso, getEffectiveTimezone, getTimezoneOffsetLabel, getMinTimeForDate } from '@/lib/meetingDateTime';
+import { localDateTimeToUtcIso, getEffectiveTimezone, getTimezoneOffsetLabel, getMinTimeForDate, getNowInTimezone } from '@/lib/meetingDateTime';
 
 const MAX_INCOMPLETE_MEETINGS = 2;
 
 interface CreateMeetingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateMeeting: (params: { employee_id: string; manager_id: string; stage_id?: string | null; meeting_date: string }) => Promise<any>;
-  stageId?: string | null;
+  onCreateMeeting: (params: { employee_id: string; manager_id: string; meeting_date: string }) => Promise<any>;
   initialEmployeeId?: string;
   initialManagerId?: string;
 }
@@ -39,7 +39,6 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   open,
   onOpenChange,
   onCreateMeeting,
-  stageId,
   initialEmployeeId,
   initialManagerId,
 }) => {
@@ -53,6 +52,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [managerSearchQuery, setManagerSearchQuery] = useState('');
   const isHrOrAdmin = canViewAll;
+  const liveNow = useLiveNow(30_000);
 
   // Subtree data for manager/manager+1 scenarios
   const { allSubtreeUsers, isDirect, isLoading: subtreeLoading } = useSubordinateTree();
@@ -236,6 +236,17 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
   const handleCreate = async () => {
     if (!meetingDate) return;
 
+    // Final guard: re-validate right before submit
+    const finalTz = getEffectiveTimezone(user?.timezone);
+    const finalErrors = validateMeetingCreation({
+      date: meetingDate,
+      time: meetingTime,
+      employeeId: effectiveEmployeeId || undefined,
+      managerId: effectiveManagerId || undefined,
+      timezone: finalTz,
+    });
+    if (finalErrors.length > 0) return;
+
     let employeeId: string;
     let managerId: string;
 
@@ -264,7 +275,6 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
       await onCreateMeeting({
         employee_id: employeeId,
         manager_id: managerId,
-        stage_id: stageId || null,
         meeting_date: meetingDateUtc,
       });
       onOpenChange(false);
@@ -315,14 +325,18 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
 
   const meetingLimitReached = (incompleteMeetingsCount ?? 0) >= MAX_INCOMPLETE_MEETINGS;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _tick = liveNow; // force re-evaluation when time progresses
+  const userTzForValidation = getEffectiveTimezone(user?.timezone);
   const validationErrors = useMemo<MeetingValidationError[]>(() =>
     validateMeetingCreation({
       date: meetingDate,
       time: meetingTime,
       employeeId: effectiveEmployeeId || undefined,
       managerId: effectiveManagerId || undefined,
+      timezone: userTzForValidation,
     }),
-  [meetingDate, meetingTime, effectiveEmployeeId, effectiveManagerId]);
+  [meetingDate, meetingTime, effectiveEmployeeId, effectiveManagerId, liveNow, userTzForValidation]);
 
   const dateError = getFieldError(validationErrors, 'date');
   const timeError = getFieldError(validationErrors, 'time');
@@ -377,9 +391,9 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                     selected={meetingDate ? parse(meetingDate, 'yyyy-MM-dd', new Date()) : undefined}
                     onSelect={(d) => d && setMeetingDate(format(d, 'yyyy-MM-dd'))}
                     disabled={(d) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return d < today;
+                      const { date: todayStr } = getNowInTimezone(getEffectiveTimezone(user?.timezone));
+                      const dStr = format(d, 'yyyy-MM-dd');
+                      return dStr < todayStr;
                     }}
                     initialFocus
                     className="pointer-events-auto"

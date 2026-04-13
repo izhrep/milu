@@ -1,4 +1,6 @@
-// Текстовые описания для оценок Hard Skills (0-4)
+// Текстовые описания для оценок Hard Skills / Soft Skills
+// Поддерживает template-based labels через ScaleConfig.
+// Legacy defaults сохранены для обратной совместимости со старыми этапами.
 
 export interface ScaleLabelOverride {
   level_value: number;
@@ -12,10 +14,13 @@ export interface ScaleConfig {
 }
 
 // Константы для максимальных уровней
+/** @deprecated Use getScaleDomain from diagnosticResultContract instead */
 export const HARD_SKILLS_MAX_LEVEL = 4;
+/** @deprecated Use getScaleDomain from diagnosticResultContract instead */
 export const SOFT_SKILLS_MAX_LEVEL = 5;
 
 // Default hard skill labels (0-4)
+/** @deprecated Use StageTemplateConfig.scaleLabels instead */
 const DEFAULT_HARD_LABELS: ScaleLabelOverride[] = [
   { level_value: 0, label_text: 'Не оценено' },
   { level_value: 1, label_text: 'Начинающий' },
@@ -25,6 +30,7 @@ const DEFAULT_HARD_LABELS: ScaleLabelOverride[] = [
 ];
 
 // Default soft skill labels (0-5)
+/** @deprecated Use StageTemplateConfig.scaleLabels instead */
 const DEFAULT_SOFT_LABELS: ScaleLabelOverride[] = [
   { level_value: 0, label_text: 'Не оценено' },
   { level_value: 1, label_text: 'Слабо' },
@@ -34,14 +40,32 @@ const DEFAULT_SOFT_LABELS: ScaleLabelOverride[] = [
   { level_value: 5, label_text: 'Превосходно' },
 ];
 
+/** Dev-only warning to track remaining legacy label usage */
+let _hardLabelWarned = false;
+let _softLabelWarned = false;
+function warnLegacy(type: 'hard' | 'soft') {
+  if (import.meta.env.PROD) return;
+  if (type === 'hard' && _hardLabelWarned) return;
+  if (type === 'soft' && _softLabelWarned) return;
+  console.warn(
+    `[scoreLabels] legacy ${type} label branch used — pass ScaleConfig from StageTemplateConfig to suppress`
+  );
+  if (type === 'hard') _hardLabelWarned = true;
+  else _softLabelWarned = true;
+}
+
 /**
- * Get label for a score. If overrides provided, uses them; otherwise falls back to defaults.
+ * Get label for a hard-skill score.
+ * Pass `overrides` from StageTemplateConfig.scaleLabels to use template labels.
+ * Without overrides, falls back to legacy defaults (0–4 scale).
+ * @deprecated without overrides — pass ScaleConfig from StageTemplateConfig instead.
  */
 export const getSkillScoreLabel = (score: number, overrides?: ScaleConfig): string => {
   if (overrides?.labels && overrides.labels.length > 0) {
     return findClosestLabel(score, overrides.labels);
   }
-  // Legacy default
+  // Legacy default for stages without template
+  warnLegacy('hard');
   if (score < 0.5) return 'Не оценено';
   if (score < 1.5) return 'Начинающий';
   if (score < 2.5) return 'Базовый';
@@ -49,11 +73,18 @@ export const getSkillScoreLabel = (score: number, overrides?: ScaleConfig): stri
   return 'Эксперт';
 };
 
+/**
+ * Get label for a soft-skill score.
+ * Pass `overrides` from StageTemplateConfig.scaleLabels to use template labels.
+ * Without overrides, falls back to legacy defaults (0–5 scale).
+ * @deprecated without overrides — pass ScaleConfig from StageTemplateConfig instead.
+ */
 export const getQualityScoreLabel = (score: number, overrides?: ScaleConfig): string => {
   if (overrides?.labels && overrides.labels.length > 0) {
     return findClosestLabel(score, overrides.labels);
   }
-  // Legacy default
+  // Legacy default for stages without template
+  warnLegacy('soft');
   if (score < 0.5) return 'Не оценено';
   if (score < 1.5) return 'Слабо';
   if (score < 2.5) return 'Удовлетворительно';

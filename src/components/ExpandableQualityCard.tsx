@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, MessageSquare, User, Users, Crown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getQualityScoreLabel, getScoreColor, getScoreBgColor } from '@/lib/scoreLabels';
+import { getQualityScoreLabel, getScoreColor, getScoreBgColor, type ScaleConfig } from '@/lib/scoreLabels';
 import { CommentByEvaluator } from '@/hooks/useSurvey360ResultsEnhanced';
 import { CommentsGroupedReport } from './CommentsGroupedReport';
 
@@ -17,6 +17,8 @@ interface ExpandableQualityCardProps {
   supervisor_score?: number;
   colleague_score?: number;
   comments: CommentByEvaluator[];
+  /** Pass from StageTemplateConfig.scaleLabels.soft to use template labels instead of legacy defaults */
+  scaleConfig?: ScaleConfig;
 }
 
 export const ExpandableQualityCard: React.FC<ExpandableQualityCardProps> = ({
@@ -29,7 +31,8 @@ export const ExpandableQualityCard: React.FC<ExpandableQualityCardProps> = ({
   self_score,
   supervisor_score,
   colleague_score,
-  comments
+  comments,
+  scaleConfig,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -78,7 +81,7 @@ export const ExpandableQualityCard: React.FC<ExpandableQualityCardProps> = ({
                   {average_score.toFixed(1)}
                 </span>
                 <span className="text-text-tertiary text-xs">
-                  ({getQualityScoreLabel(average_score)})
+                  ({getQualityScoreLabel(average_score, scaleConfig)})
                 </span>
               </div>
               {self_score !== undefined && (

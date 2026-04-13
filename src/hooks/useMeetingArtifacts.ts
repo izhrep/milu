@@ -29,7 +29,6 @@ export interface MeetingArtifact {
 interface UseMeetingArtifactsOptions {
   meetingId: string;
   meetingStatus: string;
-  meetingStageId: string | null;
   isManager: boolean;
 }
 
@@ -59,7 +58,7 @@ function validateFile(file: File): string | null {
   return null;
 }
 
-export function useMeetingArtifacts({ meetingId, meetingStatus, meetingStageId, isManager }: UseMeetingArtifactsOptions) {
+export function useMeetingArtifacts({ meetingId, meetingStatus, isManager }: UseMeetingArtifactsOptions) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { hasPermission: hasMeetingsManage } = usePermission('meetings.manage');
@@ -82,8 +81,8 @@ export function useMeetingArtifacts({ meetingId, meetingStatus, meetingStageId, 
     enabled: !!meetingId,
   });
 
-  // Can upload logic
-  const isStageLessExpired = meetingStatus === 'expired' && meetingStageId === null;
+  // Can upload logic (stage model decommissioned — all meetings are stage-less)
+  const isStageLessExpired = meetingStatus === 'expired';
   const canUpload = (() => {
     if (hasMeetingsManage) return true;
     if (!isManager) {

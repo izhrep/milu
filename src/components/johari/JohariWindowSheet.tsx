@@ -288,6 +288,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
                 <JohariQuadrants 
                   skills={snapshot.metrics_json.skills} 
                   scaleMax={snapshot.metrics_json.scale_max}
+                  scaleMin={snapshot.metrics_json.scale_min}
                   externalOnly={isExternalOnly}
                 />
               </TabsContent>

@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     }
 
     // Send message via Bitrix API
-    const BOT_ID = 18;
+    const BOT_ID = 2674;
     const bitrixUrl = `${BITRIX_WEBHOOK_URL}/imbot.message.add.json`;
 
     const bitrixResponse = await fetch(bitrixUrl, {
@@ -59,9 +59,10 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         BOT_ID: BOT_ID,
-        CLIENT_ID: "vjsvlhglvxp9w5hdi9fn0w4a2qdi8hax",
+        CLIENT_ID: "b9x8q9n7pjymiqv3zpjxbiwtvxybkb0p",
         DIALOG_ID: String(user.bitrix_user_id),
         MESSAGE: text,
+        URL_PREVIEW: "N",
       }),
     });
 

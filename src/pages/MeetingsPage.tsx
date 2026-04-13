@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { formatMeetingDateFull } from '@/lib/meetingDateFormat';
+import { getEffectiveMeetingStatus, getMeetingStatusLabel, getMeetingStatusVariant } from '@/lib/meetingStatus';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermission } from '@/hooks/usePermission';
 import { useQuery } from '@tanstack/react-query';
@@ -28,33 +29,17 @@ import { DeleteMeetingDialog } from '@/components/DeleteMeetingDialog';
 const formatUserName = (u: { first_name: string | null; last_name: string | null }) =>
   [u.last_name, u.first_name].filter(Boolean).join(' ') || 'Без имени';
 
-/**
- * Compute effective meeting status client-side.
- * If DB says 'scheduled' but meeting_date is in the past and no summary — treat as 'awaiting_summary'.
- */
-const getEffectiveStatus = (meeting: { status: string; meeting_date: string | null; meeting_summary: string | null }): string => {
-  if (meeting.status === 'recorded') return 'recorded';
-  if (meeting.status === 'scheduled' && meeting.meeting_date && !meeting.meeting_summary) {
-    const meetingTime = new Date(meeting.meeting_date).getTime();
-    if (!Number.isNaN(meetingTime) && meetingTime <= Date.now()) {
-      return 'awaiting_summary';
-    }
-  }
-  return meeting.status;
-};
-
 const getStatusBadge = (status: string) => {
-  const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: React.ElementType }> = {
-    scheduled: { label: 'Запланирована', variant: 'secondary', icon: Clock },
-    awaiting_summary: { label: 'Ожидает итогов', variant: 'destructive', icon: FileText },
-    recorded: { label: 'Зафиксирована', variant: 'default', icon: CheckCircle },
+  const iconMap: Record<string, React.ElementType> = {
+    scheduled: Clock,
+    awaiting_summary: FileText,
+    recorded: CheckCircle,
   };
-  const config = statusMap[status] || statusMap.scheduled;
-  const Icon = config.icon;
+  const Icon = iconMap[status] || Clock;
   return (
-    <Badge variant={config.variant} className="flex items-center gap-1">
+    <Badge variant={getMeetingStatusVariant(status)} className="flex items-center gap-1">
       <Icon className="h-3 w-3" />
-      {config.label}
+      {getMeetingStatusLabel(status)}
     </Badge>
   );
 };
@@ -79,7 +64,7 @@ const MeetingCardsSkeleton = ({ count = 3 }: { count?: number }) => (
 
 const MeetingsPage = () => {
   const { user } = useAuth();
-  useMinuteTick(); // Force re-render every 60s so getEffectiveStatus() picks up time changes
+  useMinuteTick(); // Force re-render every 60s so getEffectiveMeetingStatus() picks up time changes
 
   // Permissions
   const { hasPermission: canViewSubordinateMeetings, isLoading: permLoading } = usePermission('team.view');
@@ -354,9 +339,9 @@ const MeetingsPage = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const { rescheduleMeeting, deleteMeeting, isDeletingMeeting } = useOneOnOneMeetings();
+  const { rescheduleSilentAsync, deleteMeeting, isDeletingMeeting } = useOneOnOneMeetings();
 
-  const handleCreateMeeting = async (params: { employee_id: string; manager_id: string; stage_id?: string | null; meeting_date: string }) => {
+  const handleCreateMeeting = async (params: { employee_id: string; manager_id: string; meeting_date: string }) => {
     const result = await createMeetingAsync(params);
     if (result?.id) {
       setNewMeetingId(result.id);
@@ -389,7 +374,7 @@ const MeetingsPage = () => {
     options: { isManager?: boolean; isHistorical?: boolean }
   ) => {
     const isHistorical = options.isHistorical ?? (options.isManager ? meeting.manager_id !== user?.id : false);
-    const effectiveStatus = getEffectiveStatus(meeting);
+    const effectiveStatus = getEffectiveMeetingStatus(meeting);
 
     return (
       <Card key={meeting.id} className="border-0 shadow-card hover:shadow-card-hover transition-shadow">
@@ -577,11 +562,11 @@ const MeetingsPage = () => {
                           )}
                         </h3>
                         <div className="flex items-center gap-3 mb-2">
-                          {getStatusBadge(getEffectiveStatus(meeting))}
+                          {getStatusBadge(getEffectiveMeetingStatus(meeting))}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {getEffectiveStatus(meeting) === 'awaiting_summary' ? (
+                        {getEffectiveMeetingStatus(meeting) === 'awaiting_summary' ? (
                           <>
                             <Dialog open={isFormOpen && selectedMeeting === meeting.id} onOpenChange={(open) => {
                               setIsFormOpen(open);
@@ -616,7 +601,7 @@ const MeetingsPage = () => {
                           }}>
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm" onClick={() => setSelectedMeeting(meeting.id)}>
-                                {getButtonLabel(getEffectiveStatus(meeting), false)}
+                                {getButtonLabel(getEffectiveMeetingStatus(meeting), false)}
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -785,8 +770,7 @@ const MeetingsPage = () => {
           onOpenChange={(open) => { if (!open) setRescheduleTarget(null); }}
           meetingId={rescheduleTarget.id}
           currentMeetingDate={rescheduleTarget.date}
-          employeeId={rescheduleTarget.employeeId}
-          onReschedule={rescheduleMeeting}
+          onReschedule={rescheduleSilentAsync}
         />
       )}
 

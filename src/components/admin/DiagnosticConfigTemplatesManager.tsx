@@ -1,22 +1,25 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Plus, Pencil, Archive, CheckCircle, ChevronDown, ChevronUp, ExternalLink, Info } from 'lucide-react';
+import { Plus, Pencil, Archive, CheckCircle, ChevronDown, ChevronUp, ExternalLink, Info, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { toast } from 'sonner';
 import {
   useDiagnosticConfigTemplates,
   DiagnosticConfigTemplate,
 } from '@/hooks/useDiagnosticConfigTemplates';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTemplateSelection } from '@/contexts/TemplateSelectionContext';
 import { buildTemplateSummary, type TemplateSummary } from '@/lib/templateViewModel';
+import { HardSkillsScaleCard } from './template-form/HardSkillsScaleCard';
+import { SoftSkillsScaleCard } from './template-form/SoftSkillsScaleCard';
+import { JohariRulesCard, validateJohariRules, type JohariRulesState } from './template-form/JohariRulesCard';
+import { TemplateCoverageReport } from './template-form/TemplateCoverageReport';
 
 // ─── Status badge ──────────────────────────────────────────────────────────
 const statusBadge = (status: string) => {
@@ -31,6 +34,31 @@ const statusBadge = (status: string) => {
       return <Badge>{status}</Badge>;
   }
 };
+
+// ─── Default Johari state ──────────────────────────────────────────────────
+const defaultJohari: JohariRulesState = {
+  openPct: 0.20,
+  bhPct: 0.25,
+  borderlineEnabled: true,
+  borderlineThreshold: 0.45,
+  borderlineDown: 0.40,
+  borderlineUp: 0.50,
+};
+
+function johariFromTemplate(template: DiagnosticConfigTemplate): JohariRulesState {
+  const jr = template.johari_rules as Record<string, number | boolean | undefined> | undefined;
+  if (jr && jr.open_delta_pct !== undefined) {
+    return {
+      openPct: jr.open_delta_pct as number,
+      bhPct: jr.blind_hidden_delta_pct as number,
+      borderlineEnabled: (jr.borderline_rounding_enabled as boolean) ?? true,
+      borderlineThreshold: (jr.borderline_threshold_delta as number) ?? 0.45,
+      borderlineDown: (jr.borderline_round_down_to as number) ?? 0.40,
+      borderlineUp: (jr.borderline_round_up_to as number) ?? 0.50,
+    };
+  }
+  return { ...defaultJohari };
+}
 
 // ─── Template Form Dialog ──────────────────────────────────────────────────
 interface TemplateFormDialogProps {
@@ -55,15 +83,7 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
   const [softReversed, setSoftReversed] = useState(false);
   const [hardEnabled, setHardEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [approving, setApproving] = useState(false);
-
-  // Johari rules state (stored as fractions 0.20, displayed as % 20)
-  const [johariOpenPct, setJohariOpenPct] = useState(0.20);
-  const [johariBhPct, setJohariBhPct] = useState(0.25);
-  const [johariBorderlineEnabled, setJohariBorderlineEnabled] = useState(true);
-  const [johariBorderlineThreshold, setJohariBorderlineThreshold] = useState(0.45);
-  const [johariBorderlineDown, setJohariBorderlineDown] = useState(0.40);
-  const [johariBorderlineUp, setJohariBorderlineUp] = useState(0.50);
+  const [johari, setJohari] = useState<JohariRulesState>(defaultJohari);
 
   useEffect(() => {
     if (template) {
@@ -76,54 +96,24 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
       setHardReversed(template.hard_scale_reversed);
       setSoftReversed(template.soft_scale_reversed);
       setHardEnabled(template.hard_skills_enabled);
-      // Johari rules
-      const jr = template.johari_rules as Record<string, any> | undefined;
-      if (jr && jr.open_delta_pct !== undefined) {
-        setJohariOpenPct(jr.open_delta_pct);
-        setJohariBhPct(jr.blind_hidden_delta_pct);
-        setJohariBorderlineEnabled(jr.borderline_rounding_enabled ?? true);
-        setJohariBorderlineThreshold(jr.borderline_threshold_delta ?? 0.45);
-        setJohariBorderlineDown(jr.borderline_round_down_to ?? 0.40);
-        setJohariBorderlineUp(jr.borderline_round_up_to ?? 0.50);
-      } else {
-        setJohariOpenPct(0.20); setJohariBhPct(0.25);
-        setJohariBorderlineEnabled(true); setJohariBorderlineThreshold(0.45);
-        setJohariBorderlineDown(0.40); setJohariBorderlineUp(0.50);
-      }
+      setJohari(johariFromTemplate(template));
     } else {
       setName(''); setDescription('');
       setHardMin(0); setHardMax(4); setSoftMin(0); setSoftMax(5);
       setHardReversed(false); setSoftReversed(false); setHardEnabled(true);
-      setJohariOpenPct(0.20); setJohariBhPct(0.25);
-      setJohariBorderlineEnabled(true); setJohariBorderlineThreshold(0.45);
-      setJohariBorderlineDown(0.40); setJohariBorderlineUp(0.50);
+      setJohari({ ...defaultJohari });
     }
   }, [template, open]);
+
+  const handleJohariChange = useCallback((patch: Partial<JohariRulesState>) => {
+    setJohari(prev => ({ ...prev, ...patch }));
+  }, []);
 
   const nameValid = name.trim().length > 0;
   const hardRangeValid = !hardEnabled || (hardMin >= 0 && hardMax > hardMin);
   const softRangeValid = softMin >= 0 && softMax > softMin;
-
-  // Johari validation
-  const johariOpenValid = johariOpenPct >= 0 && johariOpenPct <= 0.5;
-  const johariBhValid = johariBhPct >= 0 && johariBhPct <= 0.5;
-  const johariOrderValid = johariOpenPct < johariBhPct;
-  const johariBorderlineValid = !johariBorderlineEnabled || (
-    johariBorderlineDown < johariBorderlineThreshold && johariBorderlineThreshold < johariBorderlineUp
-  );
-  const johariValid = johariOpenValid && johariBhValid && johariOrderValid && johariBorderlineValid;
-
+  const johariValid = validateJohariRules(johari);
   const formValid = nameValid && hardRangeValid && softRangeValid && johariValid;
-
-  const hardRangeError = hardEnabled && hardMin >= 0 && hardMax <= hardMin
-    ? 'Максимум должен быть больше минимума' : null;
-  const softRangeError = softMin >= 0 && softMax <= softMin
-    ? 'Максимум должен быть больше минимума' : null;
-
-  // Johari delta calculator
-  const softRange = softMax - softMin;
-  const johariOpenDelta = softRange * johariOpenPct;
-  const johariBhDelta = softRange * johariBhPct;
 
   const buildInput = () => ({
     name: name.trim(),
@@ -134,12 +124,12 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
     hard_skills_enabled: hardEnabled,
     johari_rules: {
       applies_to: 'soft',
-      open_delta_pct: johariOpenPct,
-      blind_hidden_delta_pct: johariBhPct,
-      borderline_rounding_enabled: johariBorderlineEnabled,
-      borderline_threshold_delta: johariBorderlineThreshold,
-      borderline_round_down_to: johariBorderlineDown,
-      borderline_round_up_to: johariBorderlineUp,
+      open_delta_pct: johari.openPct,
+      blind_hidden_delta_pct: johari.bhPct,
+      borderline_rounding_enabled: johari.borderlineEnabled,
+      borderline_threshold_delta: johari.borderlineThreshold,
+      borderline_round_down_to: johari.borderlineDown,
+      borderline_round_up_to: johari.borderlineUp,
     },
   });
 
@@ -156,19 +146,6 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
       onOpenChange(false);
     } finally { setSaving(false); }
   };
-
-  const handleApprove = async () => {
-    if (!formValid || !isEdit || !template) return;
-    setApproving(true);
-    try {
-      await updateTemplate(template.id, buildInput());
-      await approveTemplate(template.id);
-      onSuccess?.();
-      onOpenChange(false);
-    } finally { setApproving(false); }
-  };
-
-  const canApprove = isEdit && formValid && template?.status === 'draft';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -196,179 +173,34 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
           {/* Раздел: Шкалы и правила */}
           <div className="pt-1">
             <h3 className="text-sm font-semibold text-foreground mb-3">Шкалы и правила опросника диагностики</h3>
-            
             <div className="space-y-3">
-              {/* Карточка Hard-навыки */}
-              <div className="border border-border rounded-lg p-3 bg-card">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Включить Hard-навыки в опросник</Label>
-                    <Switch checked={hardEnabled} onCheckedChange={setHardEnabled} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Минимум (Hard)</Label>
-                      <Input
-                        type="number" min={0} value={hardMin}
-                        onChange={e => setHardMin(+e.target.value)}
-                        disabled={!hardEnabled} className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Максимум (Hard)</Label>
-                      <Input
-                        type="number" min={0} value={hardMax}
-                        onChange={e => setHardMax(+e.target.value)}
-                        disabled={!hardEnabled} className="mt-1 h-9"
-                      />
-                    </div>
-                  </div>
-                  {hardEnabled && hardRangeError && (
-                    <p className="text-xs text-destructive">{hardRangeError}</p>
-                  )}
-                  <div className="flex items-center justify-between pt-1">
-                    <Label className="text-sm">Реверс шкалы Hard</Label>
-                    <Switch checked={hardReversed} onCheckedChange={setHardReversed} disabled={!hardEnabled} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Карточка Soft-навыки */}
-              <div className="border border-border rounded-lg p-3 bg-card">
-                <div className="space-y-2.5">
-                  <h4 className="text-sm font-medium text-foreground">Soft-навыки</h4>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Минимум (Soft)</Label>
-                      <Input type="number" min={0} value={softMin} onChange={e => setSoftMin(+e.target.value)} className="mt-1 h-9" />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Максимум (Soft)</Label>
-                      <Input type="number" min={0} value={softMax} onChange={e => setSoftMax(+e.target.value)} className="mt-1 h-9" />
-                    </div>
-                  </div>
-                  {softRangeError && (
-                    <p className="text-xs text-destructive">{softRangeError}</p>
-                  )}
-                  <div className="flex items-center justify-between pt-1">
-                    <Label className="text-sm">Реверс шкалы Soft</Label>
-                    <Switch checked={softReversed} onCheckedChange={setSoftReversed} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Карточка Правила Johari */}
-              <div className="border border-border rounded-lg p-3 bg-card">
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="text-sm font-medium text-foreground">Правила Johari (soft skills)</h4>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs text-xs">
-                        <p>Абсолютная дельта рассчитывается по формуле:</p>
-                        <p className="font-mono mt-1">δ = (scale_max − scale_min) × %</p>
-                        <p className="mt-1">Пример: шкала 0–5, 20% → δ = 1.0</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    Шкала Soft: {softMin}–{softMax} (диапазон: {softRange})
-                  </p>
-
-                  {/* Open zone % */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">% для открытой зоны</Label>
-                      <Input
-                        type="number" min={0} max={50} step={1}
-                        value={Math.round(johariOpenPct * 100)}
-                        onChange={e => setJohariOpenPct(Math.max(0, Math.min(50, +e.target.value)) / 100)}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">δ открытой зоны</Label>
-                      <Input value={johariOpenDelta.toFixed(2)} disabled className="mt-1 h-9 bg-muted" />
-                    </div>
-                  </div>
-
-                  {/* Blind/hidden zone % */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">% для blind/hidden зоны</Label>
-                      <Input
-                        type="number" min={0} max={50} step={1}
-                        value={Math.round(johariBhPct * 100)}
-                        onChange={e => setJohariBhPct(Math.max(0, Math.min(50, +e.target.value)) / 100)}
-                        className="mt-1 h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">δ blind/hidden зоны</Label>
-                      <Input value={johariBhDelta.toFixed(2)} disabled className="mt-1 h-9 bg-muted" />
-                    </div>
-                  </div>
-
-                  {/* Validation errors */}
-                  {!johariOrderValid && (
-                    <p className="text-xs text-destructive">% открытой зоны должен быть меньше % blind/hidden</p>
-                  )}
-
-                  {/* Borderline rounding */}
-                  <div className="flex items-center justify-between pt-1">
-                    <Label className="text-sm">Пограничное округление</Label>
-                    <Switch checked={johariBorderlineEnabled} onCheckedChange={setJohariBorderlineEnabled} />
-                  </div>
-
-                  {johariBorderlineEnabled && (
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Порог</Label>
-                        <Input
-                          type="number" step={0.01}
-                          value={johariBorderlineThreshold}
-                          onChange={e => setJohariBorderlineThreshold(+e.target.value)}
-                          className="mt-1 h-9"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Округл. вниз</Label>
-                        <Input
-                          type="number" step={0.01}
-                          value={johariBorderlineDown}
-                          onChange={e => setJohariBorderlineDown(+e.target.value)}
-                          className="mt-1 h-9"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Округл. вверх</Label>
-                        <Input
-                          type="number" step={0.01}
-                          value={johariBorderlineUp}
-                          onChange={e => setJohariBorderlineUp(+e.target.value)}
-                          className="mt-1 h-9"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {johariBorderlineEnabled && !johariBorderlineValid && (
-                    <p className="text-xs text-destructive">Должно выполняться: округл. вниз {'<'} порог {'<'} округл. вверх</p>
-                  )}
-                </div>
-              </div>
+              <HardSkillsScaleCard
+                enabled={hardEnabled} onEnabledChange={setHardEnabled}
+                min={hardMin} onMinChange={setHardMin}
+                max={hardMax} onMaxChange={setHardMax}
+                reversed={hardReversed} onReversedChange={setHardReversed}
+              />
+              <SoftSkillsScaleCard
+                min={softMin} onMinChange={setSoftMin}
+                max={softMax} onMaxChange={setSoftMax}
+                reversed={softReversed} onReversedChange={setSoftReversed}
+              />
+              <JohariRulesCard
+                softMin={softMin} softMax={softMax}
+                state={johari} onChange={handleJohariChange}
+              />
             </div>
           </div>
 
-          {/* Инфо-блок */}
-          <Alert className="border-border bg-muted/40 p-2.5">
-            <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <AlertDescription className="text-xs text-muted-foreground ml-2">
-              Названия и описания вариантов ответа переписывать не нужно. При реверсе меняется только интерпретация баллов в аналитике.
-            </AlertDescription>
-          </Alert>
+          {/* Условный инфо-блок — только если реверс включён */}
+          {(hardReversed || softReversed) && (
+            <Alert className="border-amber-200 bg-amber-50 p-2.5">
+              <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <AlertDescription className="text-xs text-amber-700 ml-2">
+                Реверс шкалы включён. Баллы ответа остаются прежними для респондента, но в аналитике и профиле компетенций направление инвертируется. Формула: итоговый балл = мин + макс − ответ.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <DialogFooter className="border-t pt-3 gap-2 sm:gap-2 flex-row">
@@ -381,18 +213,12 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
     </Dialog>
   );
 };
-
 // ─── Expanded Details Row ──────────────────────────────────────────────────
 const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: TemplateSummary }> = ({ tpl, summary }) => {
+  const { selectTemplate } = useTemplateSelection();
+
   const navigateToAnswerOptions = () => {
-    sessionStorage.setItem('activeTemplateContext', JSON.stringify({
-      id: tpl.id, name: tpl.name, version: tpl.version,
-      hard_scale_min: tpl.hard_scale_min, hard_scale_max: tpl.hard_scale_max,
-      soft_scale_min: tpl.soft_scale_min, soft_scale_max: tpl.soft_scale_max,
-      hard_skills_enabled: tpl.hard_skills_enabled,
-      hard_scale_reversed: tpl.hard_scale_reversed,
-      soft_scale_reversed: tpl.soft_scale_reversed,
-    }));
+    selectTemplate(tpl.id);
     const questionsTab = document.querySelector('[data-value="questions"]') as HTMLElement;
     if (questionsTab) questionsTab.click();
   };
@@ -421,6 +247,12 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
                 <span className="text-muted-foreground">Шкала Soft: </span>
                 <span className="font-medium">{summary.softScaleLabel}</span>
               </div>
+              {summary.reverseExplanation && (
+                <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2">
+                  <p className="text-xs font-medium text-amber-800 mb-1">⚠️ Реверс шкалы активен</p>
+                  <p className="text-xs text-amber-700">{summary.reverseExplanation}</p>
+                </div>
+              )}
             </div>
 
             {/* Правый блок — Правила */}
@@ -445,6 +277,9 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Окно Джохари</h4>
             <p className="font-medium">{summary.johariLabel}</p>
           </div>
+
+          {/* Покрытие шкалы */}
+          <TemplateCoverageReport templateId={tpl.id} />
 
           {/* Accordion: Подробнее */}
           <Accordion type="single" collapsible className="w-full">
@@ -474,13 +309,48 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
     templates, loading,
     fetchTemplates, fetchLabels,
     approveTemplate, archiveTemplate,
+    fetchTemplateCoverage,
   } = useDiagnosticConfigTemplates();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState<DiagnosticConfigTemplate | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Coverage readiness cache: templateId → 'ready' | 'gaps' | 'loading' | null
+  type ReadinessStatus = 'ready' | 'gaps' | 'loading' | null;
+  const [readinessMap, setReadinessMap] = useState<Map<string, ReadinessStatus>>(new Map());
+
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  // Fetch coverage for all draft templates once templates are loaded
+  useEffect(() => {
+    if (templates.length === 0) return;
+    const drafts = templates.filter(t => t.status === 'draft');
+    if (drafts.length === 0) return;
+
+    // Mark all drafts as loading
+    setReadinessMap(prev => {
+      const next = new Map(prev);
+      drafts.forEach(d => {
+        if (!next.has(d.id)) next.set(d.id, 'loading');
+      });
+      return next;
+    });
+
+    // Fetch coverage for each draft (don't block render)
+    drafts.forEach(async (d) => {
+      const result = await fetchTemplateCoverage(d.id);
+      setReadinessMap(prev => {
+        const next = new Map(prev);
+        if (!result) {
+          next.set(d.id, null);
+        } else {
+          next.set(d.id, result.allComplete ? 'ready' : 'gaps');
+        }
+        return next;
+      });
+    });
+  }, [templates, fetchTemplateCoverage]);
 
   // Pre-compute summaries for all templates
   const summariesMap = useMemo(() => {
@@ -491,6 +361,31 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
 
   const handleApprove = async (tpl: DiagnosticConfigTemplate) => {
     await approveTemplate(tpl.id);
+  };
+
+  const readinessBadge = (tplId: string, status: string) => {
+    // Only show for drafts
+    if (status !== 'draft') return <span className="text-xs text-muted-foreground">—</span>;
+
+    const readiness = readinessMap.get(tplId);
+    if (readiness === 'loading') {
+      return <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />;
+    }
+    if (readiness === 'ready') {
+      return (
+        <Badge variant="outline" className="text-xs border-green-300 text-green-700 bg-green-50">
+          Готов
+        </Badge>
+      );
+    }
+    if (readiness === 'gaps') {
+      return (
+        <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">
+          Есть пробелы
+        </Badge>
+      );
+    }
+    return <span className="text-xs text-muted-foreground">Нет данных</span>;
   };
 
   return (
@@ -523,6 +418,7 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
               <TableHead className="w-8" />
               <TableHead>Название</TableHead>
               <TableHead>Статус</TableHead>
+              <TableHead>Готовность</TableHead>
               <TableHead>Hard-навыки</TableHead>
               <TableHead>Шкала Hard</TableHead>
               <TableHead>Шкала Soft</TableHead>
@@ -534,6 +430,11 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
           <TableBody>
             {templates.map(tpl => {
               const s = summariesMap.get(tpl.id)!;
+              const readiness = readinessMap.get(tpl.id);
+              const hasGaps = readiness === 'gaps';
+              const coverageUnknown = readiness === 'loading' || readiness === null || readiness === undefined;
+              const canApprove = tpl.status === 'draft' && !hasGaps && !coverageUnknown;
+
               return (
                 <React.Fragment key={tpl.id}>
                   <TableRow
@@ -552,6 +453,7 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>{statusBadge(tpl.status)}</TableCell>
+                    <TableCell>{readinessBadge(tpl.id, tpl.status)}</TableCell>
                     <TableCell>
                       <Badge variant={tpl.hard_skills_enabled ? 'default' : 'secondary'} className="text-xs">
                         {s.hardSkillsLabel}
@@ -583,9 +485,26 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
                             >
                               <Pencil className="h-3 w-3 mr-1" /> Редактировать
                             </Button>
-                            <Button size="sm" onClick={() => handleApprove(tpl)}>
-                              <CheckCircle className="h-3 w-3 mr-1" /> Утвердить
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApprove(tpl)}
+                                    disabled={!canApprove}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" /> Утвердить
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!canApprove && (
+                                <TooltipContent side="top" className="max-w-xs text-xs">
+                                  {hasGaps
+                                    ? 'Не все группы ответов покрывают диапазон шкалы. Раскройте шаблон для подробностей.'
+                                    : 'Проверка покрытия ещё не завершена. Подождите загрузки.'}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
                           </>
                         )}
                         {tpl.status === 'approved' && (

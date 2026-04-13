@@ -1,7 +1,10 @@
 /**
  * Shared validation rules for meeting date/time and participants.
- * All time comparisons use the user's local timezone.
+ * When a timezone is provided, comparisons use that timezone via getNowInTimezone.
+ * Otherwise falls back to the user's local browser time.
  */
+
+import { getNowInTimezone } from '@/lib/meetingDateTime';
 
 export interface MeetingDateTimeValidation {
   date: string;   // "YYYY-MM-DD"
@@ -20,7 +23,7 @@ export interface MeetingValidationError {
 export function validateMeetingDateTime(
   date: string,
   time: string,
-  options?: { skipPastCheck?: boolean },
+  options?: { skipPastCheck?: boolean; timezone?: string },
 ): MeetingValidationError[] {
   const errors: MeetingValidationError[] = [];
 
@@ -35,22 +38,24 @@ export function validateMeetingDateTime(
 
   if (options?.skipPastCheck) return errors;
 
-  // Build local Date from date + time
-  const [year, month, day] = date.split('-').map(Number);
-  const [hours, minutes] = time.split(':').map(Number);
-  const meetingLocal = new Date(year, month - 1, day, hours, minutes, 0, 0);
-  const now = new Date();
+  // Determine "now" in the correct timezone
+  let todayStr: string;
+  let nowTime: string;
 
-  if (meetingLocal.getTime() < now.getTime()) {
-    // Differentiate: is it a past date, or today but past time?
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    if (date < todayStr) {
-      errors.push({ field: 'date', message: 'Нельзя создать встречу на прошедшую дату' });
-    } else if (date === todayStr) {
-      errors.push({ field: 'time', message: 'Нельзя выбрать время, которое уже прошло' });
-    } else {
-      errors.push({ field: 'date', message: 'Нельзя создать встречу в прошедшем времени' });
-    }
+  if (options?.timezone) {
+    const tz = getNowInTimezone(options.timezone);
+    todayStr = tz.date;
+    nowTime = tz.time;
+  } else {
+    const now = new Date();
+    todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+
+  if (date < todayStr) {
+    errors.push({ field: 'date', message: 'Нельзя создать встречу на прошедшую дату' });
+  } else if (date === todayStr && time < nowTime) {
+    errors.push({ field: 'time', message: 'Нельзя выбрать время, которое уже прошло' });
   }
 
   return errors;
@@ -77,9 +82,10 @@ export function validateMeetingCreation(params: {
   time: string;
   employeeId?: string;
   managerId?: string;
+  timezone?: string;
 }): MeetingValidationError[] {
   return [
-    ...validateMeetingDateTime(params.date, params.time),
+    ...validateMeetingDateTime(params.date, params.time, { timezone: params.timezone }),
     ...validateMeetingParticipants(params.employeeId, params.managerId),
   ];
 }

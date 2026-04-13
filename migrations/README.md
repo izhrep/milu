@@ -60,5 +60,10 @@ ON CONFLICT (version) DO NOTHING;
 
 ## История изменений
 
+- **2026-04-10**: Добавлена заметка о superseded freeze triggers
 - **2026-02-03**: Файлы очищены от DML с hardcoded UUID, синхронизированы с production БД
 - **2026-02-02**: Удалены применённые миграции (20260116113854, 20260116164200, 20260116173336, 20260122034859)
+
+## Заметки о superseded миграциях
+
+- `20260305_diagnostic_config_templates.sql` содержит первую версию freeze trigger (`freeze_config_on_activate`). Эта версия **superseded** миграцией `20260311_johari_rules_template.sql`, которая расширяет freeze-объект полем `johari_rules` и использует `CREATE OR REPLACE`. Финальная версия — `20260311`.

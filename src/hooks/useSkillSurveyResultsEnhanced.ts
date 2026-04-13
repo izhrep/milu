@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { decryptUserData } from '@/lib/userDataDecryption';
 import type { SnapshotContext } from './useSnapshotContext';
+import { isNotObserved, computeScoredAverage } from '@/lib/diagnosticResultContract';
 
 export interface CommentByEvaluator {
   evaluator_id: string;
@@ -292,6 +293,7 @@ export const useSkillSurveyResultsEnhanced = (userId?: string, diagnosticStageId
           };
         }
 
+        // Always track score for response_count, but only include non-zero in scoring arrays
         skillGroups[skillId].scores.push(score);
 
         // Определяем тип оценивающего по assignment_type (приоритет) или fallback на manager_id
@@ -303,12 +305,14 @@ export const useSkillSurveyResultsEnhanced = (userId?: string, diagnosticStageId
         const isManager = assignmentType === 'manager' || 
           (!assignmentType && (evaluatingUserId === userManagerId || evaluatingUserId === userHrBpId));
 
-        if (isSelf) {
-          skillGroups[skillId].self_scores.push(score);
-        } else if (isManager) {
-          skillGroups[skillId].supervisor_scores.push(score);
-        } else {
-          skillGroups[skillId].colleague_scores.push(score);
+        if (!isNotObserved(score)) {
+          if (isSelf) {
+            skillGroups[skillId].self_scores.push(score);
+          } else if (isManager) {
+            skillGroups[skillId].supervisor_scores.push(score);
+          } else {
+            skillGroups[skillId].colleague_scores.push(score);
+          }
         }
 
         // Добавляем комментарий
@@ -336,16 +340,10 @@ export const useSkillSurveyResultsEnhanced = (userId?: string, diagnosticStageId
 
       // Формируем итоговые результаты
       const detailedResults: SkillDetailedResult[] = Object.entries(skillGroups).map(([skillId, data]) => {
-        const averageScore = data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length;
-        const selfScore = data.self_scores.length > 0
-          ? data.self_scores.reduce((sum, score) => sum + score, 0) / data.self_scores.length
-          : undefined;
-        const supervisorScore = data.supervisor_scores.length > 0
-          ? data.supervisor_scores.reduce((sum, score) => sum + score, 0) / data.supervisor_scores.length
-          : undefined;
-        const colleagueScore = data.colleague_scores.length > 0
-          ? data.colleague_scores.reduce((sum, score) => sum + score, 0) / data.colleague_scores.length
-          : undefined;
+        const averageScore = computeScoredAverage(data.scores) ?? 0;
+        const selfScore = computeScoredAverage(data.self_scores) ?? undefined;
+        const supervisorScore = computeScoredAverage(data.supervisor_scores) ?? undefined;
+        const colleagueScore = computeScoredAverage(data.colleague_scores) ?? undefined;
 
         const subSkills: SubSkillResult[] = Object.entries(data.subSkills).map(([subSkillId, subSkillData]) => ({
           sub_skill_id: subSkillId,

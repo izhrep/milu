@@ -19,6 +19,7 @@ import {
 } from './profileTypes';
 import ProfileEmployeeList from './ProfileEmployeeList';
 import ProfileCard from './ProfileCard';
+import { emptyProfile } from './profileTypes';
 
 interface Props {
   selectedUserId: string | null;
@@ -36,8 +37,11 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
   const [positionFilter, setPositionFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // All employees (for admin/hr_bp we show everyone)
-  const employees = useMemo(() => users || [], [users]);
+  // All internal employees (exclude external by position category)
+  const employees = useMemo(
+    () => (users || []).filter(u => !u.positions?.position_categories?.name?.includes('(внешний)')),
+    [users],
+  );
 
   // Unique filter values
   const managers = useMemo(() => {
@@ -59,10 +63,14 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
 
   // Enriched with status
   const enriched = useMemo(() => {
-    return employees.map(e => ({
-      ...e,
-      profileStatus: computeProfileStatus(getProfile(e.id)),
-    }));
+    return employees.map(e => {
+      const profile = getProfile(e.id);
+      return {
+        ...e,
+        profileStatus: computeProfileStatus(profile),
+        currentProject: profile?.currentProject?.trim() || '',
+      };
+    });
   }, [employees, profiles]);
 
   // Apply filters
@@ -100,6 +108,13 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
   };
 
   // Navigate to next unfilled
+  // Inline project change from table
+  const handleProjectChange = (employeeId: string, project: string) => {
+    const existing = getProfile(employeeId);
+    const updated = { ...(existing || emptyProfile), currentProject: project };
+    saveProfile(employeeId, updated);
+  };
+
   const goToNextUnfilled = () => {
     const next = enriched.find(e => e.id !== selectedUserId && e.profileStatus === 'not_filled')
       || enriched.find(e => e.id !== selectedUserId && e.profileStatus === 'partially_filled');
@@ -207,6 +222,7 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
         selectedId={selectedUserId}
         onSelect={onSelectUser}
         getManagerName={getManagerName}
+        onProjectChange={handleProjectChange}
       />
 
       {/* Side sheet for profile card */}

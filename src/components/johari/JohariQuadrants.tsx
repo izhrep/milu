@@ -9,6 +9,7 @@ import type { SkillMetrics } from '@/hooks/useJohariReport';
 interface JohariQuadrantsProps {
   skills: SkillMetrics[];
   scaleMax: number;
+  scaleMin?: number;
   externalOnly?: boolean;
 }
 
@@ -56,8 +57,8 @@ const quadrantConfigs: QuadrantConfig[] = [
   }
 ];
 
-const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[]; scaleMax: number; externalOnly?: boolean }> = ({ config, zoneSkills, scaleMax, externalOnly = false }) => {
-  const sortedSkills = sortSkillsInZone(zoneSkills);
+const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[]; scaleMax: number; scaleMin?: number; externalOnly?: boolean }> = ({ config, zoneSkills, scaleMax, scaleMin = 1, externalOnly = false }) => {
+  const sortedSkills = sortSkillsInZone(zoneSkills, { min: scaleMin, max: scaleMax });
   const total = sortedSkills.length;
 
   return (
@@ -84,7 +85,7 @@ const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[
         {total > 0 ? (
           <div className="grid grid-cols-2 gap-1.5">
             {sortedSkills.map((skill) => (
-              <JohariSkillCard key={skill.skill_id} skill={skill} scaleMax={scaleMax} externalOnly={externalOnly} />
+              <JohariSkillCard key={skill.skill_id} skill={skill} scaleMax={scaleMax} scaleMin={scaleMin} externalOnly={externalOnly} />
             ))}
           </div>
         ) : (
@@ -97,7 +98,7 @@ const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[
   );
 };
 
-export const JohariQuadrants: React.FC<JohariQuadrantsProps> = ({ skills, scaleMax, externalOnly = false }) => {
+export const JohariQuadrants: React.FC<JohariQuadrantsProps> = ({ skills, scaleMax, scaleMin = 1, externalOnly = false }) => {
   // Server already applies classification and borderline rounding — consume as-is
   const sufficientSkills = skills.filter(s => s.confidence_tier !== 'insufficient');
   const insufficientSkills = skills.filter(s => s.confidence_tier === 'insufficient');
@@ -117,6 +118,7 @@ export const JohariQuadrants: React.FC<JohariQuadrantsProps> = ({ skills, scaleM
             config={config}
             zoneSkills={groupedSkills[config.zone] || []}
             scaleMax={scaleMax}
+            scaleMin={scaleMin}
             externalOnly={externalOnly}
           />
         ))}
@@ -137,7 +139,7 @@ export const JohariQuadrants: React.FC<JohariQuadrantsProps> = ({ skills, scaleM
           <CardContent className="px-3 pb-3 pt-0">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
               {insufficientSkills.map((skill) => (
-                <JohariSkillCard key={skill.skill_id} skill={skill} scaleMax={scaleMax} externalOnly={externalOnly} />
+                <JohariSkillCard key={skill.skill_id} skill={skill} scaleMax={scaleMax} scaleMin={scaleMin} externalOnly={externalOnly} />
               ))}
             </div>
           </CardContent>

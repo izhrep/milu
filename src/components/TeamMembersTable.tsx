@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { MeetingForm } from './MeetingForm';
 import { UserCareerTrackView } from './UserCareerTrackView';
+import { getEffectiveMeetingStatus, getMeetingStatusLabel, getMeetingStatusVariant } from '@/lib/meetingStatus';
 import { ManagerRespondentApproval } from './ManagerRespondentApproval';
 import { RespondentsListDialog } from './RespondentsListDialog';
 import { User } from '@/hooks/useUsers';
@@ -192,25 +193,16 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
     }
     
     const latestMeeting = userMeetings[0];
-    let variant: 'default' | 'destructive' | 'outline' | 'secondary' = 'secondary';
-    let status = 'Не назначена';
-    
-    if (latestMeeting.status === 'scheduled') {
-      variant = 'default';
-      status = 'Запланирована';
-    } else if (latestMeeting.status === 'awaiting_summary') {
-      variant = 'destructive';
-      status = 'Ожидает итогов';
-    } else if (latestMeeting.status === 'recorded') {
-      variant = 'secondary';
-      status = 'Зафиксирована';
-    }
+    const effectiveStatus = getEffectiveMeetingStatus({
+      status: latestMeeting.status,
+      meeting_date: latestMeeting.meeting_date,
+    });
     
     return {
       id: latestMeeting.id,
-      status,
+      status: getMeetingStatusLabel(effectiveStatus),
       date: latestMeeting.meeting_date || '',
-      variant,
+      variant: getMeetingStatusVariant(effectiveStatus),
       meetingId: latestMeeting.id
     };
   };

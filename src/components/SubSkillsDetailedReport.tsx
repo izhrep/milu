@@ -16,13 +16,16 @@ interface SubSkillsDetailedReportProps {
   selfScore?: number;
   supervisorScore?: number;
   colleagueScore?: number;
+  /** Max scale value for display. Defaults to 5 (legacy). */
+  maxScore?: number;
 }
 
 export const SubSkillsDetailedReport: React.FC<SubSkillsDetailedReportProps> = ({
   subSkills,
   selfScore,
   supervisorScore,
-  colleagueScore
+  colleagueScore,
+  maxScore = 5
 }) => {
   if (!subSkills || subSkills.length === 0) {
     return null;
@@ -71,7 +74,7 @@ export const SubSkillsDetailedReport: React.FC<SubSkillsDetailedReportProps> = (
                   <div className={`text-2xl font-bold ${getScoreColor(subSkill.average_score)}`}>
                     {subSkill.average_score.toFixed(1)}
                   </div>
-                  <p className="text-xs text-text-secondary">из 5.0</p>
+                  <p className="text-xs text-text-secondary">из {maxScore.toFixed(1)}</p>
                 </div>
               </div>
 

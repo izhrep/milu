@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit2, Trash2, GripVertical, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ import { useSkills } from '@/hooks/useSkills';
 import { useCategorySkills } from '@/hooks/useCategorySkills';
 import { useQualities } from '@/hooks/useQualities';
 import { useAnswerCategories } from '@/hooks/useAnswerCategories';
+import { useDiagnosticConfigTemplates } from '@/hooks/useDiagnosticConfigTemplates';
+import { useTemplateSelection } from '@/contexts/TemplateSelectionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CreateAnswerCategoryDialog } from './CreateAnswerCategoryDialog';
@@ -253,48 +255,59 @@ export const SurveyQuestionsManagement = () => {
 
   const currentQuestions = filteredQuestions;
 
-  // Read template context: prefer sessionStorage (from CTA), fallback to fetching approved template
-  const [templateContext, setTemplateContext] = useState<TemplateContext | null>(() => {
-    try {
-      const raw = sessionStorage.getItem('activeTemplateContext');
-      if (raw) {
-        sessionStorage.removeItem('activeTemplateContext');
-        return JSON.parse(raw) as TemplateContext;
-      }
-    } catch { /* ignore */ }
-    return null;
-  });
+  // Use context for template selection
+  const { templateContext, selectTemplate, loading: templateLoading } = useTemplateSelection();
 
-  React.useEffect(() => {
-    if (templateContext) return;
-    const fetchApprovedTemplate = async () => {
-      try {
-        const { data } = await supabase
-          .from('diagnostic_config_templates')
-          .select('id, name, version, hard_scale_min, hard_scale_max, soft_scale_min, soft_scale_max, hard_skills_enabled, hard_scale_reversed, soft_scale_reversed')
-          .eq('status', 'approved')
-          .order('version', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (data) setTemplateContext(data as TemplateContext);
-      } catch { /* ignore */ }
-    };
-    fetchApprovedTemplate();
-  }, [templateContext]);
+  // Fetch all templates for manual selector
+  const { templates: allTemplates, fetchTemplates: fetchAllTemplates } = useDiagnosticConfigTemplates();
+  useEffect(() => { fetchAllTemplates(); }, [fetchAllTemplates]);
+
+  // Templates available in selector: drafts + approved (not archived)
+  const selectableTemplates = useMemo(
+    () => allTemplates.filter(t => t.status === 'draft' || t.status === 'approved'),
+    [allTemplates],
+  );
 
   return (
     <div className="space-y-6">
-      {/* Template context header */}
+      {/* Template selector + context header */}
+      <div className="flex items-center gap-3">
+        <Label className="text-sm text-muted-foreground whitespace-nowrap">Шаблон:</Label>
+        <Select
+          value={templateContext?.id ?? ''}
+          onValueChange={(id) => selectTemplate(id)}
+        >
+          <SelectTrigger className="w-72 h-9">
+            <SelectValue placeholder={templateLoading ? 'Загрузка...' : 'Выберите шаблон'} />
+          </SelectTrigger>
+          <SelectContent>
+            {selectableTemplates.map(t => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name} v{t.version} {t.status === 'draft' ? '(черновик)' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {templateContext ? (() => {
         const summary = buildTemplateSummary({
           ...templateContext,
-          hard_scale_reversed: (templateContext as any).hard_scale_reversed ?? false,
-          soft_scale_reversed: (templateContext as any).soft_scale_reversed ?? false,
-          comment_rules: (templateContext as any).comment_rules ?? {},
-          open_questions_config: (templateContext as any).open_questions_config ?? [],
-          status: (templateContext as any).status ?? 'approved',
+          hard_scale_reversed: templateContext.hard_scale_reversed ?? false,
+          soft_scale_reversed: templateContext.soft_scale_reversed ?? false,
+          comment_rules: {},
+          open_questions_config: [],
+          status: 'approved',
           version: templateContext.version ?? 1,
-          created_by: '', created_at: '', updated_at: '', id: (templateContext as any).id ?? '',
+          created_by: '', created_at: '', updated_at: '', id: templateContext.id ?? '',
+          johari_rules: {},
+          description: null,
+          hard_skills_enabled: templateContext.hard_skills_enabled,
+          hard_scale_min: templateContext.hard_scale_min,
+          hard_scale_max: templateContext.hard_scale_max,
+          soft_scale_min: templateContext.soft_scale_min,
+          soft_scale_max: templateContext.soft_scale_max,
+          name: templateContext.name,
         } as DiagnosticConfigTemplate);
 
         return (

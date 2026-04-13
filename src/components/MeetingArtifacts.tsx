@@ -25,7 +25,6 @@ interface MeetingArtifactsProps {
   meetingId: string;
   meeting: {
     status: string;
-    stage_id: string | null;
   };
   isManager: boolean;
 }
@@ -47,7 +46,6 @@ export const MeetingArtifacts: React.FC<MeetingArtifactsProps> = ({ meetingId, m
   } = useMeetingArtifacts({
     meetingId,
     meetingStatus: meeting.status,
-    meetingStageId: meeting.stage_id,
     isManager,
   });
 

@@ -462,6 +462,7 @@ const UnifiedAssessmentPage = () => {
           .from('grade_qualities')
           .select('quality_id')
           .eq('grade_id', gradeId),
+        // @input-side-legacy: open_questions fetched from live table, not from frozen_config.open_questions
         supabase
           .from('open_questions')
           .select('id, question_text, order_index, is_required')
@@ -627,7 +628,7 @@ const UnifiedAssessmentPage = () => {
       const skillCategoryIds = [...new Set(skillQuestions.map(q => q.answer_category_id).filter(Boolean))];
       const allAnswerCategoryIds = [...new Set([...qualityCategoryIds, ...skillCategoryIds])];
 
-      // Загружаем comment_required из answer_categories
+      // @input-side-legacy: comment_required from live answer_categories, not from frozen_config.comment_rules
       let answerCategoriesMap: Record<string, boolean> = {};
       if (allAnswerCategoryIds.length > 0) {
         const { data: acData } = await supabase

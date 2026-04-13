@@ -28,7 +28,7 @@ interface UserProfile {
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { user: authUser } = useAuth();
+  const { user: authUser, updateTimezone } = useAuth();
   const { users, loading: usersLoading } = useUsers();
   
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -136,6 +136,7 @@ const ProfilePage = () => {
         .update({ timezone: tz, timezone_manual: true } as Record<string, unknown>)
         .eq('id', authUser!.id);
       if (error) throw error;
+      updateTimezone(tz);
       toast.success('Часовой пояс сохранён');
     } catch (err) {
       console.error('Failed to save timezone:', err);

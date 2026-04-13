@@ -261,7 +261,7 @@ const AssessmentResultsPage = () => {
     loading,
     maxValue,
     managerPositionCategory
-  } = useCorrectAssessmentResults(userId, globalFilter, 'all', skillSetFilter, selectedStageId, snapshotContext, snapshotResolved);
+  } = useCorrectAssessmentResults(userId, globalFilter, 'all', skillSetFilter, selectedStageId, snapshotContext, snapshotResolved, stageConfig);
 
   // Получаем комментарии
   const {

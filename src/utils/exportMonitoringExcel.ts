@@ -3,6 +3,7 @@ import { getFullName } from '@/hooks/useUsers';
 import { loadSnapshotForStage } from '@/utils/loadSnapshotForStage';
 import type { SnapshotContext } from '@/hooks/useSnapshotContext';
 import type { User } from '@/hooks/useUsers';
+import { isNotObserved } from '@/lib/diagnosticResultContract';
 
 interface ExportRow {
   'Оцениваемый': string;
@@ -109,8 +110,12 @@ async function buildSnapshotRows(
       'Подкатегория': skill?.subcategoryName || '',
       'Компетенция': skill?.name || 'Не указано',
       'Вопрос': q?.questionText || 'Не указано',
-      'Ответ': isSkipped ? 'Не могу ответить' : resolveAnswerTitle(r.raw_numeric_value, q?.answerCategoryId ?? null, snapshot.hardAnswerOptionsMap),
-      'Балл': isSkipped ? '' : (r.raw_numeric_value ?? 0),
+      'Ответ': isSkipped
+        ? 'Не могу ответить'
+        : (r.raw_numeric_value != null && isNotObserved(r.raw_numeric_value))
+          ? 'Не могу оценить'
+          : resolveAnswerTitle(r.raw_numeric_value, q?.answerCategoryId ?? null, snapshot.hardAnswerOptionsMap),
+      'Балл': isSkipped ? '' : (r.raw_numeric_value != null && isNotObserved(r.raw_numeric_value)) ? 0 : (r.raw_numeric_value ?? 0),
       'Комментарий': r.comment || '',
       'Анонимно': r.is_anonymous_comment ? 'Да' : 'Нет',
     });
@@ -131,8 +136,12 @@ async function buildSnapshotRows(
       'Подкатегория': quality?.subcategoryName || '',
       'Компетенция': quality?.name || 'Не указано',
       'Вопрос': q?.questionText || 'Не указано',
-      'Ответ': isSkipped ? 'Не могу ответить' : resolveAnswerTitle(r.raw_numeric_value, q?.answerCategoryId ?? null, snapshot.softAnswerOptionsMap),
-      'Балл': isSkipped ? '' : (r.raw_numeric_value ?? 0),
+      'Ответ': isSkipped
+        ? 'Не могу ответить'
+        : (r.raw_numeric_value != null && isNotObserved(r.raw_numeric_value))
+          ? 'Не могу оценить'
+          : resolveAnswerTitle(r.raw_numeric_value, q?.answerCategoryId ?? null, snapshot.softAnswerOptionsMap),
+      'Балл': isSkipped ? '' : (r.raw_numeric_value != null && isNotObserved(r.raw_numeric_value)) ? 0 : (r.raw_numeric_value ?? 0),
       'Комментарий': r.comment || '',
       'Анонимно': r.is_anonymous_comment ? 'Да' : 'Нет',
     });
@@ -202,7 +211,9 @@ async function buildLiveRows(
       'Подкатегория': '',
       'Компетенция': skill?.name || 'Не указано',
       'Вопрос': question?.question_text || 'Не указано',
-      'Ответ': isSkipped ? 'Не могу ответить' : (answer?.title || 'Не указано'),
+      'Ответ': isSkipped
+        ? 'Не могу ответить'
+        : (() => { const v = result.raw_numeric_value ?? answer?.numeric_value ?? 0; return isNotObserved(v) ? 'Не могу оценить' : (answer?.title || 'Не указано'); })(),
       'Балл': isSkipped ? '' : (result.raw_numeric_value ?? answer?.numeric_value ?? 0),
       'Комментарий': result.comment || '',
       'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет',
@@ -227,7 +238,9 @@ async function buildLiveRows(
       'Подкатегория': '',
       'Компетенция': quality?.name || 'Не указано',
       'Вопрос': question?.question_text || 'Не указано',
-      'Ответ': isSkipped ? 'Не могу ответить' : (answer?.title || 'Не указано'),
+      'Ответ': isSkipped
+        ? 'Не могу ответить'
+        : (() => { const v = result.raw_numeric_value ?? answer?.numeric_value ?? 0; return isNotObserved(v) ? 'Не могу оценить' : (answer?.title || 'Не указано'); })(),
       'Балл': isSkipped ? '' : (result.raw_numeric_value ?? answer?.numeric_value ?? 0),
       'Комментарий': result.comment || '',
       'Анонимно': result.is_anonymous_comment ? 'Да' : 'Нет',

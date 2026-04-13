@@ -7,6 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   ManagementProfile,
@@ -15,6 +17,7 @@ import {
   changeTypeLabels,
   emptyProfile,
 } from './profileTypes';
+import ProjectSelect from './ProjectSelect';
 
 interface Props {
   initial: ManagementProfile;
@@ -25,8 +28,26 @@ interface Props {
   onStartEdit: () => void;
 }
 
+const SIGNAL_KEYS = [
+  ['wantsProjectChange', 'Хочет сменить проект'],
+  ['satisfiedWithProject', 'Удовлетворен текущим проектом'],
+  ['satisfiedWithSalary', 'Удовлетворен текущей зарплатой'],
+  ['readyForOvertime', 'Готов к переработкам'],
+  ['readyForLeadership', 'Готов к лидерской роли'],
+] as const;
+
+function signalsSummary(form: ManagementProfile): string | null {
+  const count = SIGNAL_KEYS.filter(([k]) => form[k]).length;
+  const hasComment = !!form.signalsComment.trim();
+  const parts: string[] = [];
+  if (count > 0) parts.push(`${count} отмечено`);
+  if (hasComment) parts.push('есть комментарий');
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
 const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onStartEdit }: Props) => {
   const [form, setForm] = useState<ManagementProfile>({ ...initial });
+  const [signalsOpen, setSignalsOpen] = useState(false);
 
   const upd = <K extends keyof ManagementProfile>(key: K, value: ManagementProfile[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -58,9 +79,7 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
           <div>
             <span className="text-text-secondary">Зарплата</span>
             <p className="font-medium text-text-primary">
-              {form.salaryMode === 'unknown' ? 'Неизвестно'
-                : form.salaryMode === 'exact' ? form.salaryExact
-                : `${form.salaryFrom} — ${form.salaryTo}`}
+              {form.salaryExact || '—'}
             </p>
           </div>
           <div>
@@ -103,6 +122,8 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
     );
   }
 
+  const summary = signalsSummary(form);
+
   return (
     <div className="space-y-6">
       {/* Block 1: Что сейчас */}
@@ -111,10 +132,9 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Текущий проект *</Label>
-            <Input
+            <ProjectSelect
               value={form.currentProject}
-              onChange={e => upd('currentProject', e.target.value)}
-              placeholder="Название проекта"
+              onChange={(v) => upd('currentProject', v)}
             />
           </div>
           <div className="space-y-2">
@@ -130,49 +150,15 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
         {/* Salary */}
         <div className="space-y-3">
           <Label>Зарплата *</Label>
-          <RadioGroup
-            value={form.salaryMode}
-            onValueChange={(v) => upd('salaryMode', v as SalaryMode)}
-            className="flex gap-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="exact" id="salary-exact" />
-              <Label htmlFor="salary-exact" className="font-normal">Точное значение</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="range" id="salary-range" />
-              <Label htmlFor="salary-range" className="font-normal">Диапазон</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="unknown" id="salary-unknown" />
-              <Label htmlFor="salary-unknown" className="font-normal">Неизвестно</Label>
-            </div>
-          </RadioGroup>
-          {form.salaryMode === 'exact' && (
-            <Input
-              type="number"
-              value={form.salaryExact}
-              onChange={e => upd('salaryExact', e.target.value)}
-              placeholder="Сумма"
-            />
-          )}
-          {form.salaryMode === 'range' && (
-            <div className="flex gap-3 items-center">
-              <Input
-                type="number"
-                value={form.salaryFrom}
-                onChange={e => upd('salaryFrom', e.target.value)}
-                placeholder="От"
-              />
-              <span className="text-text-secondary">—</span>
-              <Input
-                type="number"
-                value={form.salaryTo}
-                onChange={e => upd('salaryTo', e.target.value)}
-                placeholder="До"
-              />
-            </div>
-          )}
+          <Input
+            type="number"
+            value={form.salaryExact}
+            onChange={e => {
+              upd('salaryMode', 'exact' as SalaryMode);
+              upd('salaryExact', e.target.value);
+            }}
+            placeholder="Сумма"
+          />
         </div>
 
         <div className="space-y-2">
@@ -224,37 +210,50 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
 
       <Separator />
 
-      {/* Block 3: Сигналы */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">Сигналы</h3>
-        <div className="space-y-3">
-          {([
-            ['wantsProjectChange', 'Хочет сменить проект'],
-            ['satisfiedWithProject', 'Удовлетворен текущим проектом'],
-            ['satisfiedWithSalary', 'Удовлетворен текущей зарплатой'],
-            ['readyForOvertime', 'Готов к переработкам'],
-            ['readyForLeadership', 'Готов к лидерской роли'],
-          ] as const).map(([key, label]) => (
-            <div key={key} className="flex items-center space-x-2">
-              <Checkbox
-                id={key}
-                checked={form[key]}
-                onCheckedChange={(v) => upd(key, !!v)}
-              />
-              <Label htmlFor={key} className="font-normal">{label}</Label>
+      {/* Block 3: Сигналы — collapsible */}
+      <Collapsible open={signalsOpen} onOpenChange={setSignalsOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center justify-between w-full group text-left"
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">Сигналы</h3>
+              {!signalsOpen && summary && (
+                <span className="text-xs text-text-secondary font-normal normal-case">
+                  ({summary})
+                </span>
+              )}
             </div>
-          ))}
-        </div>
-        <div className="space-y-2">
-          <Label>Комментарий к сигналам</Label>
-          <Textarea
-            value={form.signalsComment}
-            onChange={e => upd('signalsComment', e.target.value)}
-            placeholder="Дополнительные наблюдения..."
-            rows={2}
-          />
-        </div>
-      </div>
+            <ChevronDown
+              className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${signalsOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4 space-y-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
+          <div className="space-y-3">
+            {SIGNAL_KEYS.map(([key, label]) => (
+              <div key={key} className="flex items-center space-x-2">
+                <Checkbox
+                  id={key}
+                  checked={form[key]}
+                  onCheckedChange={(v) => upd(key, !!v)}
+                />
+                <Label htmlFor={key} className="font-normal">{label}</Label>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Комментарий к сигналам</Label>
+            <Textarea
+              value={form.signalsComment}
+              onChange={e => upd('signalsComment', e.target.value)}
+              placeholder="Дополнительные наблюдения..."
+              rows={2}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <Separator />
 

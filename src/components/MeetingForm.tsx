@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,11 +12,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useOneOnOneMeetings, OneOnOneMeeting } from '@/hooks/useOneOnOneMeetings';
 import { useMeetingManagerFields } from '@/hooks/useMeetingManagerFields';
 import { useMeetingTasks } from '@/hooks/useMeetingTasks';
+import { useMeetingFormAutoSave } from '@/hooks/useMeetingFormAutoSave';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Info, Lock, Loader2, Link as LinkIcon, History, Save, User, Briefcase, FileText, CalendarIcon, Pencil, CalendarClock, ArrowRight, Trash2 } from 'lucide-react';
+import { Info, Lock, Loader2, Link as LinkIcon, History, Save, User, Briefcase, FileText, CalendarIcon, Pencil, CalendarClock, ArrowRight, Trash2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { DeleteMeetingDialog } from '@/components/DeleteMeetingDialog';
 import { MeetingSummaryHistory } from '@/components/MeetingSummaryHistory';
+import { MeetingSummaryThread } from '@/components/MeetingSummaryThread';
+import { useMeetingSummaryViews, useAutoRecordSummaryView } from '@/hooks/useMeetingSummaryView';
 import { RescheduleMeetingDialog } from '@/components/RescheduleMeetingDialog';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,18 +32,17 @@ import { format, parse } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
-  buildLocalDateTimeString,
-  formatLocalDateInputValue,
-  formatLocalTimeInputValue,
   parseMeetingDateTime,
   getEffectiveTimezone,
   getTimezoneOffsetLabel,
   formatDateInTimezone,
   formatTimeInTimezone,
   localDateTimeToUtcIso,
+  getNowInTimezone,
 } from '@/lib/meetingDateTime';
 import { formatMeetingDateFull, formatMeetingDateTimeShort } from '@/lib/meetingDateFormat';
 import { validateMeetingDateTime, getFieldError } from '@/lib/meetingValidation';
+import { toast } from 'sonner';
 
 const meetingLinkSchema = z.string().optional().refine(
   (val) => {
@@ -74,37 +76,21 @@ interface MeetingFormProps {
   onClose?: () => void;
 }
 
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'scheduled': return 'Запланирована';
-    case 'awaiting_summary': return 'Ожидает итогов';
-    case 'recorded': return 'Зафиксирована';
-    default: return status;
-  }
-};
-
-const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' => {
-  switch (status) {
-    case 'recorded': return 'default';
-    case 'awaiting_summary': return 'destructive';
-    default: return 'secondary';
-  }
-};
+import { getMeetingStatusLabel as getStatusLabel, getMeetingStatusVariant as getStatusVariant } from '@/lib/meetingStatus';
 
 export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: isManagerProp = false, onClose }) => {
-  const [isSavingMain, setIsSavingMain] = useState(false);
   const [isSavingSummary, setIsSavingSummary] = useState(false);
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState('');
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isSavingHrbpDate, setIsSavingHrbpDate] = useState(false);
+  const [draftRecoveryBanner, setDraftRecoveryBanner] = useState<string | null>(null);
   const { user } = useAuth();
   const { hasPermission: canViewAllMeetings } = usePermission('meetings.view_all');
   const { hasPermission: canDeleteMeetings } = usePermission('meetings.delete');
   const { hasPermission: canEditSummaryDate } = usePermission('meetings.edit_summary_date');
 
-  const { deleteMeeting, isDeletingMeeting } = useOneOnOneMeetings();
+  const { deleteMeeting, isDeletingMeeting, silentUpdateMeetingAsync, rescheduleSilentAsync } = useOneOnOneMeetings();
 
   const { data: meeting, isLoading: isMeetingLoading } = useQuery({
     queryKey: ['meeting', meetingId],
@@ -125,7 +111,6 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   const isHrbpEdit = canEditSummaryDate && !isParticipant && !!meeting;
   const isHistorical = isHistoricalRaw && !isHrbpEdit;
 
-  // Task 4: Always load original manager name for historical/any meetings
   const { data: originalManager } = useQuery({
     queryKey: ['user-name', meeting?.manager_id],
     queryFn: async () => {
@@ -143,76 +128,135 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     ? [originalManager.last_name, originalManager.first_name].filter(Boolean).join(' ')
     : null;
 
-  const { updateMeeting, saveSummary, updateMeetingAsync, saveSummaryAsync, rescheduleMeeting } = useOneOnOneMeetings();
-  const { managerFields, upsertManagerFields, isUpsertingManagerFields } = useMeetingManagerFields(meetingId);
-  const { acknowledgeMeetingReview } = useMeetingTasks();
+  // Fetch summary author name (could be employee, manager, or HRBP)
+  const summaryAuthorId = meeting?.summary_saved_by;
+  const { data: summaryAuthorUser } = useQuery({
+    queryKey: ['user-name', summaryAuthorId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', summaryAuthorId!)
+        .single();
+      return data;
+    },
+    enabled: !!summaryAuthorId && summaryAuthorId !== meeting?.manager_id,
+  });
 
+  // Resolve summary author display name
+  const summaryAuthorName = useMemo(() => {
+    if (!summaryAuthorId) return null;
+    // If author is the manager, reuse already-fetched originalManager
+    if (summaryAuthorId === meeting?.manager_id) {
+      return originalManagerName || null;
+    }
+    if (summaryAuthorUser) {
+      return [summaryAuthorUser.last_name, summaryAuthorUser.first_name].filter(Boolean).join(' ');
+    }
+    return null;
+  }, [summaryAuthorId, meeting?.manager_id, originalManagerName, summaryAuthorUser]);
+
+  // Fetch employee name for view status display
+  const { data: employeeUser } = useQuery({
+    queryKey: ['user-name', meeting?.employee_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', meeting!.employee_id)
+        .single();
+      return data;
+    },
+    enabled: !!meeting?.employee_id && meeting?.employee_id !== meeting?.manager_id,
+  });
+
+  const employeeName = employeeUser
+    ? [employeeUser.last_name, employeeUser.first_name].filter(Boolean).join(' ')
+    : null;
+
+  /** Resolve participant name by ID */
+  const getParticipantName = (pid: string) => {
+    if (pid === meeting?.manager_id) return originalManagerName || 'Участник';
+    if (pid === meeting?.employee_id) return employeeName || 'Участник';
+    return 'Участник';
+  };
+
+  const { updateMeetingAsync, saveSummaryAsync } = useOneOnOneMeetings();
+  const { managerFields, isLoading: isMgrLoading, silentUpsertManagerFieldsAsync } = useMeetingManagerFields(meetingId);
+  const { acknowledgeMeetingReview } = useMeetingTasks();
 
   const [mgrPraise, setMgrPraise] = useState('');
   const [mgrDevComment, setMgrDevComment] = useState('');
   const [mgrNews, setMgrNews] = useState('');
 
-  React.useEffect(() => {
+  // --- Anti-clobber: hydrate mgr fields only on meetingId change ---
+  const mgrInitializedRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Wait until the query has settled (not loading) before marking as initialized.
+    // This handles both cases: managerFields exists (hydrate) and managerFields is null (new meeting).
+    if (isMgrLoading || mgrInitializedRef.current === meetingId) return;
     if (managerFields) {
       setMgrPraise(managerFields.mgr_praise || '');
       setMgrDevComment(managerFields.mgr_development_comment || '');
       setMgrNews(managerFields.mgr_news || '');
     }
-  }, [managerFields]);
+    mgrInitializedRef.current = meetingId;
+  }, [managerFields, isMgrLoading, meetingId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (meetingId && user) {
       acknowledgeMeetingReview(meetingId);
     }
   }, [meetingId, user]);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isDirty: isFormDirty }, reset: resetForm } = useForm<MeetingFormData>({
+  // Auto-record summary view
+  useAutoRecordSummaryView(
+    meetingId,
+    !!meeting?.meeting_summary?.trim(),
+    isParticipant,
+    meeting?.summary_saved_by,
+  );
+
+  // Summary views for display
+  const { views: summaryViews } = useMeetingSummaryViews(meetingId);
+
+  // --- Anti-clobber: useForm with defaultValues + controlled reset ---
+  const { register, watch, setValue, formState: { errors }, reset: resetForm } = useForm<MeetingFormData>({
     resolver: zodResolver(meetingSchema),
-    values: meeting ? {
-      meeting_link: meeting.meeting_link || '',
-      meeting_date: meeting.meeting_date || '',
-      emp_mood: meeting.emp_mood || '',
-      emp_successes: meeting.emp_successes || '',
-      emp_problems: meeting.emp_problems || '',
-      emp_news: meeting.emp_news || '',
-      emp_questions: meeting.emp_questions || '',
-      meeting_summary: meeting.meeting_summary || '',
-    } : undefined,
+    defaultValues: {
+      meeting_link: '',
+      meeting_date: '',
+      emp_mood: '',
+      emp_successes: '',
+      emp_problems: '',
+      emp_news: '',
+      emp_questions: '',
+      meeting_summary: '',
+    },
   });
 
-  // Computed dirty states (comparison-based)
-  const managerDirty = useMemo(() => {
-    const orig = managerFields;
-    return (mgrPraise !== (orig?.mgr_praise || '')) ||
-           (mgrDevComment !== (orig?.mgr_development_comment || '')) ||
-           (mgrNews !== (orig?.mgr_news || ''));
-  }, [mgrPraise, mgrDevComment, mgrNews, managerFields]);
-
-  const summaryDirty = useMemo(() => {
-    if (!meeting) return false;
-    return summaryDraft !== (meeting.meeting_summary || '');
-  }, [summaryDraft, meeting?.meeting_summary]);
-
-  // Employee/shared fields dirty (excludes meeting_summary which has its own save)
-  const employeeDirty = useMemo(() => {
-    if (!meeting) return false;
-    const fields: (keyof MeetingFormData)[] = ['emp_mood', 'emp_successes', 'emp_problems', 'emp_news', 'emp_questions', 'meeting_link', 'meeting_date'];
-    return fields.some(f => (watch(f) || '') !== (meeting[f as keyof OneOnOneMeeting] || ''));
-  }, [
-    watch('emp_mood'), watch('emp_successes'), watch('emp_problems'),
-    watch('emp_news'), watch('emp_questions'), watch('meeting_link'),
-    watch('meeting_date'), meeting,
-  ]);
-
-  // Any save in progress — used to block concurrent actions
-  const isAnySaving = isSavingMain || isSavingSummary || isUpsertingManagerFields || isSavingHrbpDate;
+  const initializedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (meeting && initializedRef.current !== meetingId) {
+      resetForm({
+        meeting_link: meeting.meeting_link || '',
+        meeting_date: meeting.meeting_date || '',
+        emp_mood: meeting.emp_mood || '',
+        emp_successes: meeting.emp_successes || '',
+        emp_problems: meeting.emp_problems || '',
+        emp_news: meeting.emp_news || '',
+        emp_questions: meeting.emp_questions || '',
+        meeting_summary: meeting.meeting_summary || '',
+      });
+      initializedRef.current = meetingId;
+    }
+  }, [meeting, meetingId, resetForm]);
 
   // Permissions
   const canEditEmployeeFields = !isHistorical && !isManager && !!meeting && meeting.status !== 'recorded';
   const canEditManagerFields = !isHistorical && isManager && !!meeting && meeting.manager_id === user?.id;
 
-  // Time-based lock: summary editable only after meeting date/time
-  // Live clock tick: re-evaluate time-based lock every 30s
+  // Time-based lock
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 30_000);
@@ -226,15 +270,164 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     return now >= meetingDt;
   }, [meeting?.meeting_date, now]);
 
-  // Overdue = date passed, no summary saved yet
   const isOverdue = isMeetingStarted && !!meeting && meeting.status !== 'recorded';
   const canEditSharedFields = !isHistorical && !isOverdue && !!meeting && meeting.status !== 'recorded';
   const canEditDateTime = isHrbpEdit || canEditSharedFields;
   const canReschedule = isOverdue && !meeting?.meeting_summary && !isHistorical;
+  // Summary is editable only if not yet saved OR user has HRBP override
+  const hasSavedSummary = !!meeting?.meeting_summary?.trim();
+  const canEditSummary = isHrbpEdit
+    ? true
+    : (!isHistorical && !!meeting && isMeetingStarted && !hasSavedSummary);
 
-  const canEditSummary = isHrbpEdit || (!isHistorical && !!meeting && isMeetingStarted);
+  // Autosave enabled only for editable forms
+  const autosaveEnabled = !!meeting && !isHistorical && (canEditEmployeeFields || canEditManagerFields || canEditDateTime);
 
-  // Date/time validation errors for save button (Bug 8)
+  // --- Autosave hook ---
+  const autoSave = useMeetingFormAutoSave({
+    meetingId,
+    userId: user?.id,
+    callbacks: {
+      silentUpdateMeetingAsync,
+      silentUpsertManagerFieldsAsync,
+      rescheduleSilentAsync,
+    },
+    enabled: autosaveEnabled,
+  });
+
+  // Initialize autosave refs from server data
+  useEffect(() => {
+    if (meeting && initializedRef.current === meetingId) {
+      autoSave.initializeFromServer(meeting, managerFields);
+    }
+  }, [meeting, managerFields, meetingId]);
+
+  // Draft recovery on mount
+  useEffect(() => {
+    if (!meeting || initializedRef.current !== meetingId) return;
+    const mgrUpdatedAt = managerFields?.updated_at;
+    const { hasDraft, drafts } = autoSave.recoverDrafts(meeting.updated_at, mgrUpdatedAt);
+    if (!hasDraft) return;
+
+    const recoveredParts: string[] = [];
+
+    // Safe fields — skip if draft data matches server
+    if (drafts.safe) {
+      const sf = drafts.safe as unknown as Record<string, string>;
+      const serverSafe: Record<string, string> = {
+        emp_mood: meeting.emp_mood || '',
+        emp_successes: meeting.emp_successes || '',
+        emp_problems: meeting.emp_problems || '',
+        emp_news: meeting.emp_news || '',
+        emp_questions: meeting.emp_questions || '',
+        meeting_link: meeting.meeting_link || '',
+      };
+      const isDifferent = Object.keys(sf).some(k => (sf[k] || '') !== (serverSafe[k] || ''));
+      if (isDifferent) {
+        Object.entries(sf).forEach(([key, val]) => {
+          if (val !== undefined) setValue(key as keyof MeetingFormData, val);
+        });
+        recoveredParts.push('поля сотрудника');
+      } else {
+        autoSave.clearAllDrafts(); // stale draft — clean up silently
+      }
+    }
+
+    // Mgr fields — skip if draft data matches server
+    if (drafts.mgr) {
+      const mf = drafts.mgr as { mgr_praise?: string; mgr_development_comment?: string; mgr_news?: string };
+      const serverMgr = {
+        mgr_praise: managerFields?.mgr_praise || '',
+        mgr_development_comment: managerFields?.mgr_development_comment || '',
+        mgr_news: managerFields?.mgr_news || '',
+      };
+      const isDifferent =
+        (mf.mgr_praise ?? '') !== serverMgr.mgr_praise ||
+        (mf.mgr_development_comment ?? '') !== serverMgr.mgr_development_comment ||
+        (mf.mgr_news ?? '') !== serverMgr.mgr_news;
+      if (isDifferent) {
+        if (mf.mgr_praise !== undefined) setMgrPraise(mf.mgr_praise);
+        if (mf.mgr_development_comment !== undefined) setMgrDevComment(mf.mgr_development_comment);
+        if (mf.mgr_news !== undefined) setMgrNews(mf.mgr_news);
+        recoveredParts.push('блок руководителя');
+      }
+    }
+
+    // Date — skip if draft matches server meeting_date
+    if (drafts.date) {
+      const draftDate = drafts.date as string;
+      if (draftDate !== (meeting.meeting_date || '')) {
+        setValue('meeting_date', draftDate);
+        recoveredParts.push('дата/время');
+      }
+    }
+
+    if (drafts.summary) {
+      const draftSummary = drafts.summary as string;
+      if (draftSummary !== (meeting.meeting_summary || '')) {
+        setSummaryDraft(draftSummary);
+        setIsEditingSummary(true); // Fix: show textarea so recovered text is visible
+        recoveredParts.push('итоги');
+      }
+    }
+
+    if (recoveredParts.length > 0) {
+      setDraftRecoveryBanner(`Восстановлен черновик: ${recoveredParts.join(', ')}`);
+    }
+  }, [meetingId, meeting?.updated_at]);
+
+  // --- Trigger autosave on field changes ---
+  const watchedSafeFields = {
+    emp_mood: watch('emp_mood') || '',
+    emp_successes: watch('emp_successes') || '',
+    emp_problems: watch('emp_problems') || '',
+    emp_news: watch('emp_news') || '',
+    emp_questions: watch('emp_questions') || '',
+    meeting_link: watch('meeting_link') || '',
+  };
+
+  const safeFieldsJson = JSON.stringify(watchedSafeFields);
+  useEffect(() => {
+    if (canEditEmployeeFields && initializedRef.current === meetingId) {
+      autoSave.debounceSafeFields(watchedSafeFields);
+    }
+  }, [safeFieldsJson, canEditEmployeeFields, meetingId]);
+
+  // Mgr fields autosave
+  const mgrFieldsObj = useMemo(() => ({
+    mgr_praise: mgrPraise,
+    mgr_development_comment: mgrDevComment,
+    mgr_news: mgrNews,
+  }), [mgrPraise, mgrDevComment, mgrNews]);
+
+  const mgrFieldsJson = JSON.stringify(mgrFieldsObj);
+  useEffect(() => {
+    if (canEditManagerFields && mgrInitializedRef.current === meetingId) {
+      autoSave.debounceMgrFields(mgrFieldsObj);
+    }
+  }, [mgrFieldsJson, canEditManagerFields, meetingId]);
+
+  // Date autosave — debounce final meeting_date value
+  const watchedDate = watch('meeting_date') || '';
+  useEffect(() => {
+    if (canEditDateTime && initializedRef.current === meetingId && watchedDate && watchedDate !== meeting?.meeting_date) {
+      autoSave.debounceDateField(watchedDate);
+    }
+  }, [watchedDate, canEditDateTime, meetingId]);
+
+  // Summary draft to localStorage — save whenever editing, even if text is empty
+  // (empty draft is valid: user may have cleared text intentionally)
+  useEffect(() => {
+    if (isEditingSummary) {
+      if (summaryDraft) {
+        autoSave.saveSummaryDraft(summaryDraft);
+      } else {
+        autoSave.clearSummaryDraft();
+      }
+    }
+  }, [summaryDraft, isEditingSummary]);
+
+  // Date/time validation errors
   const hasDateTimeErrors = useMemo(() => {
     if (!canEditDateTime) return false;
     const raw = watch('meeting_date') || '';
@@ -243,11 +436,11 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     const tz = getEffectiveTimezone(user?.timezone);
     const dateValue = formatDateInTimezone(dt, tz);
     const timeValue = formatTimeInTimezone(dt, tz);
-    const errs = validateMeetingDateTime(dateValue, timeValue);
+    const errs = validateMeetingDateTime(dateValue, timeValue, { timezone: tz });
     return errs.length > 0;
   }, [watch('meeting_date'), canEditDateTime, now, user?.timezone]);
 
-  // Reschedule history (visible to manager and HR only)
+  // Reschedule history
   const showRescheduleHistory = isManager || canViewAllMeetings;
   const { data: rescheduleHistory } = useQuery({
     queryKey: ['meeting-reschedules', meetingId],
@@ -281,44 +474,13 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     enabled: rescheduleAuthorIds.length > 0,
   });
 
+  const summaryDirty = useMemo(() => {
+    if (!meeting) return false;
+    return summaryDraft !== (meeting.meeting_summary || '');
+  }, [summaryDraft, meeting?.meeting_summary]);
 
-  // HRBP date-only dirty check
-  const hrbpDateDirty = useMemo(() => {
-    if (!isHrbpEdit || !meeting) return false;
-    return (watch('meeting_date') || '') !== (meeting.meeting_date || '');
-  }, [isHrbpEdit, watch('meeting_date'), meeting?.meeting_date]);
+  const isAnySaving = isSavingSummary || autoSave.aggregatedStatus === 'saving';
 
-  const handleSaveHrbpDate = async () => {
-    if (!meeting || !hrbpDateDirty) return;
-    setIsSavingHrbpDate(true);
-    try {
-      await updateMeetingAsync({ id: meeting.id, meeting_date: watch('meeting_date') } as any);
-    } catch {
-      // error handled by mutation toast
-    } finally {
-      setIsSavingHrbpDate(false);
-    }
-  };
-
-  const onSubmit = async (data: MeetingFormData) => {
-    if (!meeting || !employeeDirty) return;
-    setIsSavingMain(true);
-    try {
-      const { meeting_summary, emp_mood, emp_successes, emp_problems, emp_news, emp_questions, ...sharedFields } = data;
-      if (isManager) {
-        await updateMeetingAsync({ id: meeting.id, ...sharedFields } as any);
-      } else {
-        const { meeting_summary: _, ...fields } = data;
-        await updateMeetingAsync({ id: meeting.id, ...fields } as any);
-      }
-    } catch {
-      // error handled by mutation toast
-    } finally {
-      setIsSavingMain(false);
-    }
-  };
-
-  // Task 9: Prevent saving empty/whitespace-only summary
   const isSummaryValid = summaryDraft.trim().length > 0;
 
   const handleSaveSummary = async () => {
@@ -327,23 +489,13 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     try {
       await saveSummaryAsync({ meetingId, summary: summaryDraft.trim() });
       setIsEditingSummary(false);
+      autoSave.clearSummaryDraft();
     } catch {
       // error handled by mutation toast
     } finally {
       setIsSavingSummary(false);
     }
   };
-
-  const handleSaveManagerBlock = async () => {
-    if (!meeting || !managerDirty) return;
-    upsertManagerFields({
-      meeting_id: meeting.id,
-      mgr_praise: mgrPraise,
-      mgr_development_comment: mgrDevComment,
-      mgr_news: mgrNews,
-    });
-  };
-
 
   if (isMeetingLoading || !meeting) {
     return (
@@ -363,8 +515,48 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Historical banner — Task 4: Show original manager FIO */}
+    <div className="space-y-6">
+      {/* Draft recovery banner */}
+      {draftRecoveryBanner && (
+        <Alert className="border-primary/30 bg-primary/5">
+          <Info className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{draftRecoveryBanner}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-2 h-6 text-xs"
+              onClick={() => {
+                autoSave.clearAllDrafts();
+                setDraftRecoveryBanner(null);
+                // Re-hydrate from server
+                if (meeting) {
+                  resetForm({
+                    meeting_link: meeting.meeting_link || '',
+                    meeting_date: meeting.meeting_date || '',
+                    emp_mood: meeting.emp_mood || '',
+                    emp_successes: meeting.emp_successes || '',
+                    emp_problems: meeting.emp_problems || '',
+                    emp_news: meeting.emp_news || '',
+                    emp_questions: meeting.emp_questions || '',
+                    meeting_summary: meeting.meeting_summary || '',
+                  });
+                  if (managerFields) {
+                    setMgrPraise(managerFields.mgr_praise || '');
+                    setMgrDevComment(managerFields.mgr_development_comment || '');
+                    setMgrNews(managerFields.mgr_news || '');
+                  }
+                }
+              }}
+            >
+              Отменить
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Historical banner */}
       {isHistorical && (
         <Alert className="border-muted bg-muted/30">
           <History className="h-4 w-4" />
@@ -384,7 +576,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         </Alert>
       )}
 
-      {/* Header: status + date + actions */}
+      {/* Header: status + date + autosave indicator */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Badge variant={getStatusVariant(meeting.status)}>
@@ -396,15 +588,19 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
             </span>
           )}
         </div>
-        {canEditSharedFields && (
-          <Button type="submit" size="sm" variant={employeeDirty ? 'default' : 'outline'} disabled={!employeeDirty || isSavingMain || isAnySaving || hasDateTimeErrors}>
-            {isSavingMain ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Сохранение...</> : 'Сохранить'}
-          </Button>
-        )}
-        {isHrbpEdit && hrbpDateDirty && (
-          <Button type="button" size="sm" variant="default" onClick={handleSaveHrbpDate} disabled={isSavingHrbpDate || isAnySaving || hasDateTimeErrors}>
-            {isSavingHrbpDate ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Сохранение...</> : 'Сохранить дату'}
-          </Button>
+        {/* Autosave status indicator */}
+        {autoSave.aggregatedStatus !== 'idle' && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {autoSave.aggregatedStatus === 'saving' && (
+              <><Loader2 className="h-3 w-3 animate-spin" /> Сохраняется...</>
+            )}
+            {autoSave.aggregatedStatus === 'saved' && (
+              <><CheckCircle2 className="h-3 w-3 text-primary" /> Сохранено</>
+            )}
+            {autoSave.aggregatedStatus === 'error' && (
+              <><AlertCircle className="h-3 w-3 text-destructive" /> Ошибка сохранения</>
+            )}
+          </div>
         )}
       </div>
 
@@ -423,12 +619,11 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                   const raw = watch('meeting_date') || '';
                   const dt = parseMeetingDateTime(raw);
                   const userTz = getEffectiveTimezone(user?.timezone);
-                  // Display date/time in user's timezone
                   const dateValue = dt ? formatDateInTimezone(dt, userTz) : '';
                   const timeValue = dt ? formatTimeInTimezone(dt, userTz) : '';
 
                   const parsedDate = dateValue ? parse(dateValue, 'yyyy-MM-dd', new Date()) : undefined;
-                  const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: !canEditDateTime });
+                  const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: !canEditDateTime, timezone: userTz });
                   const dtDateError = getFieldError(dtErrors, 'date');
 
                   return (
@@ -459,16 +654,15 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                               if (d) {
                                 const nextDate = format(d, 'yyyy-MM-dd');
                                 const nextTime = timeValue || '10:00';
-                                // Store as UTC ISO immediately
                                 setValue('meeting_date', localDateTimeToUtcIso(nextDate, nextTime, userTz), { shouldDirty: true });
                               } else {
                                 setValue('meeting_date', '', { shouldDirty: true });
                               }
                             }}
                             disabled={(d) => {
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-                              return d < today;
+                              const todayStr = getNowInTimezone(userTz).date;
+                              const dStr = format(d, 'yyyy-MM-dd');
+                              return dStr < todayStr;
                             }}
                             initialFocus
                             className="pointer-events-auto"
@@ -485,6 +679,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                         }}
                         disabled={!canEditDateTime}
                         placeholder="Время"
+                        minTime={dateValue === getNowInTimezone(userTz).date ? getNowInTimezone(userTz).time : null}
                       />
                     </>
                   );
@@ -504,7 +699,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                   const tz = getEffectiveTimezone(user?.timezone);
                   const dateValue = dt ? formatDateInTimezone(dt, tz) : '';
                   const timeValue = dt ? formatTimeInTimezone(dt, tz) : '';
-                  const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: skipPast });
+                  const dtErrors = validateMeetingDateTime(dateValue, timeValue, { skipPastCheck: skipPast, timezone: tz });
                   const errMsg = getFieldError(dtErrors, 'date') || getFieldError(dtErrors, 'time');
                   return errMsg || errors.meeting_date?.message || '\u00A0';
                 })()}
@@ -560,10 +755,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
               </p>
               <div className="space-y-1">
                 {rescheduleHistory.map((r) => {
-                  const prevDt = new Date(r.previous_date);
-                  const newDt = new Date(r.new_date);
                   const authorName = rescheduleAuthors?.[r.rescheduled_by] || '';
-                  const reschedAt = new Date(r.rescheduled_at);
                   return (
                     <p key={r.id} className="text-xs text-muted-foreground leading-relaxed flex items-center gap-1 flex-wrap">
                       <span>{formatMeetingDateTimeShort(r.previous_date, user?.timezone)}</span>
@@ -587,10 +779,15 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           onOpenChange={setIsRescheduleOpen}
           meetingId={meeting.id}
           currentMeetingDate={meeting.meeting_date || ''}
-          onReschedule={rescheduleMeeting}
+          onReschedule={async (params) => {
+            // P1: Cancel pending timer + bump generation so in-flight RPC is ignored
+            autoSave.cancelPendingDate();
+            await rescheduleSilentAsync(params);
+            // Only clear draft after successful server commit
+            autoSave.clearDateDraft();
+          }}
         />
       )}
-
 
       {/* Employee block */}
       <Card className="border-[hsl(var(--zone-employee-border))] bg-[hsl(var(--zone-employee))]">
@@ -713,13 +910,6 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                 maxCollapsedRows={4}
               />
             </div>
-
-            {canEditManagerFields && (
-              <Button type="button" variant={managerDirty ? 'default' : 'outline'} size="sm" onClick={handleSaveManagerBlock} disabled={!managerDirty || isUpsertingManagerFields || isAnySaving}>
-                {isUpsertingManagerFields ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                {isUpsertingManagerFields ? 'Сохранение...' : 'Сохранить'}
-              </Button>
-            )}
           </CardContent>
         </Card>
       )}
@@ -742,7 +932,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                 variant="default"
                 size="sm"
                 className="shrink-0"
-                onClick={() => { setSummaryDraft(''); setIsEditingSummary(true); }}
+                onClick={() => { setSummaryDraft(summaryDraft || ''); setIsEditingSummary(true); }}
               >
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
                 Добавить итоги
@@ -750,7 +940,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
             </div>
           )}
 
-          {/* Inline editing textarea — single source for both new and existing summary edits */}
+          {/* Inline editing textarea */}
           {isMeetingStarted && isEditingSummary && canEditSummary && (
             <div className="space-y-2">
               <ExpandableTextarea
@@ -767,7 +957,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                   {isSavingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   {isSavingSummary ? 'Сохранение...' : 'Сохранить итоги'}
                 </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setSummaryDraft(''); setIsEditingSummary(false); }} disabled={isSavingSummary}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setSummaryDraft(''); setIsEditingSummary(false); autoSave.clearSummaryDraft(); }} disabled={isSavingSummary}>
                   Отмена
                 </Button>
               </div>
@@ -778,27 +968,73 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
             <p className="text-sm text-muted-foreground italic">Итоги не заполнены</p>
           )}
 
-          {/* History block — separated visually */}
+          {/* Saved summary — text, meta, view status, thread */}
+          {hasSavedSummary && (
+            <div className="space-y-3">
+              {/* Summary text */}
+              <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">
+                {meeting.meeting_summary}
+              </p>
+
+              {/* Meta line: author name · date + edit button */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-[11px] text-muted-foreground">
+                  {summaryAuthorName || 'Автор'}
+                  {meeting.summary_saved_at && ` · ${formatMeetingDateFull(meeting.summary_saved_at, user?.timezone)}`}
+                </p>
+                {canEditSummary && !isEditingSummary && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                    onClick={() => { setSummaryDraft(meeting.meeting_summary || ''); setIsEditingSummary(true); }}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Изменить
+                  </Button>
+                )}
+              </div>
+
+              {/* View status */}
+              <div className="space-y-1">
+                {(() => {
+                  const participants = [meeting.employee_id, meeting.manager_id].filter(id => id !== meeting.summary_saved_by);
+                  return participants.map(pid => {
+                    const view = summaryViews.find(v => v.user_id === pid);
+                    const name = view?.user_name || getParticipantName(pid);
+                    if (view) {
+                      return (
+                        <p key={pid} className="text-xs text-muted-foreground flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-primary/60" />
+                          {name} ознакомился · {formatMeetingDateFull(view.viewed_at, user?.timezone)}
+                        </p>
+                      );
+                    }
+                    return (
+                      <p key={pid} className="text-xs text-muted-foreground/60 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {name} ещё не просматривал итоги
+                      </p>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Thread — messenger for current meeting */}
+              <MeetingSummaryThread
+                meetingId={meetingId}
+                isParticipant={isParticipant}
+              />
+            </div>
+          )}
+
+          {/* History of past meetings — separate section */}
           {meeting && (
             <MeetingSummaryHistory
               employeeId={meeting.employee_id}
               currentMeetingId={meetingId}
               currentMeetingCreatedAt={meeting.created_at}
-              currentMeetingSummary={meeting.meeting_summary || ''}
-              currentMeetingDate={meeting.meeting_date}
-              currentSummarySavedBy={meeting.summary_saved_by}
-              canEditCurrent={canEditSummary && isMeetingStarted && !isEditingSummary}
-              isEditingCurrent={false}
-              editValue=""
-              onEditValueChange={() => {}}
-              onStartEdit={() => { setSummaryDraft(meeting.meeting_summary || ''); setIsEditingSummary(true); }}
-              onSave={handleSaveSummary}
-              onCancel={() => {
-                setSummaryDraft('');
-                setIsEditingSummary(false);
-              }}
-              isSaving={isSavingSummary}
-              isSaveDirty={summaryDirty}
             />
           )}
 
@@ -810,8 +1046,6 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           )}
         </CardContent>
       </Card>
-
-      {/* MVP: Artifacts, 360 snapshots, and Private notes are hidden from UI */}
 
       {canDeleteMeetings && (
         <div className="flex justify-end pt-2">
@@ -842,6 +1076,6 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         }}
         isDeleting={isDeletingMeeting}
       />
-    </form>
+    </div>
   );
 };

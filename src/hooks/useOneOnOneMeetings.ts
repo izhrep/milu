@@ -51,16 +51,15 @@ export interface MeetingDecision {
   updated_at: string;
 }
 
-export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: string }) => {
+export const useOneOnOneMeetings = (options?: { employeeId?: string }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const stageId = options?.stageId;
   const employeeId = options?.employeeId;
 
   const { data: meetings, isLoading } = useQuery({
-    queryKey: ['one-on-one-meetings', stageId, employeeId],
+    queryKey: ['one-on-one-meetings', employeeId],
     queryFn: async () => {
       if (!user) throw new Error('Not authenticated');
 
@@ -72,10 +71,6 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
         query = query.eq('employee_id', employeeId);
       } else {
         query = query.or(`employee_id.eq.${user.id},manager_id.eq.${user.id}`);
-      }
-
-      if (stageId) {
-        query = query.eq('stage_id', stageId);
       }
 
       query = query
@@ -91,7 +86,6 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
 
   const createMeetingMutation = useMutation({
     mutationFn: async (meeting: {
-      stage_id?: string | null;
       employee_id?: string;
       manager_id: string;
       meeting_date: string;
@@ -104,7 +98,7 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
       const meetingDateISO = normalizeMeetingDateToUtcIso(meeting.meeting_date);
 
       const meetingData = {
-        stage_id: meeting.stage_id || null,
+        stage_id: null,
         manager_id: meeting.manager_id,
         employee_id: employeeId,
         created_by: user.id,
@@ -186,38 +180,8 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
     },
   });
 
-  const rescheduleMeetingMutation = useMutation({
-    mutationFn: async ({ meetingId, previousDate, newDateIso }: { meetingId: string; previousDate: string; newDateIso: string }) => {
-      if (!user) throw new Error('Not authenticated');
-
-      // 1. Insert reschedule history
-      const { error: histError } = await supabase
-        .from('meeting_reschedules')
-        .insert({
-          meeting_id: meetingId,
-          previous_date: previousDate,
-          new_date: newDateIso,
-          rescheduled_by: user.id,
-        });
-      if (histError) throw histError;
-
-      // 2. Update meeting date (DB trigger recalculates status)
-      const { error: updateError } = await supabase
-        .from('one_on_one_meetings')
-        .update({ meeting_date: newDateIso })
-        .eq('id', meetingId);
-      if (updateError) throw updateError;
-    },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
-      queryClient.invalidateQueries({ queryKey: ['meeting', variables.meetingId] });
-      queryClient.invalidateQueries({ queryKey: ['meeting-reschedules', variables.meetingId] });
-      toast({ title: 'Встреча перенесена' });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Ошибка переноса', description: error.message, variant: 'destructive' });
-    },
-  });
+  // Legacy rescheduleMeetingMutation removed — all reschedule paths now use
+  // the atomic reschedule_meeting_silent RPC via rescheduleSilentMutation.
 
   const deleteMeetingMutation = useMutation({
     mutationFn: async (meetingId: string) => {
@@ -236,6 +200,50 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
     },
   });
 
+  // Silent update (no toast) for autosave
+  const silentUpdateMeetingMutation = useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<OneOnOneMeeting> & { id: string }) => {
+      const safeUpdates: Partial<OneOnOneMeeting> = { ...updates };
+      if (typeof safeUpdates.meeting_date === 'string' && safeUpdates.meeting_date) {
+        safeUpdates.meeting_date = normalizeMeetingDateToUtcIso(safeUpdates.meeting_date);
+      }
+      const { data, error } = await supabase
+        .from('one_on_one_meetings')
+        .update(safeUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['meeting', variables.id] });
+    },
+    onError: (error: Error) => {
+      console.error('Silent update meeting error:', error.message);
+    },
+  });
+
+  // Silent reschedule via RPC (no toast)
+  const rescheduleSilentMutation = useMutation({
+    mutationFn: async ({ p_meeting_id, p_new_date }: { p_meeting_id: string; p_new_date: string }) => {
+      const { error } = await supabase.rpc('reschedule_meeting_silent', {
+        p_meeting_id,
+        p_new_date,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['one-on-one-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['meeting', variables.p_meeting_id] });
+      queryClient.invalidateQueries({ queryKey: ['meeting-reschedules', variables.p_meeting_id] });
+    },
+    onError: (error: Error) => {
+      console.error('Silent reschedule error:', error.message);
+    },
+  });
+
   return {
     meetings,
     isLoading,
@@ -245,8 +253,10 @@ export const useOneOnOneMeetings = (options?: { stageId?: string; employeeId?: s
     updateMeetingAsync: updateMeetingMutation.mutateAsync,
     saveSummary: saveSummaryMutation.mutate,
     saveSummaryAsync: saveSummaryMutation.mutateAsync,
-    rescheduleMeeting: rescheduleMeetingMutation.mutateAsync,
+    // rescheduleMeeting removed — use rescheduleSilentAsync
     deleteMeeting: deleteMeetingMutation.mutateAsync,
     isDeletingMeeting: deleteMeetingMutation.isPending,
+    silentUpdateMeetingAsync: silentUpdateMeetingMutation.mutateAsync,
+    rescheduleSilentAsync: rescheduleSilentMutation.mutateAsync,
   };
 };

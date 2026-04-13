@@ -90,6 +90,11 @@ export const QuestionAnswerOptionsManager = ({
     ? (questionType === 'hard' ? templateContext.hard_scale_max : templateContext.soft_scale_max)
     : undefined;
 
+  const isReversed = templateContext
+    ? (questionType === 'hard' ? !!templateContext.hard_scale_reversed : !!templateContext.soft_scale_reversed)
+    : false;
+  const showReversedCol = isReversed && rangeMin !== undefined && rangeMax !== undefined && rangeMax > rangeMin;
+
   const isInRange = (level: number) => {
     if (rangeMin === undefined || rangeMax === undefined) return true;
     return level >= rangeMin && level <= rangeMax;
@@ -193,6 +198,8 @@ export const QuestionAnswerOptionsManager = ({
     );
   }
 
+  const colSpanAll = showReversedCol ? 6 : 5;
+
   const renderOptionRow = (option: AnswerOption, isOutOfRange = false) => (
     <TableRow 
       key={option.id} 
@@ -208,6 +215,11 @@ export const QuestionAnswerOptionsManager = ({
           )}
         </div>
       </TableCell>
+      {showReversedCol && (
+        <TableCell className="bg-muted/40 font-mono text-center font-semibold">
+          {rangeMin! + rangeMax! - option.level_value}
+        </TableCell>
+      )}
       <TableCell>{option.order_index}</TableCell>
       <TableCell>{option.title}</TableCell>
       <TableCell className="text-sm text-muted-foreground">
@@ -323,6 +335,9 @@ export const QuestionAnswerOptionsManager = ({
           <TableHeader>
             <TableRow>
               <TableHead className="w-24">Уровень</TableHead>
+              {showReversedCol && (
+                <TableHead className="w-28 bg-muted/40 text-center">Балл после реверса</TableHead>
+              )}
               <TableHead className="w-16">Порядок</TableHead>
               <TableHead>Название</TableHead>
               <TableHead>Описание</TableHead>
@@ -332,11 +347,11 @@ export const QuestionAnswerOptionsManager = ({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">Загрузка...</TableCell>
+                <TableCell colSpan={colSpanAll} className="text-center text-muted-foreground">Загрузка...</TableCell>
               </TableRow>
             ) : options.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">Нет вариантов ответов</TableCell>
+                <TableCell colSpan={colSpanAll} className="text-center text-muted-foreground">Нет вариантов ответов</TableCell>
               </TableRow>
             ) : (
               <>

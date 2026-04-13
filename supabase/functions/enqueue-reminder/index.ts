@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isUUID, badRequest, serverError, jsonOk } from "../_shared/validation.ts";
 
-const VALID_ACTIONS = ["schedule", "reschedule", "summary_saved", "deleted", "bitrix_user_connected"] as const;
+const VALID_ACTIONS = ["schedule", "reschedule", "summary_saved", "deleted", "bitrix_user_connected", "hrbp_summary_available", "hrbp_regularity_alert"] as const;
 type Action = typeof VALID_ACTIONS[number];
 
 Deno.serve(async (req) => {
@@ -10,7 +10,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { meeting_id, action, new_date, summary_saved_by, user_id } = await req.json();
+    const body = await req.json();
+    const { meeting_id, action, new_date, summary_saved_by, user_id, hrbp_id, manager_name, employee_name } = body;
 
     if (!VALID_ACTIONS.includes(action)) return badRequest("Invalid action");
 
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
         status: "pending",
       });
 
-      // Trigger immediate processing to avoid waiting for next cron tick
+      // Trigger immediate processing
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
@@ -63,6 +64,111 @@ Deno.serve(async (req) => {
       }
 
       return jsonOk({ action: "bitrix_user_connected", user_id });
+    }
+
+    // ─── HRBP SUMMARY AVAILABLE (R8) ───
+    if (action === "hrbp_summary_available") {
+      if (!isUUID(meeting_id)) return badRequest("Invalid meeting_id");
+      if (!isUUID(hrbp_id)) return badRequest("Invalid hrbp_id");
+
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      const now = new Date().toISOString();
+
+      // Deduplicate: skip if R8 already pending/sent for this meeting+HRBP
+      const { data: existing } = await supabase
+        .from("meeting_notifications")
+        .select("id")
+        .eq("meeting_id", meeting_id)
+        .eq("recipient_id", hrbp_id)
+        .eq("scenario_id", "R8")
+        .in("status", ["pending", "sent"])
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return jsonOk({ skipped: true, reason: "r8_already_exists" });
+      }
+
+      await supabase.from("meeting_notifications").insert({
+        meeting_id,
+        recipient_id: hrbp_id,
+        scenario_id: "R8",
+        scheduled_at: now,
+        status: "pending",
+      });
+
+      // Trigger immediate processing
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (supabaseUrl && supabaseAnonKey) {
+        fetch(`${supabaseUrl}/functions/v1/process-reminders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+        }).catch((e) => console.error("Immediate process-reminders failed:", e));
+      }
+
+      return jsonOk({ action: "hrbp_summary_available", meeting_id, hrbp_id });
+    }
+
+    // ─── HRBP REGULARITY ALERT (R7) ───
+    if (action === "hrbp_regularity_alert") {
+      if (!isUUID(hrbp_id)) return badRequest("Invalid hrbp_id");
+      const employee_id = body.employee_id;
+      if (!isUUID(employee_id)) return badRequest("Invalid employee_id");
+
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      const now = new Date().toISOString();
+
+      // Deduplicate by employee_id stored in meeting_id field (no real meeting)
+      // Use a deterministic key: scenario R7 + recipient hrbp + "employee:<id>" stored via meeting_id=null
+      const { data: existing } = await supabase
+        .from("meeting_notifications")
+        .select("id")
+        .is("meeting_id", null)
+        .eq("recipient_id", hrbp_id)
+        .eq("scenario_id", "R7")
+        .in("status", ["pending", "sent"])
+        .limit(1);
+
+      // For R7, we skip entirely if there's any pending R7 for this HRBP
+      // More granular dedup would require schema changes; this is sufficient
+      // since the cron already deduplicates tasks per employee
+      if (existing && existing.length > 0) {
+        return jsonOk({ skipped: true, reason: "r7_already_pending" });
+      }
+
+      await supabase.from("meeting_notifications").insert({
+        meeting_id: null,
+        recipient_id: hrbp_id,
+        scenario_id: "R7",
+        scheduled_at: now,
+        status: "pending",
+      });
+
+      // Trigger immediate processing
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (supabaseUrl && supabaseAnonKey) {
+        fetch(`${supabaseUrl}/functions/v1/process-reminders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+        }).catch((e) => console.error("Immediate process-reminders failed:", e));
+      }
+
+      return jsonOk({ action: "hrbp_regularity_alert", hrbp_id, employee_id });
     }
 
     if (!isUUID(meeting_id)) return badRequest("Invalid meeting_id");
@@ -136,7 +242,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Trigger immediate processing to avoid waiting for next cron tick
+      // Trigger immediate processing
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
       if (supabaseUrl && supabaseAnonKey) {
@@ -151,7 +257,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      return jsonOk({ action: "summary_saved", scenario: scenarioId });
+      return jsonOk({ action: "summary_saved" });
     }
 
     // ─── RESCHEDULE ───
@@ -163,8 +269,7 @@ Deno.serve(async (req) => {
         .eq("meeting_id", meeting_id)
         .eq("status", "pending");
 
-      // Create R5a (notify the other party about reschedule)
-      // We need to know who rescheduled — for simplicity notify both
+      // Create R5a (notify both about reschedule)
       const now = new Date().toISOString();
       const r5aRecords = [
         { meeting_id, recipient_id: meeting.employee_id, scenario_id: "R5a", scheduled_at: now, status: "pending" },
@@ -202,7 +307,6 @@ Deno.serve(async (req) => {
       const meetingDate = new Date(meeting.meeting_date);
       const now = new Date();
 
-      // Pre-meeting reminder jobs
       const jobs: Array<{
         meeting_id: string;
         recipient_id: string;

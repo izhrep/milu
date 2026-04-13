@@ -3,6 +3,10 @@ import { HorizontalBarChart, BarChartDataItem } from '@/components/HorizontalBar
 import { getScoreColor } from '@/lib/scoreLabels';
 
 interface CategoryAggregationProps {
+  /** Max score for hard skills chart. Defaults to 4 (legacy). */
+  hardMaxScore?: number;
+  /** Max score for soft skills chart. Defaults to 5 (legacy). */
+  softMaxScore?: number;
   skillResults: Array<{
     competency_id: string;
     competency_name: string;
@@ -30,7 +34,9 @@ interface CategoryAggregationProps {
 export const CategoryAggregation = ({ 
   skillResults, 
   qualityResults,
-  roleFilter 
+  roleFilter,
+  hardMaxScore = 4,
+  softMaxScore = 5,
 }: CategoryAggregationProps) => {
   
   // Агрегация по категориям навыков
@@ -73,10 +79,10 @@ export const CategoryAggregation = ({
       result.push({
         label: categoryName,
         value: average,
-        color: getScoreColor(average, 5) === 'text-red-600' ? 'hsl(var(--destructive))' :
-               getScoreColor(average, 5) === 'text-orange-600' ? 'hsl(24, 90%, 50%)' :
-               getScoreColor(average, 5) === 'text-yellow-600' ? 'hsl(45, 90%, 50%)' :
-               getScoreColor(average, 5) === 'text-green-600' ? 'hsl(142, 70%, 45%)' :
+        color: getScoreColor(average, hardMaxScore) === 'text-red-600' ? 'hsl(var(--destructive))' :
+               getScoreColor(average, hardMaxScore) === 'text-orange-600' ? 'hsl(24, 90%, 50%)' :
+               getScoreColor(average, hardMaxScore) === 'text-yellow-600' ? 'hsl(45, 90%, 50%)' :
+               getScoreColor(average, hardMaxScore) === 'text-green-600' ? 'hsl(142, 70%, 45%)' :
                'hsl(var(--primary))',
       });
     });
@@ -123,10 +129,10 @@ export const CategoryAggregation = ({
     return [{
       label: 'Soft Skills (все качества)',
       value: average,
-      color: getScoreColor(average, 4) === 'text-red-600' ? 'hsl(var(--destructive))' :
-             getScoreColor(average, 4) === 'text-orange-600' ? 'hsl(24, 90%, 50%)' :
-             getScoreColor(average, 4) === 'text-yellow-600' ? 'hsl(45, 90%, 50%)' :
-             getScoreColor(average, 4) === 'text-green-600' ? 'hsl(142, 70%, 45%)' :
+      color: getScoreColor(average, softMaxScore) === 'text-red-600' ? 'hsl(var(--destructive))' :
+             getScoreColor(average, softMaxScore) === 'text-orange-600' ? 'hsl(24, 90%, 50%)' :
+             getScoreColor(average, softMaxScore) === 'text-yellow-600' ? 'hsl(45, 90%, 50%)' :
+             getScoreColor(average, softMaxScore) === 'text-green-600' ? 'hsl(142, 70%, 45%)' :
              'hsl(var(--primary))',
     }];
   };
@@ -155,7 +161,7 @@ export const CategoryAggregation = ({
               </h3>
               <HorizontalBarChart
                 data={skillCategoryData}
-                maxValue={4}
+                maxValue={hardMaxScore}
               />
             </div>
           )}
@@ -168,7 +174,7 @@ export const CategoryAggregation = ({
               </h3>
               <HorizontalBarChart
                 data={qualityAggregateData}
-                maxValue={5}
+                maxValue={softMaxScore}
               />
             </div>
           )}

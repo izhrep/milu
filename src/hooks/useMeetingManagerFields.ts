@@ -66,11 +66,44 @@ export const useMeetingManagerFields = (meetingId?: string) => {
     },
   });
 
+  // Silent upsert (no toast) for autosave
+  const silentUpsertMutation = useMutation({
+    mutationFn: async (fields: {
+      meeting_id: string;
+      mgr_praise?: string | null;
+      mgr_development_comment?: string | null;
+      mgr_news?: string | null;
+    }) => {
+      const { data, error } = await supabase
+        .from('meeting_manager_fields')
+        .upsert({
+          meeting_id: fields.meeting_id,
+          mgr_praise: fields.mgr_praise ?? null,
+          mgr_development_comment: fields.mgr_development_comment ?? null,
+          mgr_news: fields.mgr_news ?? null,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'meeting_id',
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meeting-manager-fields'] });
+    },
+    onError: (error: Error) => {
+      console.error('Silent upsert manager fields error:', error.message);
+    },
+  });
+
   return {
     managerFields,
     isLoading,
     upsertManagerFields: upsertMutation.mutate,
     upsertManagerFieldsAsync: upsertMutation.mutateAsync,
     isUpsertingManagerFields: upsertMutation.isPending,
+    silentUpsertManagerFieldsAsync: silentUpsertMutation.mutateAsync,
   };
 };

@@ -14,13 +14,17 @@ import {
   Eye,
   Users,
   Play,
-  Video
+  Video,
+  Search,
+  FileText,
+  X
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -104,6 +108,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
   const [decryptedTitles, setDecryptedTitles] = useState<Record<string, string>>({});
   const [decryptedDescriptions, setDecryptedDescriptions] = useState<Record<string, string>>({});
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [dismissingTaskIds, setDismissingTaskIds] = useState<Set<string>>(new Set());
   const [approvalTaskData, setApprovalTaskData] = useState<{
     evaluatedUserId: string;
     evaluatedUserName: string;
@@ -467,6 +472,32 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
     } catch (error) {
       console.error('Error completing task:', error);
     }
+  };
+
+  const handleCloseTask = async (taskId: string) => {
+    setDismissingTaskIds(prev => new Set(prev).add(taskId));
+    // Wait for animation to finish
+    setTimeout(async () => {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ status: 'closed' })
+          .eq('id', taskId);
+        if (error) throw error;
+        setAllTasks(prev => prev.filter(t => t.id !== taskId));
+        toast.success('Задача закрыта');
+        await refetchTasks();
+      } catch (error) {
+        console.error('Error closing task:', error);
+        toast.error('Ошибка при закрытии задачи');
+      } finally {
+        setDismissingTaskIds(prev => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    }, 300);
   };
 
   const handleCompleteKpiTask = async (task: Task, resultLevel: number) => {
@@ -872,8 +903,26 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
               ? decryptedDescriptions[task.id]
               : task.description;
             
+            const isDismissing = dismissingTaskIds.has(task.id);
             return (
-              <Card key={task.id} className={`p-4 ${task.priority === 'urgent' ? 'border-red-200 bg-red-50' : ''}`}>
+              <div key={task.id} className={`transition-all duration-300 ease-in-out ${isDismissing ? 'max-h-0 opacity-0 scale-95 overflow-hidden -mt-4' : 'max-h-[500px] opacity-100 scale-100'}`}>
+              <Card className={`p-4 relative ${task.priority === 'urgent' ? 'border-red-200 bg-red-50' : ''}`}>
+                {task.status === 'completed' && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleCloseTask(task.id)}
+                          className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                          aria-label="Закрыть задачу"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Закрыть задачу</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
@@ -930,6 +979,56 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                   </div>
                   
                   <div className="flex items-center gap-2 ml-4">
+                    {/* One-to-one meeting CTA buttons */}
+                    {taskType === 'meeting_scheduled' && task.assignment_id && (task.status === 'pending' || task.status === 'in_progress') && (
+                      <Button
+                        onClick={() => navigate(`/meetings?meetingId=${task.assignment_id}`)}
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        Открыть встречу
+                      </Button>
+                    )}
+                    {taskType === 'meeting_fill_summary' && task.assignment_id && (task.status === 'pending' || task.status === 'in_progress') && (
+                      <Button
+                        onClick={() => navigate(`/meetings?meetingId=${task.assignment_id}`)}
+                      >
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        Заполнить итоги
+                      </Button>
+                    )}
+                    {taskType === 'meeting_review_summary' && task.assignment_id && (task.status === 'pending' || task.status === 'in_progress') && (
+                      <Button
+                        onClick={() => navigate(`/meetings?meetingId=${task.assignment_id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ознакомиться с итогами
+                      </Button>
+                    )}
+                    {taskType === 'meeting_plan_new' && task.assignment_id && (task.status === 'pending' || task.status === 'in_progress') && (
+                      <Button
+                        onClick={() => navigate(`/meetings?createMeeting=1&employeeId=${task.assignment_id}`)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Запланировать встречу
+                      </Button>
+                    )}
+                    {taskType === 'meeting_regularity_alert' && (task.status === 'pending' || task.status === 'in_progress') && (
+                      <Button
+                        onClick={() => navigate('/meetings-monitoring')}
+                      >
+                        <Search className="w-4 h-4 mr-2" />
+                        Проверить кейс
+                      </Button>
+                    )}
+                    {taskType === 'meeting_hrbp_summary_available' && task.assignment_id && (task.status === 'pending' || task.status === 'in_progress') && (
+                      <Button
+                        onClick={() => navigate(`/meetings?meetingId=${task.assignment_id}`)}
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Посмотреть итоги
+                      </Button>
+                    )}
+
                     {taskType === 'development' && (
                       <>
                         <Button
@@ -973,7 +1072,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                       </>
                     )}
                     
-                    {(taskType === 'meeting' || taskType === 'assessment' || ('assignment_type' in task && task.assignment_type)) && taskType !== 'peer_selection' && taskType !== 'peer_approval' && (
+                    {(taskType === 'meeting' || taskType === 'assessment' || ('assignment_type' in task && task.assignment_type)) && taskType !== 'peer_selection' && taskType !== 'peer_approval' && taskType !== 'meeting_scheduled' && taskType !== 'meeting_fill_summary' && taskType !== 'meeting_review_summary' && taskType !== 'meeting_plan_new' && taskType !== 'meeting_regularity_alert' && taskType !== 'meeting_hrbp_summary_available' && (
                       <>
                         {task.status === 'pending' && (
                           <Button
@@ -1056,7 +1155,6 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                       <Button
                         onClick={async () => {
                           try {
-                            // Получаем данные оцениваемого пользователя
                             const { data: userData } = await supabase
                               .from('users')
                               .select('first_name, last_name, email')
@@ -1090,6 +1188,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                   </div>
                 </div>
               </Card>
+              </div>
             );
           })
         )}

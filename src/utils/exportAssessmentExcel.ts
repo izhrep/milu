@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { getHardSkillsRoleVisibility, getSoftSkillsRoleVisibility } from '@/hooks/useSkillRoleVisibility';
 import type { SnapshotContext } from '@/hooks/useSnapshotContext';
+import { isNotObserved } from '@/lib/diagnosticResultContract';
 
 // Sheet names matching the template
 const SHEET1_NAME = 'Hard+Soft Skills. Коллеги';
@@ -275,7 +276,7 @@ export async function exportAssessmentExcel(
   hardResults.forEach((r: any) => {
     const skillId = r._skill_id;
     const numericValue = r._numeric_value;
-    if (!skillId || numericValue == null || numericValue === 0) return;
+    if (!skillId || numericValue == null || isNotObserved(numericValue)) return;
 
     if (!hardScoresMap.has(skillId)) {
       hardScoresMap.set(skillId, { self: [], manager: [], peer: [], externalPeer: [] });
@@ -300,7 +301,7 @@ export async function exportAssessmentExcel(
   softResults.forEach((r: any) => {
     const qualityId = r._quality_id;
     const numericValue = r._numeric_value;
-    if (!qualityId || numericValue == null || numericValue === 0) return;
+    if (!qualityId || numericValue == null || isNotObserved(numericValue)) return;
 
     if (!softScoresMap.has(qualityId)) {
       softScoresMap.set(qualityId, { self: [], manager: [], peer: [], externalPeer: [] });
@@ -448,12 +449,16 @@ export async function exportAssessmentExcel(
   // ============ BUILD SHEET 1 ============
   const sheet1Data: any[][] = [];
 
+  // @legacy: hardcoded headers — Phase 6 will accept StageScaleConfig for dynamic headers/labels
   sheet1Data.push([
-    'Hard-навыки (max - 4)',
+    'Hard-навыки',
     'Балл все кроме сотрудника',
     'Балл Unit-Lead',
     'Балл внешние',
     'Балл от себя',
+    'Ответов всего',
+    'Оценено',
+    'Не могу оценить',
     'Не владеет - 1',
     'Базовый уровень - 2',
     'Средний уровень - 3',
@@ -468,12 +473,21 @@ export async function exportAssessmentExcel(
     const externalScore = scores ? avg(scores.externalPeer) : null;
     const selfScore = scores ? avg(scores.self) : null;
 
+    // DisplayStats for this skill
+    const allHardValues = hardResults
+      .filter((r: any) => r._skill_id === gs.skill_id && r._numeric_value != null)
+      .map((r: any) => r._numeric_value as number);
+    const notObservedCount = allHardValues.filter(isNotObserved).length;
+
     sheet1Data.push([
       gs.hard_skills.name,
       fmtScore(allExceptSelf),
       fmtScore(managerScore),
       fmtScore(externalScore),
       fmtScore(selfScore),
+      allHardValues.length,
+      allHardValues.length - notObservedCount,
+      notObservedCount,
       getHardLevelText(gs.skill_id, 1),
       getHardLevelText(gs.skill_id, 2),
       getHardLevelText(gs.skill_id, 3),
@@ -483,9 +497,13 @@ export async function exportAssessmentExcel(
 
   sheet1Data.push([]);
 
+  // @legacy: hardcoded headers — Phase 6 will accept StageScaleConfig for dynamic headers/labels
   sheet1Data.push([
     'Soft-навыки',
-    'Среднее от коллег (без ответов сотрудника) (max - 5)',
+    'Среднее от коллег (без ответов сотрудника)',
+    'Ответов всего',
+    'Оценено',
+    'Не могу оценить',
     'Не владеет - 1',
     'Начинающий - 2',
     'Базовый - 3',
@@ -498,9 +516,18 @@ export async function exportAssessmentExcel(
     const scores = softScoresMap.get(gq.quality_id);
     const allExceptSelf = scores ? avg([...scores.manager, ...scores.peer]) : null;
 
+    // DisplayStats for this quality
+    const allSoftValues = softResults
+      .filter((r: any) => r._quality_id === gq.quality_id && r._numeric_value != null)
+      .map((r: any) => r._numeric_value as number);
+    const notObservedSoftCount = allSoftValues.filter(isNotObserved).length;
+
     sheet1Data.push([
       gq.soft_skills.name,
       fmtScore(allExceptSelf),
+      allSoftValues.length,
+      allSoftValues.length - notObservedSoftCount,
+      notObservedSoftCount,
       getSoftLevelText(gq.quality_id, 1),
       getSoftLevelText(gq.quality_id, 2),
       getSoftLevelText(gq.quality_id, 3),
@@ -512,6 +539,7 @@ export async function exportAssessmentExcel(
   const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
   ws1['!cols'] = [
     { wch: 55 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+    { wch: 14 }, { wch: 14 }, { wch: 16 },
     { wch: 80 }, { wch: 80 }, { wch: 80 }, { wch: 80 },
   ];
 

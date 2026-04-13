@@ -48,16 +48,10 @@ export const useMenuVisibility = (userId: string | undefined, userRole: string |
         const gradeLevel = userData?.grades?.level ?? 0;
         const showCareerTrack = gradeLevel > 0;
 
-        // Check meetings visibility: stage participation OR existing 1:1 meetings OR having a manager
-        const { data: participantData } = await supabase
-          .from('meeting_stage_participants')
-          .select('id')
-          .eq('user_id', userId)
-          .limit(1);
+        // Check meetings visibility: existing 1:1 meetings OR having a manager
+        let showMeetings = false;
 
-        let showMeetings = (participantData && participantData.length > 0) ?? false;
-
-        if (!showMeetings) {
+        {
           // Check if user has any 1:1 meetings (as employee)
           const { data: meetingsData } = await supabase
             .from('one_on_one_meetings')

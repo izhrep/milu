@@ -28,6 +28,8 @@ export interface TemplateSummary {
   johariLabel: string;
   /** Plain-text explanation of what the template controls */
   detailsText: string;
+  /** Business-readable explanation of reverse interpretation, or null if no reverse is active */
+  reverseExplanation: string | null;
 }
 
 function formatScaleLabel(
@@ -126,6 +128,30 @@ export function buildTemplateSummary(
     'Этот шаблон определяет правила оценки, которые будут применены при создании нового этапа диагностики. ' +
     'При активации этапа конфигурация фиксируется и не может быть изменена, чтобы обеспечить целостность результатов.';
 
+  // Reverse explanation for business users
+  const hardReversed = tpl.hard_skills_enabled && tpl.hard_scale_reversed;
+  const softReversed = tpl.soft_scale_reversed;
+  let reverseExplanation: string | null = null;
+
+  if (hardReversed || softReversed) {
+    const parts: string[] = [];
+    if (hardReversed) {
+      const effMin = tpl.hard_scale_min + tpl.hard_scale_max - tpl.hard_scale_max; // = min
+      const effMax = tpl.hard_scale_min + tpl.hard_scale_max - tpl.hard_scale_min; // = max
+      parts.push(
+        `Hard-навыки: респондент ставит балл ${tpl.hard_scale_max} как максимальный, но в аналитике это будет интерпретировано как ${effMin} (минимум). ` +
+        `Формула: итоговый балл = ${tpl.hard_scale_min} + ${tpl.hard_scale_max} − ответ.`
+      );
+    }
+    if (softReversed) {
+      parts.push(
+        `Soft-навыки: респондент ставит балл ${tpl.soft_scale_max} как максимальный, но в аналитике это будет интерпретировано как ${tpl.soft_scale_min} (минимум). ` +
+        `Формула: итоговый балл = ${tpl.soft_scale_min} + ${tpl.soft_scale_max} − ответ.`
+      );
+    }
+    reverseExplanation = parts.join(' ');
+  }
+
   return {
     hardSkillsLabel,
     hardScaleLabel,
@@ -137,5 +163,6 @@ export function buildTemplateSummary(
     openQuestionsRequired: oq.required,
     johariLabel,
     detailsText,
+    reverseExplanation,
   };
 }

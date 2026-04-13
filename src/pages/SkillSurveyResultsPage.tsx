@@ -152,9 +152,10 @@ const SkillSurveyResultsPage = () => {
           <button className="text-gray-400 font-medium">Обучение</button>
         </div>
 
+        {/* @legacy — scale description will be dynamic once stageConfig is wired */}
         <p className="text-gray-600 mb-8 leading-relaxed">
-          Ваши результаты оценки профессиональных навыков. Каждый навык оценивается по 5-балльной шкале, 
-          где 1 - начинающий уровень, а 5 - экспертный уровень.
+          Ваши результаты оценки профессиональных навыков. Каждый навык оценивается по шкале, 
+          где минимальное значение соответствует начинающему уровню, а максимальное — экспертному.
         </p>
 
         {/* Export Buttons */}
@@ -210,7 +211,7 @@ const SkillSurveyResultsPage = () => {
                 Средний балл по всем навыкам: {' '}
                 <span className="font-bold">
                   {(skillResults.reduce((sum, skill) => sum + skill.average_score, 0) / skillResults.length).toFixed(1)}
-                </span> из 5
+                </span>{/* @legacy — maxScore will come from stageConfig */}
               </p>
             </div>
           </div>

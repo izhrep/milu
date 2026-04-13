@@ -399,6 +399,7 @@ const SkillSurveyQuestionsPage = () => {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
+  // @input-side-legacy: answer labels come from live table, not from frozen_config
   // Filter answer options by frozen scale bounds for template-based stages
   const filteredAnswerOptions = !stageConfig.isLegacy
     ? answerOptions.filter(opt => opt.numeric_value >= stageConfig.hardScaleMin && opt.numeric_value <= stageConfig.hardScaleMax)

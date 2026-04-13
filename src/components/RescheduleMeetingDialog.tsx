@@ -15,24 +15,24 @@ import { Loader2, CalendarClock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
-  buildLocalDateTimeString,
   localDateTimeToUtcIso,
-  parseMeetingDateTime,
   getEffectiveTimezone,
   getTimezoneOffsetLabel,
   getMinTimeForDate,
+  getNowInTimezone,
 } from '@/lib/meetingDateTime';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { validateMeetingDateTime } from '@/lib/meetingValidation';
+import { parseRpcErrorCode } from '@/hooks/useMeetingFormAutoSave';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLiveNow } from '@/hooks/useLiveNow';
 
 interface RescheduleMeetingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   meetingId: string;
   currentMeetingDate: string;
-  employeeId?: string;
-  onReschedule: (params: { meetingId: string; previousDate: string; newDateIso: string }) => Promise<void>;
+  /** Called with RPC-compatible params. Server handles conflict check & atomicity. */
+  onReschedule: (params: { p_meeting_id: string; p_new_date: string }) => Promise<void>;
 }
 
 export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = ({
@@ -40,7 +40,6 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
   onOpenChange,
   meetingId,
   currentMeetingDate,
-  employeeId,
   onReschedule,
 }) => {
   const { user } = useAuth();
@@ -48,16 +47,15 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('10:00');
   const [isSaving, setIsSaving] = useState(false);
-  const [conflictError, setConflictError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const liveNow = useLiveNow(30_000);
 
   const isValid = useMemo(() => {
     if (!selectedDate || !selectedTime) return false;
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const localStr = buildLocalDateTimeString(dateStr, selectedTime);
-    const dt = parseMeetingDateTime(localStr);
-    if (!dt) return false;
-    return dt > new Date();
-  }, [selectedDate, selectedTime]);
+    const errors = validateMeetingDateTime(dateStr, selectedTime, { timezone: userTz });
+    return errors.length === 0;
+  }, [selectedDate, selectedTime, liveNow, userTz]);
 
   const summaryLabel = useMemo(() => {
     if (selectedDate && selectedTime) {
@@ -73,44 +71,33 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
     return null;
   }, [selectedDate, selectedTime]);
 
-  // Task 6: Check for conflicting meetings at the same date/time for same employee
-  const newDateIsoForCheck = useMemo(() => {
-    if (!selectedDate || !selectedTime) return null;
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    return localDateTimeToUtcIso(dateStr, selectedTime, userTz);
-  }, [selectedDate, selectedTime, userTz]);
-
-  const { data: conflictingMeeting } = useQuery({
-    queryKey: ['meeting-conflict-check', employeeId, newDateIsoForCheck, meetingId],
-    queryFn: async () => {
-      if (!employeeId || !newDateIsoForCheck) return null;
-      const { data, error } = await supabase
-        .from('one_on_one_meetings')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .eq('meeting_date', newDateIsoForCheck)
-        .in('status', ['scheduled', 'awaiting_summary'])
-        .neq('id', meetingId)
-        .limit(1);
-      if (error) throw error;
-      return data && data.length > 0 ? data[0] : null;
-    },
-    enabled: !!employeeId && !!newDateIsoForCheck,
-  });
-
-  const hasConflict = !!conflictingMeeting;
-
   const handleConfirm = async () => {
-    if (!isValid || !selectedDate || hasConflict) return;
+    if (!selectedDate) return;
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const finalErrors = validateMeetingDateTime(dateStr, selectedTime, { timezone: userTz });
+    if (finalErrors.length > 0) return;
+
     setIsSaving(true);
-    setConflictError(null);
+    setServerError(null);
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const newDateIso = localDateTimeToUtcIso(dateStr, selectedTime, userTz);
-      await onReschedule({ meetingId, previousDate: currentMeetingDate, newDateIso });
+      await onReschedule({ p_meeting_id: meetingId, p_new_date: newDateIso });
       onOpenChange(false);
       setSelectedDate(undefined);
       setSelectedTime('10:00');
+    } catch (err: any) {
+      const msg = err?.message || '';
+      const code = parseRpcErrorCode(msg);
+      if (code === 'CONFLICT') {
+        setServerError('У сотрудника уже есть активная встреча на выбранные дату и время.');
+      } else if (code === 'PAST_DATE') {
+        setServerError('Выбранное время уже прошло.');
+      } else if (code === 'FORBIDDEN') {
+        setServerError('Недостаточно прав для переноса встречи.');
+      } else {
+        setServerError('Ошибка переноса. Попробуйте ещё раз.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -120,7 +107,7 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
     if (!v) {
       setSelectedDate(undefined);
       setSelectedTime('10:00');
-      setConflictError(null);
+      setServerError(null);
     }
     onOpenChange(v);
   };
@@ -142,11 +129,11 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={setSelectedDate}
+            onSelect={(d) => { setSelectedDate(d); setServerError(null); }}
             disabled={(d) => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              return d < today;
+              const { date: todayStr } = getNowInTimezone(userTz);
+              const dStr = format(d, 'yyyy-MM-dd');
+              return dStr < todayStr;
             }}
             className="pointer-events-auto rounded-md border mx-auto"
           />
@@ -157,7 +144,7 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
             </Label>
             <TimePicker
               value={selectedTime}
-              onChange={setSelectedTime}
+              onChange={(t) => { setSelectedTime(t); setServerError(null); }}
               minTime={selectedDate ? getMinTimeForDate(format(selectedDate, 'yyyy-MM-dd'), userTz) : null}
             />
             {summaryLabel && (
@@ -173,10 +160,9 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
             </p>
           )}
 
-          {/* Task 6: Conflict warning */}
-          {hasConflict && (
+          {serverError && (
             <p className="text-xs text-destructive">
-              У сотрудника уже есть активная встреча на выбранные дату и время.
+              {serverError}
             </p>
           )}
         </div>
@@ -185,7 +171,7 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
           <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)} disabled={isSaving}>
             Отмена
           </Button>
-          <Button size="sm" onClick={handleConfirm} disabled={!isValid || hasConflict || isSaving} className="min-w-[140px]">
+          <Button size="sm" onClick={handleConfirm} disabled={!isValid || isSaving} className="min-w-[140px]">
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {!isValid && !isSaving ? (missingHint || 'Перенести') : 'Перенести'}
           </Button>

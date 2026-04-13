@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { decryptUserData } from '@/lib/userDataDecryption';
+import { getEffectiveTimezone, formatDateInTimezone, formatTimeInTimezone } from '@/lib/meetingDateTime';
 
 export interface Task {
   id: string;
@@ -88,7 +89,9 @@ export const useTasks = (userId?: string) => {
         manager_id: string;
         summary_saved_by: string | null;
       }> = {};
-      
+      const participantNameMap: Record<string, string> = {};
+      const participantTimezoneMap: Record<string, string | null> = {};
+
       if (meetingTasks.length > 0) {
         const meetingIds = [...new Set(meetingTasks.map(t => t.assignment_id))];
         
@@ -101,11 +104,19 @@ export const useTasks = (userId?: string) => {
         
         if (meetings && meetings.length > 0) {
           const pairKeys = new Set<string>();
+          const participantIds = new Set<string>();
           for (const m of meetings) {
             pairKeys.add(`${m.employee_id}__${m.manager_id}`);
+            participantIds.add(m.employee_id);
+            participantIds.add(m.manager_id);
           }
-          
-          // Загружаем нумерацию параллельно для всех пар
+
+          // Загружаем ФИО участников и нумерацию параллельно
+          const namesPromise = supabase
+            .from('users')
+            .select('id, first_name, last_name, timezone')
+            .in('id', [...participantIds]);
+
           const pairPromises = [...pairKeys].map(async (pairKey) => {
             const [empId, mgrId] = pairKey.split('__');
             const { data: pairMeetings } = await supabase
@@ -130,8 +141,17 @@ export const useTasks = (userId?: string) => {
               });
             }
           });
-          await Promise.all(pairPromises);
+
+          const [namesResult] = await Promise.all([namesPromise, ...pairPromises]);
           if (fetchId !== fetchIdRef.current) return;
+
+          // Build participant name map
+          if (namesResult.data) {
+            for (const u of namesResult.data) {
+              participantNameMap[u.id] = [u.last_name, u.first_name].filter(Boolean).join(' ');
+              participantTimezoneMap[u.id] = u.timezone ?? null;
+            }
+          }
         }
       }
 
@@ -157,8 +177,16 @@ export const useTasks = (userId?: string) => {
         const mInfo = task.assignment_id ? meetingInfoMap[task.assignment_id] : undefined;
         if (mInfo && meetingTaskTypes.includes(task.task_type || '')) {
           const dateObj = new Date(mInfo.date);
-          const formattedDate = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-          const meetingLabel = `one-to-one №${mInfo.number} от ${formattedDate}`;
+          // Format date and time in the task owner's timezone
+          const ownerTz = getEffectiveTimezone(participantTimezoneMap[task.user_id]);
+          const formattedDate = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: ownerTz });
+          const formattedTime = formatTimeInTimezone(dateObj, ownerTz);
+
+          // Determine the other party's name relative to the task owner
+          const otherPartyId = task.user_id === mInfo.employee_id ? mInfo.manager_id : mInfo.employee_id;
+          const otherPartyName = participantNameMap[otherPartyId] || '';
+          const withPart = otherPartyName ? ` с ${otherPartyName}` : '';
+          const meetingLabel = `one-to-one${withPart} №${mInfo.number} от ${formattedDate} в ${formattedTime}`;
 
           if (task.task_type === 'meeting_scheduled') {
             taskDetails.title = `Запланирована встреча ${meetingLabel}`;

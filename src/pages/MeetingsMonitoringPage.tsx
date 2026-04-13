@@ -13,6 +13,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { useSubordinateTree } from '@/hooks/useSubordinateTree';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useMeetingSummaryViewsBatch } from '@/hooks/useMeetingSummaryView';
 import {
   differenceInDays, format, startOfMonth, endOfMonth, subMonths, subDays,
   startOfQuarter, endOfQuarter, isToday, isYesterday,
@@ -68,15 +69,8 @@ const PRIORITY_ORDER: Record<MonitoringStatus, number> = {
   overdue: 0, awaiting_summary: 1, scheduled: 2, not_in_cycle: 3, ok: 4,
 };
 
-const getEffectiveMeetingStatus = (m: MeetingRow): string => {
-  if (m.status === 'scheduled' && m.meeting_date && !m.meeting_summary) {
-    const meetingTime = new Date(m.meeting_date).getTime();
-    if (!Number.isNaN(meetingTime) && meetingTime <= Date.now()) {
-      return 'awaiting_summary';
-    }
-  }
-  return m.status;
-};
+// Re-export from shared utility for local use
+import { getEffectiveMeetingStatus } from '@/lib/meetingStatus';
 
 /* ─── helpers ─── */
 
@@ -123,6 +117,11 @@ const getActionText = (status: MonitoringStatus): string => {
   }
 };
 
+const getOkActionText = (row: DisplayRow): string | null => {
+  if (row.monitoringStatus === 'ok' && row.meetingId) return 'Посмотреть итоги';
+  return null;
+};
+
 const getActionClass = (status: MonitoringStatus): string => {
   switch (status) {
     case 'overdue':
@@ -153,6 +152,10 @@ interface DisplayRow {
   lastMeetingDate: Date | null;
   daysSinceLast: number | null;
   lastSummarySavedBy: string | null;
+  /** employee_id of the meeting for view tracking */
+  meetingEmployeeId?: string;
+  meetingManagerId?: string;
+  meetingSummarySavedBy?: string | null;
 }
 
 type ActionIntent =
@@ -170,6 +173,11 @@ const getActionIntent = (row: DisplayRow): ActionIntent | null => {
       employeeId: row.employeeId,
       managerId: row.manager_id,
     };
+  }
+
+  // For "ok" status — link to last recorded meeting with summary
+  if (row.monitoringStatus === 'ok' && row.meetingId) {
+    return { kind: 'meeting', meetingId: row.meetingId };
   }
 
   return null;
@@ -334,6 +342,15 @@ const MeetingsMonitoringPage = () => {
 
   const isLoading = isAdminOrHr ? loadingAllUsers || loadingMeetings : loadingMeetings;
 
+  // Batch fetch summary views for "ok" rows that have a meeting
+  const okMeetingIds = useMemo(() => {
+    if (!meetingsData) return [];
+    return meetingsData
+      .filter(m => m.meeting_summary && m.summary_saved_by)
+      .map(m => m.id);
+  }, [meetingsData]);
+  const { data: summaryViewsBatch } = useMeetingSummaryViewsBatch(okMeetingIds);
+
   /* ─── Admin subtree for selected manager ─── */
   const adminSubtreeIds = useMemo(() => {
     if (!isAdminOrHr || managerFilter === 'all' || !allCompanyUsers) return null;
@@ -379,8 +396,8 @@ const MeetingsMonitoringPage = () => {
       let status: MonitoringStatus;
       if (hasAwaiting) status = 'awaiting_summary';
       else if (empAllMeetings.length === 0) status = 'not_in_cycle';
-      else if (daysSinceLast === null || daysSinceLast > REGULARITY_THRESHOLD_DAYS) status = 'overdue';
       else if (hasScheduled) status = 'scheduled';
+      else if (daysSinceLast === null || daysSinceLast > REGULARITY_THRESHOLD_DAYS) status = 'overdue';
       else status = 'ok';
 
       const empIsDirect = getIsDirect(emp);
@@ -459,6 +476,9 @@ const MeetingsMonitoringPage = () => {
           monitoringStatus: empStatus,
           meetingId: empStatus === 'ok' && lastRecorded ? lastRecorded.id : null,
           meetingDate: null,
+          meetingEmployeeId: lastRecorded?.employee_id,
+          meetingManagerId: lastRecorded?.manager_id,
+          meetingSummarySavedBy: lastRecorded?.summary_saved_by,
         });
       }
     });
@@ -812,6 +832,7 @@ const MeetingsMonitoringPage = () => {
                   allUsersMap={allUsersMap}
                   allUsers={usersToShow}
                   timezone={user?.timezone}
+                  summaryViewsBatch={summaryViewsBatch}
                   onActionClick={(row) => {
                     const actionIntent = getActionIntent(row);
                     if (!actionIntent) return;
@@ -880,8 +901,9 @@ const ListView: React.FC<{
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   timezone?: string;
+  summaryViewsBatch?: Record<string, Array<{ user_id: string; viewed_at: string }>>;
   onActionClick?: (row: DisplayRow) => void;
-}> = ({ rows, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
+}> = ({ rows, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, summaryViewsBatch, onActionClick }) => {
   if (isMobile) {
     return (
       <div className="divide-y divide-border/40">
@@ -924,6 +946,7 @@ const ListView: React.FC<{
               allUsers={allUsers}
               indentLevel={0}
               timezone={timezone}
+              summaryViewsBatch={summaryViewsBatch}
               onActionClick={onActionClick}
             />
           ))}
@@ -1068,12 +1091,28 @@ const RowDesktop: React.FC<{
   allUsers: BasicUser[];
   indentLevel: number;
   timezone?: string;
+  summaryViewsBatch?: Record<string, Array<{ user_id: string; viewed_at: string }>>;
   onActionClick?: (row: DisplayRow) => void;
-}> = ({ row, isAdminOrHr, currentUserId, allUsersMap, allUsers, indentLevel, timezone, onActionClick }) => {
+}> = ({ row, isAdminOrHr, currentUserId, allUsersMap, allUsers, indentLevel, timezone, summaryViewsBatch, onActionClick }) => {
   const cfg = getStatusConfig(row.monitoringStatus);
   const isProblematic = isActionRequired(row.monitoringStatus);
   const subText = getSubordinationText(row, isAdminOrHr, currentUserId, allUsersMap, allUsers);
   const canClick = isProblematic && !!getActionIntent(row);
+  const okAction = getOkActionText(row);
+
+  // View status for ok rows with summary
+  const viewStatusText = useMemo(() => {
+    if (row.monitoringStatus !== 'ok' || !row.meetingId || !row.meetingSummarySavedBy || !summaryViewsBatch) return null;
+    const views = summaryViewsBatch[row.meetingId] || [];
+    // Who should have viewed? The other participant (not the author)
+    const otherParticipantId = row.meetingSummarySavedBy === row.meetingEmployeeId
+      ? row.meetingManagerId
+      : row.meetingEmployeeId;
+    if (!otherParticipantId) return null;
+    const view = views.find(v => v.user_id === otherParticipantId);
+    if (view) return 'Ознакомлен';
+    return 'Не просмотрено';
+  }, [row, summaryViewsBatch]);
 
   return (
     <tr
@@ -1087,7 +1126,14 @@ const RowDesktop: React.FC<{
           <div className="text-[11px] text-muted-foreground/70 leading-snug mt-0.5">{subText}</div>
         )}
         {row.lastSummarySavedBy && (
-          <div className="text-[11px] text-muted-foreground/50 leading-snug">Итоги: {row.lastSummarySavedBy}</div>
+          <div className="text-[11px] text-muted-foreground/50 leading-snug">
+            Итоги: {row.lastSummarySavedBy}
+            {viewStatusText && (
+              <span className={`ml-1.5 ${viewStatusText === 'Ознакомлен' ? 'text-primary/60' : 'text-warning/70'}`}>
+                · {viewStatusText}
+              </span>
+            )}
+          </div>
         )}
       </td>
       <td className="px-2 py-2.5">
@@ -1109,6 +1155,21 @@ const RowDesktop: React.FC<{
             <span>→</span>
             {getActionText(row.monitoringStatus)}
           </button>
+        ) : okAction ? (
+          <div className="flex flex-col gap-0.5">
+            <span>{getActionText(row.monitoringStatus)}</span>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-primary hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                onActionClick?.(row);
+              }}
+            >
+              <span>→</span>
+              {okAction}
+            </button>
+          </div>
         ) : (
           <>
             {isProblematic && <span className="mr-1">→</span>}
@@ -1138,6 +1199,7 @@ const RowMobileCard: React.FC<{
   const cfg = getStatusConfig(row.monitoringStatus);
   const isProblematic = isActionRequired(row.monitoringStatus);
   const canClick = isProblematic && !!getActionIntent(row);
+  const okAction = getOkActionText(row);
   const subText = showManager
     ? getSubordinationText(row, isAdminOrHr, currentUserId, allUsersMap, allUsers)
     : '';
@@ -1163,6 +1225,20 @@ const RowMobileCard: React.FC<{
         >
           → {getActionText(row.monitoringStatus)}
         </button>
+      ) : okAction ? (
+        <div className="space-y-0.5">
+          <p className={`text-xs ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
+          <button
+            type="button"
+            className="text-xs text-primary hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              onActionClick?.(row);
+            }}
+          >
+            → {okAction}
+          </button>
+        </div>
       ) : (
         <p className={`text-xs ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
       )}

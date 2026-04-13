@@ -27,6 +27,10 @@ interface ManagerComparisonTableProps {
   departments?: Array<{ id: string; name: string }>;
   skills?: Array<{ id: string; name: string }>;
   qualities?: Array<{ id: string; name: string }>;
+  /** Max score for hard skills column. Defaults to 5 (legacy). */
+  hardMaxScore?: number;
+  /** Max score for soft skills column. Defaults to 4 (legacy). */
+  softMaxScore?: number;
 }
 
 type SortField = 'full_name' | 'skill_average' | 'quality_average' | 'overall_average';
@@ -38,6 +42,8 @@ export const ManagerComparisonTable = ({
   departments = [],
   skills = [],
   qualities = [],
+  hardMaxScore = 5,
+  softMaxScore = 4,
 }: ManagerComparisonTableProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('full_name');
@@ -245,17 +251,17 @@ export const ManagerComparisonTable = ({
                     <TableCell>{emp.position}</TableCell>
                     <TableCell>{emp.department}</TableCell>
                     <TableCell>
-                      <span className={getScoreColor(emp.skill_average, 5)}>
+                      <span className={getScoreColor(emp.skill_average, hardMaxScore)}>
                         {emp.skill_average.toFixed(2)}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className={getScoreColor(emp.quality_average, 4)}>
+                      <span className={getScoreColor(emp.quality_average, softMaxScore)}>
                         {emp.quality_average.toFixed(2)}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className={`font-semibold ${getScoreColor(emp.overall_average, 5)}`}>
+                      <span className={`font-semibold ${getScoreColor(emp.overall_average, hardMaxScore)}`}>
                         {emp.overall_average.toFixed(2)}
                       </span>
                     </TableCell>
