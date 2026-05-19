@@ -18,7 +18,7 @@ import {
   Search,
   FileText,
   X
-} from 'lucide-react';
+} from "@/components/icons";
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -516,17 +516,17 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
   const getTaskTypeColor = (type?: string) => {
     switch (type) {
-      case 'development': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'development': return 'bg-success/20 text-success';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-700';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-700';
-      case 'expired': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'completed': return 'bg-success/20 text-success';
+      case 'in_progress': return 'bg-warning/20 text-warning';
+      case 'expired': return 'bg-destructive/20 text-destructive';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -585,11 +585,11 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
       {/* Add Development Task Form */}
       {isAddingDevTask && (
         <Card className="p-6">
-          <h4 className="text-lg font-semibold mb-4">Создать задачу развития</h4>
+          <h4 className="text-body-lg font-semibold mb-4">Создать задачу развития</h4>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Название задачи *</label>
+              <label className="block text-body-md font-medium mb-1">Название задачи *</label>
               <input
                 type="text"
                 value={newDevTask.title}
@@ -600,7 +600,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Цель задачи *</label>
+              <label className="block text-body-md font-medium mb-1">Цель задачи *</label>
               <textarea
                 value={newDevTask.goal}
                 onChange={(e) => setNewDevTask({...newDevTask, goal: e.target.value})}
@@ -611,7 +611,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Как выполнить *</label>
+              <label className="block text-body-md font-medium mb-1">Как выполнить *</label>
               <textarea
                 value={newDevTask.how_to}
                 onChange={(e) => setNewDevTask({...newDevTask, how_to: e.target.value})}
@@ -622,7 +622,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Измеримый результат *</label>
+              <label className="block text-body-md font-medium mb-1">Измеримый результат *</label>
               <textarea
                 value={newDevTask.measurable_result}
                 onChange={(e) => setNewDevTask({...newDevTask, measurable_result: e.target.value})}
@@ -634,7 +634,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Приоритет</label>
+                <label className="block text-body-md font-medium mb-1">Приоритет</label>
                 <select
                   value={newDevTask.priority}
                   onChange={(e) => setNewDevTask({...newDevTask, priority: e.target.value as any})}
@@ -646,7 +646,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Срок выполнения</label>
+                <label className="block text-body-md font-medium mb-1">Срок выполнения</label>
                 <input
                   type="date"
                   value={newDevTask.deadline}
@@ -658,7 +658,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Профессиональный навык</label>
+                <label className="block text-body-md font-medium mb-1">Профессиональный навык</label>
                 <select
                   value={newDevTask.hard_skill_id || ''}
                   onChange={(e) => setNewDevTask({...newDevTask, hard_skill_id: e.target.value || undefined})}
@@ -672,7 +672,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Личное качество</label>
+                <label className="block text-body-md font-medium mb-1">Личное качество</label>
                 <select
                   value={newDevTask.soft_skill_id || ''}
                   onChange={(e) => setNewDevTask({...newDevTask, soft_skill_id: e.target.value || undefined})}
@@ -687,7 +687,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Карьерный трек</label>
+              <label className="block text-body-md font-medium mb-1">Карьерный трек</label>
               <select
                 value={newDevTask.career_track_id || ''}
                 onChange={(e) => {
@@ -708,7 +708,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
             {newDevTask.career_track_id && (
               <div>
-                <label className="block text-sm font-medium mb-1">Шаг карьерного трека</label>
+                <label className="block text-body-md font-medium mb-1">Шаг карьерного трека</label>
                 <select
                   value={newDevTask.career_track_step_id || ''}
                   onChange={(e) => setNewDevTask({...newDevTask, career_track_step_id: e.target.value || undefined})}
@@ -758,26 +758,26 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
       {/* Add Task Form */}
       {isAddingTask && (
         <Card className="p-6">
-          <h4 className="text-lg font-semibold mb-4">Создать новую задачу</h4>
+          <h4 className="text-body-lg font-semibold mb-4">Создать новую задачу</h4>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Название *</label>
+              <label className="block text-body-md font-medium mb-1">Название *</label>
               <input
                 type="text"
                 value={newTask.title}
                 onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-chart-3"
                 placeholder="Название задачи"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Описание</label>
+              <label className="block text-body-md font-medium mb-1">Описание</label>
               <textarea
                 value={newTask.description}
                 onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-chart-3"
                 rows={3}
                 placeholder="Описание цели и ожидаемого результата"
               />
@@ -785,11 +785,11 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Тип задачи</label>
+                <label className="block text-body-md font-medium mb-1">Тип задачи</label>
                 <select
                   value={newTask.task_type}
                   onChange={(e) => setNewTask({...newTask, task_type: e.target.value as any})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-chart-3"
                 >
                   <option value="development">Задача развития</option>
                   <option value="development">Задача развития</option>
@@ -797,11 +797,11 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Приоритет</label>
+                <label className="block text-body-md font-medium mb-1">Приоритет</label>
                 <select
                   value={newTask.priority}
                   onChange={(e) => setNewTask({...newTask, priority: e.target.value as any})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-chart-3"
                 >
                   <option value="normal">Обычная</option>
                   <option value="urgent">Срочная</option>
@@ -811,22 +811,22 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Срок выполнения</label>
+                <label className="block text-body-md font-medium mb-1">Срок выполнения</label>
                 <input
                   type="date"
                   value={newTask.deadline}
                   onChange={(e) => setNewTask({...newTask, deadline: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-chart-3"
                 />
               </div>
 
               {newTask.task_type === 'development' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Ожидаемый уровень (0-4)</label>
+                  <label className="block text-body-md font-medium mb-1">Ожидаемый уровень (0-4)</label>
                   <select
                     value={newTask.kpi_expected_level}
                     onChange={(e) => setNewTask({...newTask, kpi_expected_level: Number(e.target.value)})}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-chart-3"
                   >
                     <option value={0}>0 - Не выполнено</option>
                     <option value={1}>1 - Частично выполнено</option>
@@ -868,13 +868,13 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
       <div className="space-y-4">
         {sortedTasks.length === 0 ? (
           <Card className="p-8 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckSquare className="w-8 h-8 text-gray-400" />
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckSquare className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+            <h4 className="text-body-lg font-semibold text-foreground mb-2">
               Нет задач
             </h4>
-            <p className="text-gray-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               Нет назначенных задач
             </p>
           </Card>
@@ -906,7 +906,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             const isDismissing = dismissingTaskIds.has(task.id);
             return (
               <div key={task.id} className={`transition-all duration-300 ease-in-out ${isDismissing ? 'max-h-0 opacity-0 scale-95 overflow-hidden -mt-4' : 'max-h-[500px] opacity-100 scale-100'}`}>
-              <Card className={`p-4 relative ${task.priority === 'urgent' ? 'border-red-200 bg-red-50' : ''}`}>
+              <Card className={`p-4 relative ${task.priority === 'urgent' ? 'border-destructive/30 bg-destructive/10' : ''}`}>
                 {task.status === 'completed' && (
                   <TooltipProvider>
                     <Tooltip>
@@ -926,8 +926,8 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <TypeIcon className="w-4 h-4 text-gray-500" />
-                      <h5 className="font-medium text-gray-900">{displayTitle}</h5>
+                      <TypeIcon className="w-4 h-4 text-muted-foreground" />
+                      <h5 className="font-medium text-foreground">{displayTitle}</h5>
                       
                       {task.priority === 'urgent' && (
                         <Badge variant="destructive" className="ml-2">
@@ -938,17 +938,17 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                     </div>
                     
                     {displayDescription && (
-                      <p className="text-gray-600 text-sm mb-3">{displayDescription}</p>
+                      <p className="text-muted-foreground text-body-md mb-3">{displayDescription}</p>
                     )}
                     
                     {evaluatedUserName && !isSelfAssessment && (
-                      <p className="text-gray-500 text-sm mb-2">
+                      <p className="text-muted-foreground text-body-md mb-2">
                         <User className="w-3 h-3 inline mr-1" />
                         Сотрудник: {evaluatedUserName}
                       </p>
                     )}
                     
-                    <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-4 text-body-md">
                       <Badge className={getTaskTypeColor(taskType)}>
                         {getTypeText(taskType)}
                       </Badge>
@@ -958,7 +958,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                       </Badge>
                       
                       {task.deadline && (
-                        <div className="flex items-center gap-1 text-gray-500">
+                        <div className="flex items-center gap-1 text-muted-foreground">
                           <Calendar className="w-3 h-3" />
                           {new Date(task.deadline).toLocaleDateString('ru-RU')}
                         </div>
@@ -966,8 +966,8 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
                       
                       {taskType === 'kpi' && kpiExpectedLevel !== null && kpiExpectedLevel !== undefined && (
                         <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-500" />
-                          <span className="text-gray-600">
+                          <Star className="w-3 h-3 text-warning" />
+                          <span className="text-muted-foreground">
                             Цель: {kpiExpectedLevel}
                             {kpiResultLevel !== null && kpiResultLevel !== undefined && (
                               <span className="ml-1">| Результат: {kpiResultLevel}</span>
@@ -1211,7 +1211,7 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Статус</label>
+                <label className="text-body-md font-medium text-muted-foreground">Статус</label>
                 <p className="mt-1">
                   <Badge className={getStatusColor(viewingTask.status)}>
                     {getStatusText(viewingTask.status)}
@@ -1221,14 +1221,14 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
               {viewingTask.deadline && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Срок выполнения</label>
+                  <label className="text-body-md font-medium text-muted-foreground">Срок выполнения</label>
                   <p className="mt-1">{new Date(viewingTask.deadline).toLocaleDateString('ru-RU')}</p>
                 </div>
               )}
 
               {viewingTask.priority && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Приоритет</label>
+                  <label className="text-body-md font-medium text-muted-foreground">Приоритет</label>
                   <p className="mt-1">{viewingTask.priority === 'urgent' ? 'Срочный' : 'Обычный'}</p>
                 </div>
               )}
@@ -1236,17 +1236,17 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
               {viewingDevPlanTask && (
                 <>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Цель задачи</label>
+                    <label className="text-body-md font-medium text-muted-foreground">Цель задачи</label>
                     <p className="mt-1 text-foreground">{viewingDevPlanTask.goal}</p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Как выполнить</label>
+                    <label className="text-body-md font-medium text-muted-foreground">Как выполнить</label>
                     <p className="mt-1 text-foreground whitespace-pre-wrap">{viewingDevPlanTask.how_to}</p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Измеримый результат</label>
+                    <label className="text-body-md font-medium text-muted-foreground">Измеримый результат</label>
                     <p className="mt-1 text-foreground">{viewingDevPlanTask.measurable_result}</p>
                   </div>
                 </>
@@ -1254,14 +1254,14 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
 
               {viewingTask.description && !viewingDevPlanTask && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Описание</label>
+                  <label className="text-body-md font-medium text-muted-foreground">Описание</label>
                   <p className="mt-1 text-foreground whitespace-pre-wrap">{viewingTask.description}</p>
                 </div>
               )}
 
               {viewingTask.kpi_result_level !== null && viewingTask.kpi_result_level !== undefined && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Результат выполнения</label>
+                  <label className="text-body-md font-medium text-muted-foreground">Результат выполнения</label>
                   <p className="mt-1">
                     <Badge variant="secondary">
                       Уровень: {viewingTask.kpi_result_level}
@@ -1286,14 +1286,14 @@ export const TasksManager: React.FC<TasksManagerProps> = ({ onNavigateToSurveys 
             </DialogHeader>
             
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-md text-muted-foreground">
                 Выберите уровень достижения результата для задачи "{completingTask.task_type === 'peer_approval' && decryptedTitles[completingTask.id] 
                   ? decryptedTitles[completingTask.id] 
                   : completingTask.title}"
               </p>
 
               <div>
-                <label className="text-sm font-medium">Уровень результата (0-4)</label>
+                <label className="text-body-md font-medium">Уровень результата (0-4)</label>
                 <select
                   value={selectedResultLevel}
                   onChange={(e) => setSelectedResultLevel(Number(e.target.value))}

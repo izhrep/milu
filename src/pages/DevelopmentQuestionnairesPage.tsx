@@ -8,8 +8,8 @@ const DevelopmentQuestionnairesPage = () => {
       <Breadcrumbs />
       
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Обратная связь 360</h1>
-        <p className="text-text-secondary mt-1">Доступные формы для обратной связи по hard и soft-навыкам</p>
+        <h1 className="text-heading-2 font-bold text-foreground">Обратная связь 360</h1>
+        <p className="text-muted-foreground mt-1">Доступные формы для обратной связи по hard и soft-навыкам</p>
       </div>
 
       <SurveyAccessWidget />

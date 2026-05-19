@@ -14,28 +14,13 @@ export default {
     },
     extend: {
       colors: {
-        // Base colors
+        // === CANONICAL — Design Lab ===
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        surface: "hsl(var(--surface))",
-        "surface-secondary": "hsl(var(--surface-secondary))",
-
-        // Brand colors - Milu Navy
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
-        "brand-navy": {
-          DEFAULT: "hsl(var(--brand-navy))",
-          light: "hsl(var(--brand-navy-light))",
-          dark: "hsl(var(--brand-navy-dark))",
-        },
-        "brand-teal": {
-          DEFAULT: "hsl(var(--brand-teal))",
-          foreground: "hsl(var(--brand-teal-foreground))",
-        },
-
-        // Status colors
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
@@ -44,25 +29,19 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
-        error: {
-          DEFAULT: "hsl(var(--error))",
-          foreground: "hsl(var(--error-foreground))",
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
         },
 
-        // Text colors
-        "text-primary": "hsl(var(--text-primary))",
-        "text-secondary": "hsl(var(--text-secondary))",
-        "text-tertiary": "hsl(var(--text-tertiary))",
-        "text-muted": "hsl(var(--text-muted))",
-        "text-inverse": "hsl(var(--text-inverse))",
-        "text-accent": "hsl(var(--text-accent))",
+        // Chart colors
+        "chart-1": "hsl(var(--chart-1))",
+        "chart-2": "hsl(var(--chart-2))",
+        "chart-3": "hsl(var(--chart-3))",
+        "chart-4": "hsl(var(--chart-4))",
+        "chart-5": "hsl(var(--chart-5))",
 
-        // Interactive states
-        "interactive-bg": "hsl(var(--interactive-bg))",
-        "interactive-bg-hover": "hsl(var(--interactive-bg-hover))",
-        "interactive-bg-active": "hsl(var(--interactive-bg-active))",
-
-        // Legacy shadcn compatibility
+        // Shadcn semantic
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -111,6 +90,23 @@ export default {
         "2xl": "var(--spacing-2xl)",
         "3xl": "var(--spacing-3xl)",
       },
+      fontFamily: {
+        display: ["var(--font-display)"],
+        text:    ["var(--font-text)"],
+        sans:    ["var(--font-text)"],
+      },
+      fontSize: {
+        display:        ["var(--text-display)",       { lineHeight: "var(--leading-display)" }],
+        "heading-1":    ["var(--text-heading-1)",     { lineHeight: "var(--leading-heading-1)" }],
+        "heading-2":    ["var(--text-heading-2)",     { lineHeight: "var(--leading-heading-2)" }],
+        "heading-3":    ["var(--text-heading-3)",     { lineHeight: "var(--leading-heading-3)" }],
+        "heading-4":    ["var(--text-heading-4)",     { lineHeight: "var(--leading-heading-4)" }],
+        "body-lg":      ["var(--text-body-lg)",       { lineHeight: "var(--leading-body-lg)" }],
+        "body-base":    ["var(--text-body-base)",     { lineHeight: "var(--leading-body-base)" }],
+        "body-md":      ["var(--text-body-md)",       { lineHeight: "var(--leading-body-md)" }],
+        "caption-sm":   ["var(--text-caption-sm)",    { lineHeight: "var(--leading-caption-sm)" }],
+        "helpertext-xs":["var(--text-helpertext-xs)", { lineHeight: "var(--leading-helpertext-xs)" }],
+      },
       fontWeight: {
         light: "var(--font-weight-light)",
         normal: "var(--font-weight-normal)",
@@ -131,10 +127,20 @@ export default {
         "gradient-header": "var(--gradient-header)",
       },
       borderRadius: {
-        lg: "var(--radius-lg)",
-        md: "var(--radius-md)",
-        sm: "var(--radius-sm)",
-        xl: "var(--radius-xl)",
+        none: "var(--radius-none)",
+        xs:   "var(--radius-xs)",
+        sm:   "var(--radius-sm)",
+        md:   "var(--radius-md)",
+        lg:   "var(--radius-lg)",
+        xl:   "var(--radius-xl)",
+        "2xl":"var(--radius-2xl)",
+        full: "var(--radius-full)",
+      },
+      borderWidth: {
+        1: "var(--border-width-1)",
+        2: "var(--border-width-2)",
+        6: "var(--border-width-6)",
+        8: "var(--border-width-8)",
       },
       keyframes: {
         "accordion-down": {

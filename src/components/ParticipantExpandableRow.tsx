@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, User, UserCheck, Users } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, UserCheck, Users } from "@/components/icons";
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -207,37 +207,37 @@ export const ParticipantExpandableRow: React.FC<ParticipantExpandableRowProps> =
     if (status === 'completed') {
       return (
         <div className="flex gap-1">
-          <Badge className="bg-green-100 text-green-700 border-green-300">Выполнено</Badge>
-          {hasResults && <Badge variant="outline" className="text-blue-600 border-blue-300">Есть результаты</Badge>}
+          <Badge className="bg-success/20 text-success border-success/40">Выполнено</Badge>
+          {hasResults && <Badge variant="outline" className="text-primary border-primary/40">Есть результаты</Badge>}
         </div>
       );
     }
     if (status === 'expired') {
-      return <Badge className="bg-red-100 text-red-700 border-red-300">Просрочено</Badge>;
+      return <Badge className="bg-destructive/20 text-destructive border-destructive/40">Просрочено</Badge>;
     }
     if (status === 'in_progress') {
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">Выполняется</Badge>;
+      return <Badge className="bg-warning/20 text-warning border-warning/40">Выполняется</Badge>;
     }
     return <Badge variant="secondary">Новый</Badge>;
   };
 
   // Calculate overall status for the row
   const getOverallSelfStatus = () => {
-    if (selfCompleted) return <Badge className="bg-green-100 text-green-700 border-green-300">Выполнено</Badge>;
+    if (selfCompleted) return <Badge className="bg-success/20 text-success border-success/40">Выполнено</Badge>;
     return <Badge variant="secondary">Новый</Badge>;
   };
 
   const getOverallManagerStatus = () => {
-    if (managerCompleted) return <Badge className="bg-green-100 text-green-700 border-green-300">Выполнено</Badge>;
+    if (managerCompleted) return <Badge className="bg-success/20 text-success border-success/40">Выполнено</Badge>;
     return <Badge variant="secondary">Новый</Badge>;
   };
 
   const getOverallColleaguesStatus = () => {
     if (colleaguesCompleted > 0 && colleaguesCompleted >= colleaguesCount) {
-      return <Badge className="bg-green-100 text-green-700 border-green-300">Выполнено ({colleaguesCompleted}/{colleaguesCount})</Badge>;
+      return <Badge className="bg-success/20 text-success border-success/40">Выполнено ({colleaguesCompleted}/{colleaguesCount})</Badge>;
     }
     if (colleaguesCompleted > 0) {
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">Выполняется ({colleaguesCompleted}/{colleaguesCount})</Badge>;
+      return <Badge className="bg-warning/20 text-warning border-warning/40">Выполняется ({colleaguesCompleted}/{colleaguesCount})</Badge>;
     }
     if (colleaguesCount > 0) {
       return <Badge variant="secondary">Новый (0/{colleaguesCount})</Badge>;
@@ -266,10 +266,10 @@ export const ParticipantExpandableRow: React.FC<ParticipantExpandableRowProps> =
           <TableCell colSpan={5} className="p-0">
             <div className="p-4 pl-12">
               {isLoading ? (
-                <div className="text-sm text-muted-foreground">Загрузка респондентов...</div>
+                <div className="text-body-md text-muted-foreground">Загрузка респондентов...</div>
               ) : respondents && respondents.length > 0 ? (
                 <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-body-md">
                     <thead className="bg-muted">
                       <tr>
                         <th className="text-left p-2 font-medium">ФИО</th>
@@ -296,7 +296,7 @@ export const ParticipantExpandableRow: React.FC<ParticipantExpandableRowProps> =
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">Нет респондентов</div>
+                <div className="text-body-md text-muted-foreground">Нет респондентов</div>
               )}
             </div>
           </TableCell>

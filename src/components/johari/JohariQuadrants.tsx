@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Eye, Sparkles, HelpCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, Eye, Sparkles, HelpCircle, AlertCircle } from "@/components/icons";
 import { JohariSkillCard } from './JohariSkillCard';
 import { sortSkillsInZone } from '@/lib/johariMarkers';
 import type { SkillMetrics } from '@/hooks/useJohariReport';
@@ -27,33 +27,33 @@ const quadrantConfigs: QuadrantConfig[] = [
     zone: 'arena',
     title: 'Открытая зона',
     subtitle: 'Самооценка и внешняя оценка близки',
-    icon: <CheckCircle className="w-4 h-4 text-green-600" />,
-    bgClass: 'bg-green-50 dark:bg-green-950',
-    borderClass: 'border-green-200 dark:border-green-800'
+    icon: <CheckCircle className="w-4 h-4 text-success" />,
+    bgClass: 'bg-success/10 dark:bg-success',
+    borderClass: 'border-success/30 dark:border-success'
   },
   {
     zone: 'blind_spot',
     title: 'Слепая зона',
     subtitle: 'Сотрудник оценивает себя выше окружающих',
-    icon: <Eye className="w-4 h-4 text-orange-600" />,
-    bgClass: 'bg-orange-50 dark:bg-orange-950',
-    borderClass: 'border-orange-200 dark:border-orange-800'
+    icon: <Eye className="w-4 h-4 text-warning" />,
+    bgClass: 'bg-warning/10 dark:bg-warning',
+    borderClass: 'border-warning/30 dark:border-warning'
   },
   {
     zone: 'hidden_strength',
     title: 'Скрытая зона',
     subtitle: 'Окружающие оценивают выше сотрудника',
-    icon: <Sparkles className="w-4 h-4 text-blue-600" />,
-    bgClass: 'bg-blue-50 dark:bg-blue-950',
-    borderClass: 'border-blue-200 dark:border-blue-800'
+    icon: <Sparkles className="w-4 h-4 text-primary" />,
+    bgClass: 'bg-primary/10 dark:bg-primary',
+    borderClass: 'border-primary/30 dark:border-primary'
   },
   {
     zone: 'unknown',
     title: 'Чёрный ящик',
     subtitle: 'Недостаточно данных для классификации',
-    icon: <HelpCircle className="w-4 h-4 text-gray-600" />,
-    bgClass: 'bg-gray-50 dark:bg-gray-900',
-    borderClass: 'border-gray-200 dark:border-gray-700'
+    icon: <HelpCircle className="w-4 h-4 text-muted-foreground" />,
+    bgClass: 'bg-muted',
+    borderClass: 'border-border'
   }
 ];
 
@@ -64,12 +64,12 @@ const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[
   return (
     <Card className={`${config.bgClass} ${config.borderClass} border`}>
       <CardHeader className="px-3 py-2 pb-1.5">
-        <CardTitle className="flex items-start justify-between gap-2 text-sm">
+        <CardTitle className="flex items-start justify-between gap-2 text-body-md">
           <div className="flex items-center gap-1.5 min-w-0">
             {config.icon}
             <div className="min-w-0">
               <div className="font-semibold">{config.title}</div>
-              <div className="text-xs font-normal text-muted-foreground leading-snug">
+              <div className="text-caption-sm font-normal text-muted-foreground leading-snug">
                 {config.subtitle}
               </div>
             </div>
@@ -89,7 +89,7 @@ const QuadrantCard: React.FC<{ config: QuadrantConfig; zoneSkills: SkillMetrics[
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground text-center py-3">
+          <p className="text-caption-sm text-muted-foreground text-center py-3">
             Нет навыков в этой зоне
           </p>
         )}
@@ -128,10 +128,10 @@ export const JohariQuadrants: React.FC<JohariQuadrantsProps> = ({ skills, scaleM
       {insufficientSkills.length > 0 && (
         <Card className="border-muted">
           <CardHeader className="px-3 py-2 pb-1.5">
-            <CardTitle className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-body-md text-muted-foreground">
               <AlertCircle className="w-4 h-4" />
               Недостаточно данных
-              <span className="text-xs font-normal">
+              <span className="text-caption-sm font-normal">
                 — не хватает ответов для помещения в одну из зон, слишком субъективно
               </span>
             </CardTitle>

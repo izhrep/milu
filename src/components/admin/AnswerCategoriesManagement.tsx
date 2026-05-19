@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Settings } from 'lucide-react';
+import { Plus, Edit2, Trash2, Settings } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,7 +65,7 @@ export const AnswerCategoriesManagement = () => {
           <Button variant="outline" onClick={() => setSelectedCategoryId(null)}>
             ← Назад к категориям
           </Button>
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-heading-4 font-semibold">
             {categories.find(c => c.id === selectedCategoryId)?.name}
           </h2>
         </div>
@@ -78,7 +78,7 @@ export const AnswerCategoriesManagement = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Категории ответов</h2>
+          <h2 className="text-heading-3 font-bold">Категории ответов</h2>
           <p className="text-muted-foreground mt-1">
             Управление пакетами вариантов ответов для вопросов оценки
           </p>
@@ -162,7 +162,7 @@ export const AnswerCategoriesManagement = () => {
                   <TableCell className="font-medium">
                     {category.name}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-body-md text-muted-foreground">
                     {category.description || '—'}
                   </TableCell>
                   <TableCell>

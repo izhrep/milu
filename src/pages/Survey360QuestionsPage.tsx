@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from "@/components/icons";
 import { useSurvey360, type Survey360Answer } from '@/hooks/useSurvey360';
 import { useAuth } from '@/contexts/AuthContext';
 import { decryptUserData, getFullName, type DecryptedUserData } from '@/lib/userDataDecryption';
@@ -337,10 +337,10 @@ const Survey360QuestionsPage = () => {
 
   if (loading || surveyLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка данных...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка данных...</p>
         </div>
       </div>
     );
@@ -348,9 +348,9 @@ const Survey360QuestionsPage = () => {
 
   if (!assignmentData || !evaluatedUser) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="mt-4 text-text-secondary">Данные не загружены</p>
+          <p className="mt-4 text-muted-foreground">Данные не загружены</p>
           <Button onClick={() => navigate('/development')} className="mt-4">
             Вернуться назад
           </Button>
@@ -361,9 +361,9 @@ const Survey360QuestionsPage = () => {
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="mt-4 text-text-secondary">Вопросы не найдены для этого грейда</p>
+          <p className="mt-4 text-muted-foreground">Вопросы не найдены для этого грейда</p>
           <Button onClick={() => navigate('/development')} className="mt-4">
             Вернуться назад
           </Button>
@@ -376,9 +376,9 @@ const Survey360QuestionsPage = () => {
   
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="mt-4 text-text-secondary">Текущий вопрос не найден</p>
+          <p className="mt-4 text-muted-foreground">Текущий вопрос не найден</p>
           <Button onClick={() => navigate('/development')} className="mt-4">
             Вернуться назад
           </Button>
@@ -393,10 +393,10 @@ const Survey360QuestionsPage = () => {
         <Breadcrumbs />
         <div className="min-h-[400px] flex items-center justify-center">
           <div className="text-center">
-            <p className="text-text-secondary">Нет доступных вопросов для этого грейда</p>
+            <p className="text-muted-foreground">Нет доступных вопросов для этого грейда</p>
             <button 
               onClick={() => navigate('/development')}
-              className="mt-4 text-brand-purple hover:text-brand-purple/90"
+              className="mt-4 text-accent hover:text-accent/90"
             >
               Вернуться назад
             </button>
@@ -415,19 +415,19 @@ const Survey360QuestionsPage = () => {
       <div className="flex items-center mb-8">
         <button 
           onClick={() => navigate('/development')}
-          className="mr-4 p-2 hover:bg-surface-tertiary rounded-lg transition-colors"
+          className="mr-4 p-2 hover:bg-card-tertiary rounded-lg transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-text-secondary" />
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <p className="text-sm text-text-secondary">Обратно к разделу «Мое развитие»</p>
-          <h1 className="text-2xl font-bold text-text-primary">
+          <p className="text-body-md text-muted-foreground">Обратно к разделу «Мое развитие»</p>
+          <h1 className="text-heading-3 font-bold text-foreground">
             {isSelfAssessment ? 'Самооценка 360°' : `Оценка 360° для сотрудника: ${getFullName(evaluatedUser)}`}
           </h1>
         </div>
       </div>
 
-      <p className="text-text-secondary mb-8 leading-relaxed">
+      <p className="text-muted-foreground mb-8 leading-relaxed">
         {isSelfAssessment 
           ? 'Самооценка 360° – это инструмент для оценки ваших личностных качеств и профессиональных компетенций. Данный метод помогает выявить сильные стороны и зоны роста.'
           : `Вы оцениваете личностные качества сотрудника ${getFullName(evaluatedUser)}. Ваша обратная связь поможет сформировать объективное представление о его компетенциях.`
@@ -435,26 +435,26 @@ const Survey360QuestionsPage = () => {
       </p>
 
       {/* Progress Bar */}
-      <div className="bg-surface-primary rounded-2xl p-6 border border-border mb-8">
+      <div className="bg-card-primary rounded-2xl p-6 border border-border mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-text-primary">Прогресс прохождения</span>
-          <span className="text-sm text-text-secondary">{currentQuestionIndex + 1} из {questions.length}</span>
+          <span className="text-body-md font-medium text-foreground">Прогресс прохождения</span>
+          <span className="text-body-md text-muted-foreground">{currentQuestionIndex + 1} из {questions.length}</span>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
 
       {/* Profile Section */}
-      <div className="flex items-center mb-8 bg-surface-primary rounded-2xl p-6 border border-border">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink flex items-center justify-center mr-4">
-          <span className="text-white font-semibold text-lg">
+      <div className="flex items-center mb-8 bg-card-primary rounded-2xl p-6 border border-border">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-accent to-accent flex items-center justify-center mr-4">
+          <span className="text-white font-semibold text-body-lg">
             {getFullName(evaluatedUser)?.charAt(0) || 'U'}
           </span>
         </div>
           <div>
-            <h2 className="text-xl font-bold text-text-primary">
+            <h2 className="text-heading-4 font-bold text-foreground">
               {isSelfAssessment ? 'Моя самооценка 360°' : `Оценка для: ${getFullName(evaluatedUser)}`}
             </h2>
-            <p className="text-text-secondary">
+            <p className="text-muted-foreground">
             {(evaluatedUser as any).positions?.name || 'Сотрудник'} 
             {(evaluatedUser as any).grades?.name && ` • ${(evaluatedUser as any).grades?.name}`}
           </p>
@@ -462,22 +462,22 @@ const Survey360QuestionsPage = () => {
       </div>
 
       {/* Question Card */}
-      <div className="bg-surface-primary rounded-2xl p-8 border border-border mb-8">
+      <div className="bg-card-primary rounded-2xl p-8 border border-border mb-8">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-text-primary mb-2">
-            Вопрос {currentQuestionIndex + 1}<span className="text-text-secondary">/{questions.length}</span>
+          <h2 className="text-heading-3 font-bold text-foreground mb-2">
+            Вопрос {currentQuestionIndex + 1}<span className="text-muted-foreground">/{questions.length}</span>
           </h2>
         </div>
 
         <div className="text-center mb-8">
-          <h3 className="text-xl font-semibold text-text-primary mb-4">
+          <h3 className="text-heading-4 font-semibold text-foreground mb-4">
             {currentQuestion.question_text}
           </h3>
         </div>
 
         {/* Rating Scale */}
         <div className="mb-8">
-          <p className="text-sm font-medium text-text-primary mb-4">Выставите оценку</p>
+          <p className="text-body-md font-medium text-foreground mb-4">Выставите оценку</p>
           
           {/* Slider */}
           <div className="relative mb-4">
@@ -497,9 +497,9 @@ const Survey360QuestionsPage = () => {
                   updateAnswer(currentQuestion.id, option.id, answers[currentQuestion.id]?.comment);
                 }
               }}
-              className="w-full h-2 bg-surface-secondary rounded-lg appearance-none cursor-pointer slider"
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
               style={{
-                background: `linear-gradient(to right, hsl(var(--brand-orange)) 0%, hsl(var(--brand-orange)) ${answers[currentQuestion.id] ? (filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (filteredAnswerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) ${answers[currentQuestion.id] ? (filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (filteredAnswerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) 100%)`
+                background: `linear-gradient(to right, hsl(var(--brand-primary)) 0%, hsl(var(--brand-primary)) ${answers[currentQuestion.id] ? (filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (filteredAnswerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) ${answers[currentQuestion.id] ? (filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id) / (filteredAnswerOptions.length - 1)) * 100 : 0}%, hsl(var(--surface-tertiary)) 100%)`
               }}
             />
             
@@ -507,15 +507,15 @@ const Survey360QuestionsPage = () => {
             <div className="flex justify-between mt-2">
               {filteredAnswerOptions.map((option, index) => (
                 <div key={option.id} className="flex flex-col items-center">
-                  <div className="w-3 h-3 bg-surface-tertiary rounded-full border-2 border-surface-primary"></div>
-                  <span className="text-xs text-text-secondary mt-1">{index}</span>
+                  <div className="w-3 h-3 bg-card-tertiary rounded-full border-2 border-card-primary"></div>
+                  <span className="text-caption-sm text-muted-foreground mt-1">{index}</span>
                 </div>
               ))}
             </div>
           </div>
           
           {/* Scale labels */}
-          <div className="space-y-1 text-xs text-text-secondary mb-4">
+          <div className="space-y-1 text-caption-sm text-muted-foreground mb-4">
               {filteredAnswerOptions.map((option, index) => (
               <div key={option.id}>
                 <span className="font-medium">{index}.</span> {option.title}
@@ -525,16 +525,16 @@ const Survey360QuestionsPage = () => {
           
           {/* Current selection display */}
           {answers[currentQuestion.id] && (
-            <div className="mt-4 p-3 bg-brand-orange/10 rounded-lg border border-brand-orange/20">
+            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-text-primary">
+                <span className="text-body-md font-medium text-foreground">
                   Выбранная оценка:
                 </span>
-                <span className="text-lg font-bold text-brand-orange">
+                <span className="text-body-lg font-bold text-primary">
                   {filteredAnswerOptions.findIndex(opt => opt.id === answers[currentQuestion.id].answer_option_id)}
                 </span>
               </div>
-              <p className="text-sm text-text-secondary mt-1">
+              <p className="text-body-md text-muted-foreground mt-1">
                 {filteredAnswerOptions.find(opt => opt.id === answers[currentQuestion.id].answer_option_id)?.title} - {filteredAnswerOptions.find(opt => opt.id === answers[currentQuestion.id].answer_option_id)?.description}
               </p>
             </div>

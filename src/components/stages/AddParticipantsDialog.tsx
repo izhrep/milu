@@ -11,7 +11,7 @@ import { useMeetingStages } from '@/hooks/useMeetingStages';
 import { useUsers } from '@/hooks/useUsers';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search } from 'lucide-react';
+import { Search } from "@/components/icons";
 import { supabase } from '@/integrations/supabase/client';
 
 interface AddParticipantsDialogProps {
@@ -171,7 +171,7 @@ export const AddParticipantsDialog = ({
             <div className="space-y-2">
               <Label htmlFor="search-name">Поиск по ФИО</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   id="search-name"
                   placeholder="Введите фамилию, имя или отчество..."
@@ -185,7 +185,7 @@ export const AddParticipantsDialog = ({
             <div className="space-y-2">
               <Label htmlFor="search-email">Поиск по Email</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   id="search-email"
                   placeholder="Введите email..."
@@ -236,13 +236,13 @@ export const AddParticipantsDialog = ({
                         <TableCell className="font-medium">
                           {user.last_name} {user.first_name} {user.middle_name}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-body-md text-muted-foreground">
                           {user.email || '-'}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="text-body-md">
                           {user.positions?.name || '-'}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="text-body-md">
                           {user.positions?.position_categories?.name || '-'}
                         </TableCell>
                         <TableCell>
@@ -261,7 +261,7 @@ export const AddParticipantsDialog = ({
           </ScrollArea>
 
           <div className="flex justify-between items-center pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-body-md text-muted-foreground">
               Выбрано: {selectedUsers.length} из {filteredUsers.length}
             </div>
             <div className="flex gap-2">

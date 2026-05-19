@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, Calendar, Clock, AlertCircle } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useDiagnosticStageParticipants } from '@/hooks/useDiagnosticStageParticipants';
 import { useDiagnosticStages } from '@/hooks/useDiagnosticStages';
@@ -140,10 +140,10 @@ const Survey360Page = () => {
 
   if (participantLoading || assignmentsLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка...</p>
         </div>
       </div>
     );
@@ -156,7 +156,7 @@ const Survey360Page = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
+              <AlertCircle className="w-5 h-5 text-warning" />
               Диагностический этап не активен
             </CardTitle>
             <CardDescription>
@@ -178,15 +178,15 @@ const Survey360Page = () => {
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-text-primary">Оценка 360°</h1>
-            <p className="text-text-secondary mt-2">
+            <h1 className="text-heading-2 font-bold text-foreground">Оценка 360°</h1>
+            <p className="text-muted-foreground mt-2">
               Оценка 360° – это инструмент всесторонней оценки качеств сотрудника, основанный на обратной связи от коллег и руководителей.
             </p>
           </div>
           {activeStage && (
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Напоминание</p>
-              <p className="text-lg font-semibold text-text-primary">
+              <p className="text-body-md text-muted-foreground">Напоминание</p>
+              <p className="text-body-lg font-semibold text-foreground">
                 {formatDate(activeStage.reminder_date)}
               </p>
             </div>
@@ -224,18 +224,18 @@ const Survey360Page = () => {
         <CardContent className="space-y-6">
           {/* Руководители */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-text-primary">Руководители</h3>
+            <h3 className="text-body-md font-semibold text-foreground">Руководители</h3>
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-2">
                 {managerAssignment ? (
                   <>
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-sm">Выбрано руководителей: 1</span>
+                    <CheckCircle className="w-4 h-4 text-success" />
+                    <span className="text-body-md">Выбрано руководителей: 1</span>
                   </>
                 ) : (
                   <>
-                    <AlertCircle className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm">Руководитель не назначен</span>
+                    <AlertCircle className="w-4 h-4 text-warning" />
+                    <span className="text-body-md">Руководитель не назначен</span>
                   </>
                 )}
               </div>
@@ -249,24 +249,24 @@ const Survey360Page = () => {
 
           {/* Коллеги */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-text-primary">Коллеги</h3>
+            <h3 className="text-body-md font-semibold text-foreground">Коллеги</h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-2">
                   {totalColleagues === 0 ? (
                     <>
-                      <AlertCircle className="w-4 h-4 text-amber-500" />
-                      <span className="text-sm">Выбрано коллег: 0</span>
+                      <AlertCircle className="w-4 h-4 text-warning" />
+                      <span className="text-body-md">Выбрано коллег: 0</span>
                     </>
                   ) : pendingApprovalColleagues > 0 ? (
                     <>
-                      <Clock className="w-4 h-4 text-amber-500" />
-                      <span className="text-sm">Выбрано коллег: {totalColleagues}</span>
+                      <Clock className="w-4 h-4 text-warning" />
+                      <span className="text-body-md">Выбрано коллег: {totalColleagues}</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm">Выбрано коллег: {totalColleagues}</span>
+                      <CheckCircle className="w-4 h-4 text-success" />
+                      <span className="text-body-md">Выбрано коллег: {totalColleagues}</span>
                     </>
                   )}
                 </div>
@@ -309,17 +309,17 @@ const Survey360Page = () => {
 
               {/* Статус подсказки */}
               {selectionStatus === 'not_selected' && (
-                <div className="text-xs text-muted-foreground p-2 bg-amber-50 rounded-md">
+                <div className="text-caption-sm text-muted-foreground p-2 bg-warning/10 rounded-md">
                   ℹ️ Перед началом самооценки необходимо выбрать коллег для оценки
                 </div>
               )}
               {selectionStatus === 'pending_approval' && (
-                <div className="text-xs text-amber-600 p-2 bg-amber-50 rounded-md">
+                <div className="text-caption-sm text-warning p-2 bg-warning/10 rounded-md">
                   ⏳ Список коллег отправлен руководителю на утверждение ({pendingApprovalColleagues})
                 </div>
               )}
               {selectionStatus === 'approved' && !hasCompletedSelf && (
-                <div className="text-xs text-green-600 p-2 bg-green-50 rounded-md">
+                <div className="text-caption-sm text-success p-2 bg-success/10 rounded-md">
                   ✅ Коллеги утверждены ({approvedColleagues}). Можно начинать самооценку!
                 </div>
               )}
@@ -329,14 +329,14 @@ const Survey360Page = () => {
           {/* Статус самооценки */}
           {selfAssignment && (
             <div className="space-y-2 pt-4 border-t">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-body-md">
                 <span className="text-muted-foreground">Статус самооценки:</span>
                 <Badge variant={hasCompletedSelf ? "default" : "outline"}>
                   {hasCompletedSelf ? 'Завершена' : selfAssignment.status}
                 </Badge>
               </div>
               {selfAssignment.updated_at && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
                   <Calendar size={14} />
                   <span>
                     {hasCompletedSelf ? 'Завершено' : 'Обновлено'}: {formatDate(selfAssignment.updated_at)}
@@ -357,9 +357,9 @@ const Survey360Page = () => {
             <CardTitle className="flex items-center justify-between">
               <span>Оценка руководителя</span>
               {hasCompletedManager ? (
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CheckCircle className="w-5 h-5 text-success" />
               ) : (
-                <Clock className="w-5 h-5 text-amber-500" />
+                <Clock className="w-5 h-5 text-warning" />
               )}
             </CardTitle>
             <CardDescription>
@@ -369,14 +369,14 @@ const Survey360Page = () => {
           <CardContent className="space-y-4">
             {managerAssignment && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-body-md">
                   <span className="text-muted-foreground">Статус:</span>
                   <Badge variant={hasCompletedManager ? "default" : "outline"}>
                     {managerAssignment.status}
                   </Badge>
                 </div>
                 {managerAssignment.updated_at && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
                     <Calendar size={14} />
                     <span>
                       {hasCompletedManager ? 'Завершено' : 'Обновлено'}: {formatDate(managerAssignment.updated_at)}
@@ -386,7 +386,7 @@ const Survey360Page = () => {
               </div>
             )}
             {!hasCompletedManager && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-md text-muted-foreground">
                 Руководитель получил запрос на оценку
               </p>
             )}
@@ -399,9 +399,9 @@ const Survey360Page = () => {
             <CardTitle className="flex items-center justify-between">
               <span>Оценка коллег</span>
               {completedColleagues >= 1 ? (
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CheckCircle className="w-5 h-5 text-success" />
               ) : (
-                <Clock className="w-5 h-5 text-amber-500" />
+                <Clock className="w-5 h-5 text-warning" />
               )}
             </CardTitle>
             <CardDescription>
@@ -410,21 +410,21 @@ const Survey360Page = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-body-md">
                 <span className="text-muted-foreground">Прогресс:</span>
                 <Badge variant={completedColleagues >= 1 ? "default" : "outline"}>
                   {completedColleagues} / {totalColleagues}
                 </Badge>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-border rounded-full h-2">
                 <div 
-                  className="bg-brand-purple h-2 rounded-full transition-all duration-300"
+                  className="bg-accent h-2 rounded-full transition-all duration-300"
                   style={{ width: `${totalColleagues > 0 ? (completedColleagues / totalColleagues) * 100 : 0}%` }}
                 ></div>
               </div>
             </div>
             {totalColleagues === 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-md text-muted-foreground">
                 Коллеги не назначены
               </p>
             )}
@@ -437,7 +437,7 @@ const Survey360Page = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-success" />
               Результаты доступны
             </CardTitle>
             <CardDescription>
@@ -457,13 +457,13 @@ const Survey360Page = () => {
 
       {/* Info Card */}
       {!selfAssignment && !managerAssignment && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-warning/30 bg-warning/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900">
+            <CardTitle className="flex items-center gap-2 text-warning">
               <AlertCircle className="w-5 h-5" />
               Ожидание заданий
             </CardTitle>
-            <CardDescription className="text-amber-700">
+            <CardDescription className="text-warning">
               Задания на оценку создаются автоматически при добавлении вас в диагностический этап. 
               Если вы не видите заданий, обратитесь к HR-администратору.
             </CardDescription>

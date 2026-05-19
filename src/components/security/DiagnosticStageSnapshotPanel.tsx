@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Play, CheckCircle2, XCircle, AlertTriangle, Info, Database, Copy } from 'lucide-react';
+import { Loader2, Play, CheckCircle2, XCircle, AlertTriangle, Info, Database, Copy } from "@/components/icons";
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -362,8 +362,8 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
           <CardContent className="space-y-4">
             {/* Stage ID */}
             <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-              <span className="text-sm text-muted-foreground shrink-0">ID этапа:</span>
-              <code className="text-sm font-mono text-foreground select-all">{selectedStageId}</code>
+              <span className="text-body-md text-muted-foreground shrink-0">ID этапа:</span>
+              <code className="text-body-md font-mono text-foreground select-all">{selectedStageId}</code>
               <Button
                 variant="ghost"
                 size="icon"
@@ -374,7 +374,7 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-body-md">
               <div>
                 <span className="text-muted-foreground">Период:</span>
                 <p className="font-medium">{selectedStage.period || selectedStage.evaluation_period || '—'}</p>
@@ -395,22 +395,22 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
 
             {/* Preflight */}
             {preflightLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-body-md text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Подсчёт данных…
               </div>
             ) : preflight && (
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-lg border border-border p-3 text-center">
-                  <p className="text-2xl font-bold">{preflight.totalUsers}</p>
-                  <p className="text-xs text-muted-foreground">Всего оцениваемых</p>
+                  <p className="text-heading-3 font-bold">{preflight.totalUsers}</p>
+                  <p className="text-caption-sm text-muted-foreground">Всего оцениваемых</p>
                 </div>
                 <div className="rounded-lg border border-border p-3 text-center">
-                  <p className="text-2xl font-bold text-primary">{preflight.existingSnapshots}</p>
-                  <p className="text-xs text-muted-foreground">Снапшотов есть</p>
+                  <p className="text-heading-3 font-bold text-primary">{preflight.existingSnapshots}</p>
+                  <p className="text-caption-sm text-muted-foreground">Снапшотов есть</p>
                 </div>
                 <div className="rounded-lg border border-border p-3 text-center">
-                  <p className="text-2xl font-bold">{preflight.missingSnapshots}</p>
-                  <p className="text-xs text-muted-foreground">Снапшотов нет</p>
+                  <p className="text-heading-3 font-bold">{preflight.missingSnapshots}</p>
+                  <p className="text-caption-sm text-muted-foreground">Снапшотов нет</p>
                 </div>
               </div>
             )}
@@ -419,7 +419,7 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
             {selectedStage.is_active && (
               <div className="flex items-start gap-2 rounded-lg border border-border bg-muted p-3">
                 <AlertTriangle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body-md text-muted-foreground">
                   Этап ещё активен. Снапшоты можно создать, но они могут быть неполными.
                 </p>
               </div>
@@ -438,13 +438,13 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
                 )}
               </Button>
               {preflight && preflight.totalUsers === 0 && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <p className="text-body-md text-muted-foreground flex items-center gap-1">
                   <Info className="h-3.5 w-3.5" />
                   Нет оцениваемых пользователей для этого этапа
                 </p>
               )}
               {preflight && preflight.totalUsers > 0 && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <p className="text-body-md text-muted-foreground flex items-center gap-1">
                   <Info className="h-3.5 w-3.5" />
                   Операция может занять некоторое время
                 </p>
@@ -469,7 +469,7 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
           </CardHeader>
           <CardContent>
             {tableCountsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <div className="flex items-center gap-2 text-body-md text-muted-foreground py-4">
                 <Loader2 className="h-4 w-4 animate-spin" /> Загрузка данных по таблицам…
               </div>
             ) : (
@@ -486,7 +486,7 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
                     <TableRow key={tc.table_name}>
                       <TableCell className="font-medium">{tc.label}</TableCell>
                       <TableCell>
-                        <code className="text-xs text-muted-foreground">{tc.table_name}</code>
+                        <code className="text-caption-sm text-muted-foreground">{tc.table_name}</code>
                       </TableCell>
                       <TableCell className="text-right">
                         {tc.count === -1 ? (
@@ -517,28 +517,28 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-body-md">
                 <span>Обработано: {activeRun.processed_subjects} / {activeRun.total_subjects}</span>
                 <span>{activeRun.progress_percent}%</span>
               </div>
               <Progress value={activeRun.progress_percent} className="h-2" />
             </div>
-            <div className="grid grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-4 gap-3 text-body-md">
               <div className="text-center">
-                <p className="text-lg font-bold text-primary">{activeRun.inserted_count}</p>
-                <p className="text-xs text-muted-foreground">Создано</p>
+                <p className="text-body-lg font-bold text-primary">{activeRun.inserted_count}</p>
+                <p className="text-caption-sm text-muted-foreground">Создано</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-muted-foreground">{activeRun.skipped_count}</p>
-                <p className="text-xs text-muted-foreground">Пропущено</p>
+                <p className="text-body-lg font-bold text-muted-foreground">{activeRun.skipped_count}</p>
+                <p className="text-caption-sm text-muted-foreground">Пропущено</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold">{activeRun.versioned_count}</p>
-                <p className="text-xs text-muted-foreground">Обновлено</p>
+                <p className="text-body-lg font-bold">{activeRun.versioned_count}</p>
+                <p className="text-caption-sm text-muted-foreground">Обновлено</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-destructive">{activeRun.error_count}</p>
-                <p className="text-xs text-muted-foreground">Ошибок</p>
+                <p className="text-body-lg font-bold text-destructive">{activeRun.error_count}</p>
+                <p className="text-caption-sm text-muted-foreground">Ошибок</p>
               </div>
             </div>
           </CardContent>
@@ -562,7 +562,7 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-body-md">
               <div>
                 <span className="text-muted-foreground">Начало:</span>
                 <p className="font-medium">{formatDate(lastRun.started_at)}</p>
@@ -605,7 +605,7 @@ const DiagnosticStageSnapshotPanel: React.FC = () => {
             </Table>
 
             {lastRun.error_message && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-body-md text-destructive">
                 {lastRun.error_message}
               </div>
             )}

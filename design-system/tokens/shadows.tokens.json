@@ -1,0 +1,19 @@
+{
+  "shadow": {
+    "2xs":  {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.09)"},
+    "xs":   {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.09)"},
+    "sm":   {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 1px 2px -19px hsl(0 0% 10% / 0.18)"},
+    "card": {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 1px 2px -19px hsl(0 0% 10% / 0.18)"},
+    "md":   {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 2px 4px -19px hsl(0 0% 10% / 0.18)"},
+    "lg":   {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 4px 6px -19px hsl(0 0% 10% / 0.18)"},
+    "xl":   {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 8px 10px -19px hsl(0 0% 10% / 0.18)"},
+    "2xl":  {"value":"0px 4px 6px -18px hsl(0 0% 10% / 0.45)"},
+    "semantic": {
+      "card.rest":       "{shadow.card}",
+      "card.hover":      "{shadow.lg}",
+      "dropdown":        "{shadow.md}",
+      "dialog":          "{shadow.xl}",
+      "popover":         "{shadow.md}"
+    }
+  }
+}

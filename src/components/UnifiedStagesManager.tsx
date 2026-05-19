@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar, CheckCircle2, Users, Pencil } from 'lucide-react';
+import { Plus, Calendar, CheckCircle2, Users, Pencil } from "@/components/icons";
 import { CreateStageDialog } from '@/components/stages/CreateStageDialog';
 import { AddSubStageDialog } from '@/components/stages/AddSubStageDialog';
 import { AddParticipantsDialog } from '@/components/stages/AddParticipantsDialog';
@@ -97,13 +97,13 @@ export const UnifiedStagesManager = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-body-md text-muted-foreground">
               Напоминание: {format(new Date(stage.reminder_date), 'dd MMMM yyyy', { locale: ru })}
             </div>
             
             {(subStages.diagnostic || subStages.meeting) && (
               <div className="mt-4 space-y-2">
-                <p className="text-sm font-medium">Подэтапы:</p>
+                <p className="text-body-md font-medium">Подэтапы:</p>
                 <div className="flex flex-col gap-2">
                   {subStages.diagnostic && (
                     <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export const UnifiedStagesManager = () => {
                         <CheckCircle2 className="h-3 w-3" />
                         Диагностика
                       </Badge>
-                      <Badge variant={subStages.diagnostic.is_active ? "default" : "secondary"} className="text-xs">
+                      <Badge variant={subStages.diagnostic.is_active ? "default" : "secondary"} className="text-caption-sm">
                         {subStages.diagnostic.is_active ? subStages.diagnostic.status || 'Активен' : 'Завершен'}
                       </Badge>
                     </div>
@@ -122,7 +122,7 @@ export const UnifiedStagesManager = () => {
                         <Calendar className="h-3 w-3" />
                         Встречи one-to-one
                       </Badge>
-                      <Badge variant={stage.is_active ? "default" : "secondary"} className="text-xs">
+                      <Badge variant={stage.is_active ? "default" : "secondary"} className="text-caption-sm">
                         {stage.is_active ? 'Активен' : 'Завершен'}
                       </Badge>
                     </div>
@@ -140,7 +140,7 @@ export const UnifiedStagesManager = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Управление этапами</h2>
+          <h2 className="text-heading-2 font-bold tracking-tight">Управление этапами</h2>
           <p className="text-muted-foreground">
             Создание и управление этапами диагностики и встреч one-to-one
           </p>
@@ -153,7 +153,7 @@ export const UnifiedStagesManager = () => {
 
       {activeStages.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Активные этапы</h3>
+          <h3 className="text-heading-4 font-semibold">Активные этапы</h3>
           <div className="grid gap-4">
             {activeStages.map(renderStageCard)}
           </div>
@@ -162,7 +162,7 @@ export const UnifiedStagesManager = () => {
 
       {completedStages.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Завершенные этапы</h3>
+          <h3 className="text-heading-4 font-semibold">Завершенные этапы</h3>
           <div className="grid gap-4">
             {completedStages.map(renderStageCard)}
           </div>

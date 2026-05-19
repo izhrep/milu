@@ -27,7 +27,7 @@ import {
   Sparkles,
   ChevronDown,
   Info
-} from 'lucide-react';
+} from "@/components/icons";
 import { JohariQuadrants } from './JohariQuadrants';
 import { JohariCompetencyView } from './JohariCompetencyView';
 import { JohariCommentsClassification } from './JohariCommentsClassification';
@@ -141,7 +141,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
             <p className="text-muted-foreground">Генерация отчёта...</p>
-            <p className="text-sm text-muted-foreground/70 mt-2">
+            <p className="text-body-md text-muted-foreground/70 mt-2">
               Это может занять несколько секунд
             </p>
           </div>
@@ -170,7 +170,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
             {excludedSkills.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Навыки, исключённые из расчёта</CardTitle>
+                  <CardTitle className="text-body-base">Навыки, исключённые из расчёта</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -179,8 +179,8 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
                         key={skill.skill_id} 
                         className="flex items-center justify-between p-2 rounded bg-muted/50"
                       >
-                        <span className="font-medium text-sm">{skill.skill_name}</span>
-                        <Badge variant="secondary" className="text-xs">
+                        <span className="font-medium text-body-md">{skill.skill_name}</span>
+                        <Badge variant="secondary" className="text-caption-sm">
                           {skill.reason}
                         </Badge>
                       </div>
@@ -197,13 +197,13 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
           <div className="space-y-6">
             {/* Data changed banner */}
             {dataChanged && (
-              <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertTitle className="text-amber-800 dark:text-amber-200">
+              <Alert className="bg-warning/10 dark:bg-warning border-warning/30 dark:border-warning">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <AlertTitle className="text-warning dark:text-warning">
                   Данные изменились
                 </AlertTitle>
                 <AlertDescription className="flex items-center justify-between">
-                  <span className="text-amber-700 dark:text-amber-300">
+                  <span className="text-warning dark:text-warning/70">
                     С момента генерации отчёта данные были обновлены. Вы можете перегенерировать отчёт.
                   </span>
                   <Button 
@@ -220,7 +220,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
             )}
 
             {/* Snapshot metadata + scope switch */}
-            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-4 text-body-md text-muted-foreground flex-wrap">
               <div className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
                 <span>Создан: {formatDate(snapshot.created_at)}</span>
@@ -233,7 +233,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
                   onCheckedChange={handleScopeToggle}
                   disabled={loading}
                 />
-                <Label htmlFor="scope-toggle" className="text-sm cursor-pointer flex items-center gap-1">
+                <Label htmlFor="scope-toggle" className="text-body-md cursor-pointer flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
                   Только внешние
                 </Label>
@@ -256,7 +256,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="text-xs text-muted-foreground border rounded-md px-4 py-3 bg-muted/30 space-y-2 mt-1">
+                  <div className="text-caption-sm text-muted-foreground border rounded-md px-4 py-3 bg-muted/30 space-y-2 mt-1">
                     <p className="font-medium text-foreground">Как читать Окно Джохари</p>
                     <div className="space-y-1">
                       <p>🟢 <strong>Открытая зона</strong> — самооценка и внешняя оценка близки. Зона взаимопонимания.</p>
@@ -296,13 +296,13 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
 
             {/* Moderation status banner */}
             {!snapshot.is_reviewed && canReview && (
-              <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
-                <Clock className="h-4 w-4 text-amber-600" />
-                <AlertTitle className="text-amber-800 dark:text-amber-200">
+              <Alert className="bg-warning/10 dark:bg-warning/30 border-warning/30 dark:border-warning">
+                <Clock className="h-4 w-4 text-warning" />
+                <AlertTitle className="text-warning dark:text-warning">
                   Ожидает проверки
                 </AlertTitle>
                 <AlertDescription className="flex items-center justify-between gap-4">
-                  <span className="text-amber-700 dark:text-amber-300 text-sm">
+                  <span className="text-warning dark:text-warning/70 text-body-md">
                     AI-отчёт будет скрыт от сотрудника до утверждения HR/Admin.
                   </span>
                   <Button 
@@ -324,11 +324,11 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
 
             {/* Reviewed status */}
             {snapshot.is_reviewed && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <ShieldCheck className="w-4 h-4 text-green-600" />
+              <div className="flex items-center gap-2 text-body-md text-muted-foreground">
+                <ShieldCheck className="w-4 h-4 text-success" />
                 <span>Отчёт утверждён</span>
                 {snapshot.reviewed_at && (
-                  <span className="text-xs">
+                  <span className="text-caption-sm">
                     ({formatDate(snapshot.reviewed_at)})
                   </span>
                 )}
@@ -376,7 +376,7 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
                 <Separator />
                 <Card className="border-muted">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base text-muted-foreground">
+                    <CardTitle className="flex items-center gap-2 text-body-base text-muted-foreground">
                       <AlertCircle className="w-4 h-4" />
                       Исключено из расчёта
                     </CardTitle>
@@ -386,10 +386,10 @@ export const JohariWindowSheet: React.FC<JohariWindowSheetProps> = ({
                       {excludedSkills.map((skill) => (
                         <div 
                           key={skill.skill_id} 
-                          className="flex items-center justify-between text-sm py-1"
+                          className="flex items-center justify-between text-body-md py-1"
                         >
                           <span className="text-muted-foreground">{skill.skill_name}</span>
-                          <span className="text-xs text-muted-foreground/70">{skill.reason}</span>
+                          <span className="text-caption-sm text-muted-foreground/70">{skill.reason}</span>
                         </div>
                       ))}
                     </div>

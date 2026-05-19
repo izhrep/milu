@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Info } from 'lucide-react';
+import { Info } from "@/components/icons";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { roles, resourceNames } from './PermissionsGroupConfig';
 
@@ -61,7 +61,7 @@ export const PermissionsTable = ({
           <div className="px-4 py-3 border-b bg-muted/50">
             <h4 className="font-medium flex items-center gap-2">
               {resourceNames[resource] || resource}
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-caption-sm">
                 {resourcePerms.length}
               </Badge>
             </h4>
@@ -74,8 +74,8 @@ export const PermissionsTable = ({
                   {roles.map(role => (
                     <TableHead key={role.value} className="text-center min-w-[100px]">
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-lg">{role.icon}</span>
-                        <Badge variant={role.variant} className="text-xs">
+                        <span className="text-body-lg">{role.icon}</span>
+                        <Badge variant={role.variant} className="text-caption-sm">
                           {role.label}
                         </Badge>
                       </div>
@@ -90,7 +90,7 @@ export const PermissionsTable = ({
                       <div className="flex items-start gap-2">
                         <div className="flex-1">
                           <div className="font-medium">{perm.description || perm.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{perm.name}</div>
+                          <div className="text-caption-sm text-muted-foreground font-mono">{perm.name}</div>
                         </div>
                         <TooltipProvider>
                           <Tooltip>
@@ -99,8 +99,8 @@ export const PermissionsTable = ({
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
                               <p className="font-medium">{perm.name}</p>
-                              <p className="text-sm mt-1">{perm.description || 'Нет описания'}</p>
-                              <p className="text-xs mt-2 text-muted-foreground font-mono">
+                              <p className="text-body-md mt-1">{perm.description || 'Нет описания'}</p>
+                              <p className="text-caption-sm mt-2 text-muted-foreground font-mono">
                                 {perm.resource}.{perm.action}
                               </p>
                             </TooltipContent>

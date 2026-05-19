@@ -4,7 +4,7 @@ import { formatMeetingDateRu, resolveTimezone } from "../_shared/timezone.ts";
 
 // ─── Link Builder ───
 function buildMiluLink(type: "meeting" | "monitoring" | "fallback", id?: string): string {
-  const base = Deno.env.get("MILU_BASE_URL") || "https://milu.raketa.im";
+  const base = (Deno.env.get("MILU_BASE_URL") || "https://milu.raketa.im").replace(/\/+$/, "");
   if (type === "meeting" && id) return `${base}/meetings?meeting=${id}`;
   if (type === "monitoring") return `${base}/meetings-monitoring`;
   return base;

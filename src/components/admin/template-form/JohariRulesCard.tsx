@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info } from "@/components/icons";
 
 export interface JohariRulesState {
   openPct: number;
@@ -48,12 +48,12 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
     <div className="border border-border rounded-lg p-3 bg-card">
       <div className="space-y-2.5">
         <div className="flex items-center gap-1.5">
-          <h4 className="text-sm font-medium text-foreground">Правила Johari (soft skills)</h4>
+          <h4 className="text-body-md font-medium text-foreground">Правила Johari (soft skills)</h4>
           <Tooltip>
             <TooltipTrigger asChild>
               <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-xs text-xs">
+            <TooltipContent side="right" className="max-w-xs text-caption-sm">
               <p>Абсолютная дельта рассчитывается по формуле:</p>
               <p className="font-mono mt-1">δ = (scale_max − scale_min) × %</p>
               <p className="mt-1">Пример: шкала 0–5, 20% → δ = 1.0</p>
@@ -61,14 +61,14 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
           </Tooltip>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption-sm text-muted-foreground">
           Шкала Soft: {softMin}–{softMax} (диапазон: {softRange})
         </p>
 
         {/* Open zone % */}
         <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <Label className="text-xs text-muted-foreground">% для открытой зоны</Label>
+            <Label className="text-caption-sm text-muted-foreground">% для открытой зоны</Label>
             <Input
               type="number" min={0} max={50} step={1}
               value={Math.round(state.openPct * 100)}
@@ -77,7 +77,7 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">δ открытой зоны</Label>
+            <Label className="text-caption-sm text-muted-foreground">δ открытой зоны</Label>
             <Input value={openDelta.toFixed(2)} disabled className="mt-1 h-9 bg-muted" />
           </div>
         </div>
@@ -85,7 +85,7 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
         {/* Blind/hidden zone % */}
         <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <Label className="text-xs text-muted-foreground">% для blind/hidden зоны</Label>
+            <Label className="text-caption-sm text-muted-foreground">% для blind/hidden зоны</Label>
             <Input
               type="number" min={0} max={50} step={1}
               value={Math.round(state.bhPct * 100)}
@@ -94,25 +94,25 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">δ blind/hidden зоны</Label>
+            <Label className="text-caption-sm text-muted-foreground">δ blind/hidden зоны</Label>
             <Input value={bhDelta.toFixed(2)} disabled className="mt-1 h-9 bg-muted" />
           </div>
         </div>
 
         {!orderValid && (
-          <p className="text-xs text-destructive">% открытой зоны должен быть меньше % blind/hidden</p>
+          <p className="text-caption-sm text-destructive">% открытой зоны должен быть меньше % blind/hidden</p>
         )}
 
         {/* Borderline rounding */}
         <div className="flex items-center justify-between pt-1">
-          <Label className="text-sm">Пограничное округление</Label>
+          <Label className="text-body-md">Пограничное округление</Label>
           <Switch checked={state.borderlineEnabled} onCheckedChange={v => onChange({ borderlineEnabled: v })} />
         </div>
 
         {state.borderlineEnabled && (
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <Label className="text-xs text-muted-foreground">Порог</Label>
+              <Label className="text-caption-sm text-muted-foreground">Порог</Label>
               <Input
                 type="number" step={0.01}
                 value={state.borderlineThreshold}
@@ -121,7 +121,7 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
               />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Округл. вниз</Label>
+              <Label className="text-caption-sm text-muted-foreground">Округл. вниз</Label>
               <Input
                 type="number" step={0.01}
                 value={state.borderlineDown}
@@ -130,7 +130,7 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
               />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Округл. вверх</Label>
+              <Label className="text-caption-sm text-muted-foreground">Округл. вверх</Label>
               <Input
                 type="number" step={0.01}
                 value={state.borderlineUp}
@@ -141,7 +141,7 @@ export const JohariRulesCard: React.FC<JohariRulesCardProps> = ({
           </div>
         )}
         {state.borderlineEnabled && !borderlineValid && (
-          <p className="text-xs text-destructive">Должно выполняться: округл. вниз {'<'} порог {'<'} округл. вверх</p>
+          <p className="text-caption-sm text-destructive">Должно выполняться: округл. вниз {'<'} порог {'<'} округл. вверх</p>
         )}
       </div>
     </div>

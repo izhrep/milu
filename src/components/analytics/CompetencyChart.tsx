@@ -27,7 +27,7 @@ export const CompetencyChart = ({ competencies, title = 'Средние балл
             <Bar dataKey="average" fill="hsl(var(--primary))" name="Средний балл" />
           </BarChart>
         </ResponsiveContainer>
-        <p className="text-sm text-muted-foreground mt-4">
+        <p className="text-body-md text-muted-foreground mt-4">
           Показаны топ-15 компетенций. Всего оценено: {competencies.length}
         </p>
       </CardContent>

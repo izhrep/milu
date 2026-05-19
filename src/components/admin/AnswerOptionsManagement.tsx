@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -193,7 +193,7 @@ export const AnswerOptionsManagement = ({ categoryId }: AnswerOptionsManagementP
                   max={activeTab === 'hard' ? '4' : '5'}
                   required
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-caption-sm text-muted-foreground mt-1">
                   Уникален внутри категории
                 </p>
               </div>
@@ -227,7 +227,7 @@ export const AnswerOptionsManagement = ({ categoryId }: AnswerOptionsManagementP
                   min="1"
                   required
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-caption-sm text-muted-foreground mt-1">
                   Определяет порядок отображения в списке
                 </p>
               </div>
@@ -281,7 +281,7 @@ export const AnswerOptionsManagement = ({ categoryId }: AnswerOptionsManagementP
                   <TableCell>
                     {option.title}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-body-md text-muted-foreground">
                     {option.description || '—'}
                   </TableCell>
                 <TableCell>

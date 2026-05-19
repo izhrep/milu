@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CareerTrack, CareerTrackStep } from '@/hooks/useCareerTracks';
-import { ChevronDown, Check, X, Target, Star } from 'lucide-react';
+import { ChevronDown, Check, X, Target, Star } from "@/components/icons";
 import { useUserCareerProgress } from '@/hooks/useUserCareerProgress';
 import { useToast } from '@/hooks/use-toast';
 
@@ -59,10 +59,10 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-[20px] shadow-[0_3.5px_25.5px_0_rgba(0,0,0,0.10)]">
-        <h4 className="text-[#202020] text-base font-semibold mb-4">Рекомендуемые карьерные треки</h4>
+      <div className="bg-white p-6 rounded-[20px] shadow-card">
+        <h4 className="text-foreground text-body-base font-semibold mb-4">Рекомендуемые карьерные треки</h4>
         <div className="flex items-center justify-center py-8">
-          <p className="text-[#718096] text-xs">Загрузка...</p>
+          <p className="text-muted-foreground text-caption-sm">Загрузка...</p>
         </div>
       </div>
     );
@@ -70,10 +70,10 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
 
   if (!filteredTracks || filteredTracks.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-[20px] shadow-[0_3.5px_25.5px_0_rgba(0,0,0,0.10)]">
-        <h4 className="text-[#202020] text-base font-semibold mb-4">Рекомендуемые карьерные треки</h4>
+      <div className="bg-white p-6 rounded-[20px] shadow-card">
+        <h4 className="text-foreground text-body-base font-semibold mb-4">Рекомендуемые карьерные треки</h4>
         <div className="text-center py-8">
-          <p className="text-[#718096] text-xs">
+          <p className="text-muted-foreground text-caption-sm">
             {progress?.career_track_id ? 'Вы уже выбрали карьерный трек' : 'Нет доступных карьерных треков'}
           </p>
         </div>
@@ -82,10 +82,10 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
   }
 
   const getCompatibilityColor = (score: number) => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-yellow-500';
-    if (score >= 40) return 'bg-orange-500';
-    return 'bg-red-500';
+    if (score >= 80) return 'bg-success';
+    if (score >= 60) return 'bg-warning';
+    if (score >= 40) return 'bg-warning';
+    return 'bg-destructive';
   };
 
   const getCompatibilityText = (score: number) => {
@@ -96,9 +96,9 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
   };
 
   const getReadinessColor = (readiness: number) => {
-    if (readiness >= 80) return 'text-green-600 bg-green-50';
-    if (readiness >= 60) return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
+    if (readiness >= 80) return 'text-success bg-success/10';
+    if (readiness >= 60) return 'text-warning bg-warning/10';
+    return 'text-destructive bg-destructive/10';
   };
 
   const renderTrackStep = (step: CareerTrackStep, isRecommended: boolean) => {
@@ -108,36 +108,36 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
     
     return (
       <div key={step.id} className={`border rounded-lg p-4 ${
-        isSelected ? 'border-[#FF8934] bg-[#FF8934]/10' :
-        isRecommended ? 'border-[#FF8934] bg-orange-50' : 'border-gray-200'
+        isSelected ? 'border-warning bg-warning/10' :
+        isRecommended ? 'border-warning bg-warning/10' : 'border-border'
       }`}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="flex items-center gap-2">
-              <h6 className="text-[#202020] text-sm font-medium">
+              <h6 className="text-foreground text-body-md font-medium">
                 Шаг {step.step_order}: {step.grade.name} (Уровень {step.grade.level || 'N/A'})
               </h6>
               {isSelected && (
-                <span className="px-2 py-1 bg-[#FF8934] text-white text-xs font-medium rounded-full flex items-center gap-1">
+                <span className="px-2 py-1 bg-warning text-white text-caption-sm font-medium rounded-full flex items-center gap-1">
                   <Star className="w-3 h-3" />
                   Текущий
                 </span>
               )}
               {isRecommended && !isSelected && (
-                <span className="px-2 py-1 bg-[#FF8934] text-white text-xs font-medium rounded-full">
+                <span className="px-2 py-1 bg-warning text-white text-caption-sm font-medium rounded-full">
                   Рекомендуемый
                 </span>
               )}
             </div>
-            <p className="text-[#718096] text-xs mt-1">
+            <p className="text-muted-foreground text-caption-sm mt-1">
               {step.description || 'Описание не указано'}
             </p>
           </div>
           <div className="text-right">
-            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getReadinessColor(step.overall_readiness)}`}>
+            <div className={`px-3 py-1 rounded-full text-caption-sm font-medium ${getReadinessColor(step.overall_readiness)}`}>
               {step.compatibility_score.toFixed(0)}% соответствие
             </div>
-            <div className="text-[#718096] text-xs mt-1">
+            <div className="text-muted-foreground text-caption-sm mt-1">
               {readyCount}/{allRequirements.length} требований
             </div>
           </div>
@@ -145,16 +145,16 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
 
         {/* Прогресс-бар совместимости */}
         <div className="mb-3">
-          <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
+          <div className="flex items-center justify-between text-caption-sm text-muted-foreground mb-1">
             <span>Совместимость с шагом</span>
             <span>{step.compatibility_score.toFixed(0)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-border rounded-full h-2">
             <div 
               className={`h-2 rounded-full transition-all duration-300 ${
-                step.compatibility_score >= 80 ? 'bg-green-500' : 
-                step.compatibility_score >= 60 ? 'bg-yellow-500' : 
-                step.compatibility_score >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                step.compatibility_score >= 80 ? 'bg-success' : 
+                step.compatibility_score >= 60 ? 'bg-warning' : 
+                step.compatibility_score >= 40 ? 'bg-warning' : 'bg-destructive'
               }`}
               style={{ width: `${step.compatibility_score}%` }}
             />
@@ -164,28 +164,28 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
         {/* Требования */}
         <div className="space-y-2">
           {step.required_skills.slice(0, 3).map((skill) => (
-            <div key={skill.skill_id} className="flex items-center justify-between text-xs">
-              <span className="text-[#202020]">{skill.skill_name}</span>
+            <div key={skill.skill_id} className="flex items-center justify-between text-caption-sm">
+              <span className="text-foreground">{skill.skill_name}</span>
               <div className="flex items-center gap-2">
-                <span className="text-[#718096]">{skill.user_level}/{skill.target_level}</span>
+                <span className="text-muted-foreground">{skill.user_level}/{skill.target_level}</span>
                 {skill.is_ready ? (
-                  <Check className="w-3 h-3 text-green-600" />
+                  <Check className="w-3 h-3 text-success" />
                 ) : (
-                  <X className="w-3 h-3 text-red-600" />
+                  <X className="w-3 h-3 text-destructive" />
                 )}
               </div>
             </div>
           ))}
           
           {step.required_qualities.slice(0, 2).map((quality) => (
-            <div key={quality.quality_id} className="flex items-center justify-between text-xs">
-              <span className="text-[#202020]">{quality.quality_name}</span>
+            <div key={quality.quality_id} className="flex items-center justify-between text-caption-sm">
+              <span className="text-foreground">{quality.quality_name}</span>
               <div className="flex items-center gap-2">
-                <span className="text-[#718096]">{quality.user_level}/{quality.target_level}</span>
+                <span className="text-muted-foreground">{quality.user_level}/{quality.target_level}</span>
                 {quality.is_ready ? (
-                  <Check className="w-3 h-3 text-green-600" />
+                  <Check className="w-3 h-3 text-success" />
                 ) : (
-                  <X className="w-3 h-3 text-red-600" />
+                  <X className="w-3 h-3 text-destructive" />
                 )}
               </div>
             </div>
@@ -196,12 +196,12 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
         <button
           onClick={() => handleSelectStep(step.id, `Шаг ${step.step_order}: ${step.grade.name} (Уровень ${step.grade.level || 'N/A'})`)}
           disabled={isSelected}
-          className={`w-full mt-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+          className={`w-full mt-3 px-3 py-2 text-caption-sm font-medium rounded-lg transition-colors ${
             isSelected 
-              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+              ? 'bg-border text-muted-foreground cursor-not-allowed'
               : isRecommended 
-                ? 'bg-[#FF8934] text-white hover:bg-[#e67a2b]'
-                : 'bg-gray-100 text-[#202020] hover:bg-gray-200'
+                ? 'bg-warning text-white hover:bg-warning/90'
+                : 'bg-muted text-foreground hover:bg-border'
           }`}
         >
           {isSelected ? 'Выбран' : 'Выбрать этот шаг'}
@@ -216,16 +216,16 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
         const isExpanded = expandedTrack === track.id;
         
         return (
-          <div key={track.id} className="bg-white rounded-[20px] shadow-[0_3.5px_25.5px_0_rgba(0,0,0,0.10)] overflow-hidden">
+          <div key={track.id} className="bg-white rounded-[20px] shadow-card overflow-hidden">
             <div className="p-6">
               {/* Заголовок трека */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h5 className="text-[#202020] text-lg font-semibold mb-2">{track.name}</h5>
-                  <p className="text-[#718096] text-sm mb-2">
+                  <h5 className="text-foreground text-body-lg font-semibold mb-2">{track.name}</h5>
+                  <p className="text-muted-foreground text-body-md mb-2">
                     {track.description || 'Описание не указано'}
                   </p>
-                  <div className="flex items-center gap-4 text-xs text-[#718096]">
+                  <div className="flex items-center gap-4 text-caption-sm text-muted-foreground">
                     <span>Цель: {track.target_position.name}</span>
                     <span>Длительность: {track.duration_months} мес.</span>
                     <span>Шагов: {track.steps.length}</span>
@@ -237,11 +237,11 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
                     <div 
                       className={`w-3 h-3 rounded-full ${getCompatibilityColor(track.compatibility_score)}`}
                     />
-                    <span className="text-[#202020] text-lg font-bold">
+                    <span className="text-foreground text-body-lg font-bold">
                       {track.compatibility_score.toFixed(0)}%
                     </span>
                   </div>
-                  <p className="text-[#718096] text-xs">
+                  <p className="text-muted-foreground text-caption-sm">
                     {getCompatibilityText(track.compatibility_score)}
                   </p>
                 </div>
@@ -249,17 +249,17 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
 
               {/* Статистика */}
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="p-3 bg-blue-50 rounded-lg text-center">
-                  <div className="text-blue-600 text-lg font-bold">{track.compatibility_score.toFixed(0)}%</div>
-                  <div className="text-[#718096] text-xs">Совместимость</div>
+                <div className="p-3 bg-primary/10 rounded-lg text-center">
+                  <div className="text-primary text-body-lg font-bold">{track.compatibility_score.toFixed(0)}%</div>
+                  <div className="text-muted-foreground text-caption-sm">Совместимость</div>
                 </div>
-                <div className="p-3 bg-orange-50 rounded-lg text-center">
-                  <div className="text-[#FF8934] text-lg font-bold">{track.total_gap}</div>
-                  <div className="text-[#718096] text-xs">Общий GAP</div>
+                <div className="p-3 bg-warning/10 rounded-lg text-center">
+                  <div className="text-warning text-body-lg font-bold">{track.total_gap}</div>
+                  <div className="text-muted-foreground text-caption-sm">Общий GAP</div>
                 </div>
-                <div className="p-3 bg-green-50 rounded-lg text-center">
-                  <div className="text-green-600 text-lg font-bold">{track.steps.length}</div>
-                  <div className="text-[#718096] text-xs">Шагов</div>
+                <div className="p-3 bg-success/10 rounded-lg text-center">
+                  <div className="text-success text-body-lg font-bold">{track.steps.length}</div>
+                  <div className="text-muted-foreground text-caption-sm">Шагов</div>
                 </div>
               </div>
 
@@ -273,10 +273,10 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
                     handleSelectTrack(track.id, recommendedStep?.id);
                   }}
                   disabled={progress?.career_track_id === track.id}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  className={`flex-1 px-4 py-2 text-body-md font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
                     progress?.career_track_id === track.id
-                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                      : 'bg-[#FF8934] text-white hover:bg-[#e67a2b]'
+                      ? 'bg-border text-muted-foreground cursor-not-allowed'
+                      : 'bg-warning text-white hover:bg-warning/90'
                   }`}
                 >
                   <Target className="w-4 h-4" />
@@ -285,7 +285,7 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
                 
                 <button
                   onClick={() => setExpandedTrack(isExpanded ? null : track.id)}
-                  className="px-4 py-2 border border-gray-300 text-[#202020] text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 border border-border text-foreground text-body-md font-medium rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
                 >
                   Детали
                   <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -295,8 +295,8 @@ export const CareerTracksWidget: React.FC<CareerTracksWidgetProps> = ({
 
             {/* Детализация шагов */}
             {isExpanded && (
-              <div className="border-t border-gray-200 p-6">
-                <h6 className="text-[#202020] text-base font-semibold mb-4">Шаги карьерного трека</h6>
+              <div className="border-t border-border p-6">
+                <h6 className="text-foreground text-body-base font-semibold mb-4">Шаги карьерного трека</h6>
                 <div className="space-y-4">
                   {track.steps.map((step, index) => {
                     // Находим шаг с наибольшей совместимостью

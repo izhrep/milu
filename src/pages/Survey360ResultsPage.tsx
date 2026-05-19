@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download } from 'lucide-react';
+import { Download } from "@/components/icons";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { useSurvey360ResultsEnhanced } from '@/hooks/useSurvey360ResultsEnhanced';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { StageFilter, useStageFilter } from '@/components/StageFilter';
 import { ExpandableQualityCard } from '@/components/ExpandableQualityCard';
 import { toast } from 'sonner';
+import { COLORS } from '@/lib/colors';
 
 // Helper to get user display name
 const getUserDisplayName = (user: { last_name?: string; first_name?: string; middle_name?: string; email: string } | null): string => {
@@ -99,10 +100,10 @@ const Survey360ResultsPage = () => {
 
   if (loading || !currentUser) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка результатов...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка результатов...</p>
         </div>
       </div>
     );
@@ -112,11 +113,11 @@ const Survey360ResultsPage = () => {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Print-only header */}
       <div className="hidden print:block mb-6 pb-4 border-b">
-        <h1 className="text-2xl font-bold">Отчёт: Результаты оценки 360°</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-heading-3 font-bold">Отчёт: Результаты оценки 360°</h1>
+        <p className="text-body-md text-muted-foreground">
           Сотрудник: {getUserDisplayName(currentUser)}
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body-md text-muted-foreground">
           Этап: {stages.find(s => s.id === selectedStageId)?.period || 'Все этапы'} | Дата: {new Date().toLocaleDateString('ru-RU')}
         </p>
       </div>
@@ -126,8 +127,8 @@ const Survey360ResultsPage = () => {
       </div>
       
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Результаты оценки 360°</h1>
-        <p className="text-text-secondary mt-2">Ваши результаты всесторонней оценки личностных качеств</p>
+        <h1 className="text-heading-2 font-bold text-foreground">Результаты оценки 360°</h1>
+        <p className="text-muted-foreground mt-2">Ваши результаты всесторонней оценки личностных качеств</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -162,14 +163,14 @@ const Survey360ResultsPage = () => {
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-brand-purple to-purple-600 rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-accent to-accent rounded-2xl p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-4xl font-bold mb-2">
+            <h2 className="text-heading-1 font-bold mb-2">
               {summary ? summary.overall_average.toFixed(1) : '—'}
             </h2>
-            <p className="text-purple-100">Общий балл личностных качеств</p>
-            <p className="text-sm text-purple-200 mt-2">Оценка основана на 360-градусной обратной связи</p>
+            <p className="text-chart-3/80">Общий балл личностных качеств</p>
+            <p className="text-body-md text-chart-3/70 mt-2">Оценка основана на 360-градусной обратной связи</p>
           </div>
           <div className="text-right">
             <div className="text-6xl opacity-20 font-bold">360°</div>
@@ -178,54 +179,54 @@ const Survey360ResultsPage = () => {
       </div>
 
       {qualityResults.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 border border-gray-200">
-          <h3 className="text-xl font-semibold text-text-primary mb-4">Визуализация результатов оценки по навыкам и качествам</h3>
+        <div className="bg-white rounded-2xl p-6 border border-border">
+          <h3 className="text-heading-4 font-semibold text-foreground mb-4">Визуализация результатов оценки по навыкам и качествам</h3>
           <div className="h-96">
             {isPrinting ? (
               <RadarChart width={500} height={380} data={radarData}>
-                <PolarGrid gridType="polygon" stroke="#e5e7eb" />
+                <PolarGrid gridType="polygon" stroke={COLORS.border} />
                 <PolarAngleAxis 
                   dataKey="quality" 
-                  tick={{ fontSize: 12, fill: '#374151' }}
-                  className="text-xs"
+                  tick={{ fontSize: 12, fill: COLORS.foreground }}
+                  className="text-caption-sm"
                 />
                 <PolarRadiusAxis 
                   domain={[0, 4]} 
-                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  tick={{ fontSize: 10, fill: COLORS.textTertiary }}
                   angle={90}
                 />
                 <Radar
                   name="Результат оценки"
                   dataKey="value"
-                  stroke="#a855f7"
-                  fill="#a855f7"
+                  stroke={COLORS.chart3}
+                  fill={COLORS.chart3}
                   fillOpacity={0.3}
                   strokeWidth={2}
-                  dot={{ r: 3, fill: '#a855f7' }}
+                  dot={{ r: 3, fill: COLORS.chart3 }}
                 />
               </RadarChart>
             ) : (
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
-                <PolarGrid gridType="polygon" stroke="#e5e7eb" />
+                <PolarGrid gridType="polygon" stroke={COLORS.border} />
                 <PolarAngleAxis 
                   dataKey="quality" 
-                  tick={{ fontSize: 12, fill: '#374151' }}
-                  className="text-xs"
+                  tick={{ fontSize: 12, fill: COLORS.foreground }}
+                  className="text-caption-sm"
                 />
                 <PolarRadiusAxis 
                   domain={[0, 4]} 
-                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  tick={{ fontSize: 10, fill: COLORS.textTertiary }}
                   angle={90}
                 />
                 <Radar
                   name="Результат оценки"
                   dataKey="value"
-                  stroke="#a855f7"
-                  fill="#a855f7"
+                  stroke={COLORS.chart3}
+                  fill={COLORS.chart3}
                   fillOpacity={0.3}
                   strokeWidth={2}
-                  dot={{ r: 3, fill: '#a855f7' }}
+                  dot={{ r: 3, fill: COLORS.chart3 }}
                 />
               </RadarChart>
             </ResponsiveContainer>
@@ -236,7 +237,7 @@ const Survey360ResultsPage = () => {
 
       {qualityResults.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-text-primary">Детальная оценка навыков и качеств</h3>
+          <h3 className="text-heading-4 font-semibold text-foreground">Детальная оценка навыков и качеств</h3>
           {qualityResults.map((quality) => (
             <ExpandableQualityCard
               key={quality.quality_id}
@@ -254,9 +255,9 @@ const Survey360ResultsPage = () => {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl p-12 text-center border border-gray-200">
-          <p className="text-lg text-text-secondary">Нет данных для отображения</p>
-          <p className="text-sm text-text-tertiary mt-2">Пройдите оценку 360°, чтобы увидеть результаты</p>
+        <div className="bg-white rounded-2xl p-12 text-center border border-border">
+          <p className="text-body-lg text-muted-foreground">Нет данных для отображения</p>
+          <p className="text-body-md text-muted-foreground/70 mt-2">Пройдите оценку 360°, чтобы увидеть результаты</p>
         </div>
       )}
 

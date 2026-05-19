@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Lock } from 'lucide-react';
+import { CheckCircle, Lock } from "@/components/icons";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ReadOnlyFormModeProps {
@@ -24,12 +24,12 @@ export const ReadOnlyFormMode: React.FC<ReadOnlyFormModeProps> = ({
   return (
     <div className="relative">
       {/* Read-only banner */}
-      <Alert className="mb-6 bg-green-50 border-green-200">
-        <CheckCircle className="h-5 w-5 text-green-600" />
-        <AlertDescription className="text-green-800">
+      <Alert className="mb-6 bg-success/10 border-success/30">
+        <CheckCircle className="h-5 w-5 text-success" />
+        <AlertDescription className="text-success">
           <strong>Форма отправлена</strong>
           {completedAt && (
-            <span className="ml-2 text-sm">
+            <span className="ml-2 text-body-md">
               • {new Date(completedAt).toLocaleDateString('ru-RU', {
                 year: 'numeric',
                 month: 'long',
@@ -45,11 +45,11 @@ export const ReadOnlyFormMode: React.FC<ReadOnlyFormModeProps> = ({
       {/* Read-only overlay */}
       <div className="relative">
         {/* Disabled overlay */}
-        <div className="absolute inset-0 bg-gray-50/50 z-10 rounded-xl pointer-events-none" />
+        <div className="absolute inset-0 bg-muted/50 z-10 rounded-xl pointer-events-none" />
         
         {/* Lock indicator */}
-        <div className="absolute top-4 right-4 z-20 bg-gray-100 rounded-full p-2 shadow-sm">
-          <Lock className="w-5 h-5 text-gray-600" />
+        <div className="absolute top-4 right-4 z-20 bg-muted rounded-full p-2 shadow-sm">
+          <Lock className="w-5 h-5 text-muted-foreground" />
         </div>
 
         {/* Content with disabled styles */}
@@ -59,7 +59,7 @@ export const ReadOnlyFormMode: React.FC<ReadOnlyFormModeProps> = ({
       </div>
 
       {/* Info message */}
-      <div className="mt-6 text-center text-sm text-muted-foreground">
+      <div className="mt-6 text-center text-body-md text-muted-foreground">
         Форма находится в режиме просмотра и не может быть изменена
       </div>
     </div>

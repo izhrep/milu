@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, Calendar, Clock, AlertCircle } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useDiagnosticStageParticipants } from '@/hooks/useDiagnosticStageParticipants';
 import { useDiagnosticStages } from '@/hooks/useDiagnosticStages';
@@ -55,10 +55,10 @@ const SkillSurveyPage = () => {
 
   if (participantLoading || assignmentsLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка...</p>
         </div>
       </div>
     );
@@ -71,7 +71,7 @@ const SkillSurveyPage = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
+              <AlertCircle className="w-5 h-5 text-warning" />
               Диагностический этап не активен
             </CardTitle>
             <CardDescription>
@@ -93,15 +93,15 @@ const SkillSurveyPage = () => {
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-text-primary">Оценка профессиональных навыков</h1>
-            <p className="text-text-secondary mt-2">
+            <h1 className="text-heading-2 font-bold text-foreground">Оценка профессиональных навыков</h1>
+            <p className="text-muted-foreground mt-2">
               Оценка профессиональных навыков – это инструмент для определения уровня владения ключевыми компетенциями.
             </p>
           </div>
           {activeStage && (
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Напоминание</p>
-              <p className="text-lg font-semibold text-text-primary">
+              <p className="text-body-md text-muted-foreground">Напоминание</p>
+              <p className="text-body-lg font-semibold text-foreground">
                 {formatDate(activeStage.reminder_date)}
               </p>
             </div>
@@ -136,9 +136,9 @@ const SkillSurveyPage = () => {
             <CardTitle className="flex items-center justify-between">
               <span>Самооценка навыков</span>
               {hasCompletedSelf ? (
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CheckCircle className="w-5 h-5 text-success" />
               ) : (
-                <Clock className="w-5 h-5 text-amber-500" />
+                <Clock className="w-5 h-5 text-warning" />
               )}
             </CardTitle>
             <CardDescription>
@@ -148,14 +148,14 @@ const SkillSurveyPage = () => {
           <CardContent className="space-y-4">
             {selfAssignment && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-body-md">
                   <span className="text-muted-foreground">Статус:</span>
                   <Badge variant={hasCompletedSelf ? "default" : "outline"}>
                     {selfAssignment.status}
                   </Badge>
                 </div>
                 {selfAssignment.updated_at && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
                     <Calendar size={14} />
                     <span>
                       {hasCompletedSelf ? 'Завершено' : 'Обновлено'}: {formatDate(selfAssignment.updated_at)}
@@ -182,9 +182,9 @@ const SkillSurveyPage = () => {
             <CardTitle className="flex items-center justify-between">
               <span>Оценка руководителя</span>
               {hasCompletedManager ? (
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CheckCircle className="w-5 h-5 text-success" />
               ) : (
-                <Clock className="w-5 h-5 text-amber-500" />
+                <Clock className="w-5 h-5 text-warning" />
               )}
             </CardTitle>
             <CardDescription>
@@ -194,14 +194,14 @@ const SkillSurveyPage = () => {
           <CardContent className="space-y-4">
             {managerAssignment && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-body-md">
                   <span className="text-muted-foreground">Статус:</span>
                   <Badge variant={hasCompletedManager ? "default" : "outline"}>
                     {managerAssignment.status}
                   </Badge>
                 </div>
                 {managerAssignment.updated_at && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
                     <Calendar size={14} />
                     <span>
                       {hasCompletedManager ? 'Завершено' : 'Обновлено'}: {formatDate(managerAssignment.updated_at)}
@@ -211,7 +211,7 @@ const SkillSurveyPage = () => {
               </div>
             )}
             {!hasCompletedManager && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-md text-muted-foreground">
                 Руководитель получил запрос на оценку ваших навыков
               </p>
             )}
@@ -224,7 +224,7 @@ const SkillSurveyPage = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-success" />
               Результаты доступны
             </CardTitle>
             <CardDescription>
@@ -244,13 +244,13 @@ const SkillSurveyPage = () => {
 
       {/* Info Card */}
       {!selfAssignment && !managerAssignment && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-warning/30 bg-warning/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900">
+            <CardTitle className="flex items-center gap-2 text-warning">
               <AlertCircle className="w-5 h-5" />
               Ожидание заданий
             </CardTitle>
-            <CardDescription className="text-amber-700">
+            <CardDescription className="text-warning">
               Задания на оценку создаются автоматически при добавлении вас в диагностический этап. 
               Если вы не видите заданий, обратитесь к HR-администратору.
             </CardDescription>

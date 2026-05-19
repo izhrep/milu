@@ -50,7 +50,7 @@ export const CommentField: React.FC<CommentFieldProps> = ({
   return (
     <div className="mt-4 space-y-3">
       <div className="space-y-2">
-        <Label htmlFor={`comment-${questionId}`} className="text-sm">
+        <Label htmlFor={`comment-${questionId}`} className="text-body-md">
           {getCommentLabelText()}
           {required && <span className="text-destructive ml-1">*</span>}
         </Label>
@@ -67,12 +67,12 @@ export const CommentField: React.FC<CommentFieldProps> = ({
           disabled={disabled}
           className="min-h-[80px] resize-y"
         />
-        <div className="flex justify-between text-xs text-muted-foreground">
+        <div className="flex justify-between text-caption-sm text-muted-foreground">
           <span>{comment.length} / {maxLength} символов</span>
         </div>
       </div>
 
-      <div className="text-sm text-muted-foreground">
+      <div className="text-body-md text-muted-foreground">
         {getAnonymityText()}
       </div>
     </div>

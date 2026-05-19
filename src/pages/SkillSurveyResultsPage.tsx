@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Download } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Download } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useSkillSurveyResultsEnhanced } from '@/hooks/useSkillSurveyResultsEnhanced';
 import { ExpandableSkillCard } from '@/components/ExpandableSkillCard';
@@ -77,10 +77,10 @@ const SkillSurveyResultsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка результатов...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-chart-3 mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка результатов...</p>
         </div>
       </div>
     );
@@ -88,12 +88,12 @@ const SkillSurveyResultsPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-destructive mb-4">{error}</p>
           <button 
             onClick={() => navigate('/skill-survey')}
-            className="text-purple-600 hover:text-purple-700"
+            className="text-chart-3 hover:text-chart-3"
           >
             Вернуться к оценке навыков
           </button>
@@ -103,7 +103,7 @@ const SkillSurveyResultsPage = () => {
   }
 
   return (
-    <div className="items-stretch border shadow-[2px_4px_16px_0_rgba(248,248,248,0.06)_inset,0_54px_32px_-16px_rgba(5,5,5,0.05),0_24px_24px_-16px_rgba(5,5,5,0.09),0_6px_12px_0_rgba(5,5,5,0.10),0_4px_4px_-4px_rgba(5,5,5,0.10),0_0.5px_1.5px_-4px_rgba(5,5,5,0.50)] flex overflow-hidden flex-wrap rounded-[32px] border-solid border-[rgba(255,255,255,0.40)]">
+    <div className="items-stretch border shadow-lg flex overflow-hidden flex-wrap rounded-[32px] border-solid border-background/40">
       <div className="print:hidden">
         <Sidebar />
       </div>
@@ -112,11 +112,11 @@ const SkillSurveyResultsPage = () => {
       <div className="flex-1 max-w-4xl mx-auto p-8">
         {/* Print-only header */}
         <div className="hidden print:block mb-6 pb-4 border-b">
-          <h1 className="text-2xl font-bold">Отчёт: Результаты оценки профессиональных навыков</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-heading-3 font-bold">Отчёт: Результаты оценки профессиональных навыков</h1>
+          <p className="text-body-md text-muted-foreground">
             Сотрудник: {getUserDisplayName(currentUser)}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body-md text-muted-foreground">
             Дата: {new Date().toLocaleDateString('ru-RU')}
           </p>
         </div>
@@ -125,13 +125,13 @@ const SkillSurveyResultsPage = () => {
         <div className="flex items-center mb-8 print:hidden">
           <button 
             onClick={() => navigate('/skill-survey')}
-            className="mr-4 p-2 hover:bg-gray-100 rounded-lg"
+            className="mr-4 p-2 hover:bg-muted rounded-lg"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <div>
-            <p className="text-sm text-gray-500">Обратно к разделу «Мое развитие»</p>
-            <h1 className="text-2xl font-bold text-gray-900">Результаты оценки профессиональных навыков</h1>
+            <p className="text-body-md text-muted-foreground">Обратно к разделу «Мое развитие»</p>
+            <h1 className="text-heading-3 font-bold text-foreground">Результаты оценки профессиональных навыков</h1>
           </div>
         </div>
 
@@ -139,21 +139,21 @@ const SkillSurveyResultsPage = () => {
         <div className="flex space-x-8 mb-8 print:hidden">
           <button 
             onClick={() => navigate('/profile')}
-            className="text-gray-400 font-medium hover:text-gray-900 transition-colors"
+            className="text-muted-foreground/70 font-medium hover:text-foreground transition-colors"
           >
             Профиль
           </button>
           <button 
             onClick={() => navigate('/development')}
-            className="text-gray-900 font-medium border-b-2 border-purple-600 pb-2"
+            className="text-foreground font-medium border-b-2 border-chart-3 pb-2"
           >
             Мое развитие
           </button>
-          <button className="text-gray-400 font-medium">Обучение</button>
+          <button className="text-muted-foreground/70 font-medium">Обучение</button>
         </div>
 
         {/* @legacy — scale description will be dynamic once stageConfig is wired */}
-        <p className="text-gray-600 mb-8 leading-relaxed">
+        <p className="text-muted-foreground mb-8 leading-relaxed">
           Ваши результаты оценки профессиональных навыков. Каждый навык оценивается по шкале, 
           где минимальное значение соответствует начинающему уровню, а максимальное — экспертному.
         </p>
@@ -174,20 +174,20 @@ const SkillSurveyResultsPage = () => {
 
         {/* Results Section */}
         {skillResults.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center">
-            <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет результатов</h3>
-            <p className="text-gray-600 mb-6">Вы еще не проходили оценку профессиональных навыков</p>
+          <div className="bg-white rounded-2xl p-8 border border-border text-center">
+            <TrendingUp className="w-16 h-16 text-muted-foreground/70 mx-auto mb-4" />
+            <h3 className="text-heading-4 font-semibold text-foreground mb-2">Нет результатов</h3>
+            <p className="text-muted-foreground mb-6">Вы еще не проходили оценку профессиональных навыков</p>
             <button
               onClick={() => navigate('/skill-survey')}
-              className="bg-purple-600 text-white px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors"
+              className="bg-chart-3 text-white px-6 py-3 rounded-xl hover:bg-chart-3 transition-colors"
             >
               Пройти оценку
             </button>
           </div>
         ) : (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Ваши навыки</h2>
+            <h2 className="text-heading-4 font-bold text-foreground mb-4">Ваши навыки</h2>
             
             {skillResults.map((skill) => (
               <ExpandableSkillCard
@@ -205,9 +205,9 @@ const SkillSurveyResultsPage = () => {
             ))}
             
             {/* Summary */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200 mt-8">
-              <h3 className="text-lg font-semibold text-purple-900 mb-2">Общая оценка</h3>
-              <p className="text-purple-700">
+            <div className="bg-gradient-to-br from-chart-3 to-chart-3 rounded-2xl p-6 border border-chart-3/30 mt-8">
+              <h3 className="text-body-lg font-semibold text-chart-3 mb-2">Общая оценка</h3>
+              <p className="text-chart-3">
                 Средний балл по всем навыкам: {' '}
                 <span className="font-bold">
                   {(skillResults.reduce((sum, skill) => sum + skill.average_score, 0) / skillResults.length).toFixed(1)}

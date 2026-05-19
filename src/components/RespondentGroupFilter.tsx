@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check } from "@/components/icons";
 import { 
   RespondentGroupType, 
   allRespondentGroups, 
@@ -78,7 +78,7 @@ export const RespondentGroupFilter: React.FC<RespondentGroupFilterProps> = ({
           {/* "Все группы" option - acts as reset */}
           <button
             onClick={toggleAllGroups}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-sm ${
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-body-md ${
               isAllSelected ? 'bg-muted' : ''
             }`}
           >
@@ -97,7 +97,7 @@ export const RespondentGroupFilter: React.FC<RespondentGroupFilterProps> = ({
             <button
               key={group}
               onClick={() => toggleGroup(group)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-sm ${
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-body-md ${
                 selectedGroups.includes(group) && !isAllSelected ? 'bg-muted/50' : ''
               }`}
             >

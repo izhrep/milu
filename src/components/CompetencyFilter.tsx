@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check } from "@/components/icons";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -154,7 +154,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
       <div className="flex gap-6 flex-wrap items-start">
         {/* Основной фильтр компетенций */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-muted-foreground">
+          <label className="text-body-md font-medium text-muted-foreground">
             Фильтр компетенций
           </label>
           <Select value={value} onValueChange={(val) => onChange(val as CompetencyFilterType)}>
@@ -173,7 +173,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
 
         {/* Фильтр роли для RadarChart (multi-select) */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-muted-foreground">
+          <label className="text-body-md font-medium text-muted-foreground">
             Роль
           </label>
           <Popover>
@@ -193,7 +193,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
                 {/* "Все" option - acts as reset */}
                 <button
                   onClick={selectAllRadarRoles}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-sm ${
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-body-md ${
                     isAllRolesSelected ? 'bg-muted' : ''
                   }`}
                 >
@@ -212,7 +212,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
                   <button
                     key={role}
                     onClick={() => toggleRadarRole(role)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-sm ${
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-body-md ${
                       radarRoles.includes(role) && !isAllRolesSelected ? 'bg-muted/50' : ''
                     }`}
                   >
@@ -234,7 +234,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
         {/* Набор навыков */}
         {onSkillSetChange && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-muted-foreground">
+            <label className="text-body-md font-medium text-muted-foreground">
               Набор навыков
             </label>
             <Select value={skillSetValue} onValueChange={(val) => onSkillSetChange(val as SkillSetFilterType)}>
@@ -255,7 +255,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
         {/* Переключатель отображения комментариев - центрирован по вертикали */}
         {onShowCommentsChange !== undefined && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-muted-foreground invisible">
+            <label className="text-body-md font-medium text-muted-foreground invisible">
               Комментарии
             </label>
             <div className="flex items-center space-x-2 h-10">
@@ -266,7 +266,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
               />
               <Label 
                 htmlFor="showComments" 
-                className="text-sm font-medium cursor-pointer"
+                className="text-body-md font-medium cursor-pointer"
               >
                 Показать комментарии
               </Label>
@@ -277,7 +277,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
         {/* Переключатель отображения авторов */}
         {onShowAuthorsChange !== undefined && showComments && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-muted-foreground invisible">
+            <label className="text-body-md font-medium text-muted-foreground invisible">
               Авторы
             </label>
             <div className="flex items-center space-x-2 h-10">
@@ -288,7 +288,7 @@ export const CompetencyFilter: React.FC<CompetencyFilterProps> = ({
               />
               <Label 
                 htmlFor="showAuthors" 
-                className="text-sm font-medium cursor-pointer"
+                className="text-body-md font-medium cursor-pointer"
               >
                 Показать авторов
               </Label>

@@ -1,4 +1,4 @@
-import { ChevronRight, Key } from 'lucide-react';
+import { ChevronRight, Key } from "@/components/icons";
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,7 +36,7 @@ export const PermissionsGroupSidebar = ({
   return (
     <div className="w-72 border-r bg-muted/30 flex flex-col h-full">
       <div className="p-4 border-b">
-        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+        <h3 className="font-semibold text-body-md text-muted-foreground uppercase tracking-wide">
           Разделы меню
         </h3>
       </div>
@@ -46,7 +46,7 @@ export const PermissionsGroupSidebar = ({
           <button
             onClick={() => onGroupSelect('all')}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md transition-colors",
               selectedGroup === 'all' 
                 ? "bg-primary text-primary-foreground" 
                 : "hover:bg-accent text-foreground"
@@ -54,7 +54,7 @@ export const PermissionsGroupSidebar = ({
           >
             <Key className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left font-medium">Все права</span>
-            <Badge variant={selectedGroup === 'all' ? "secondary" : "outline"} className="text-xs">
+            <Badge variant={selectedGroup === 'all' ? "secondary" : "outline"} className="text-caption-sm">
               {totalPermissions}
             </Badge>
           </button>
@@ -71,7 +71,7 @@ export const PermissionsGroupSidebar = ({
                 key={group.id}
                 onClick={() => onGroupSelect(group.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md transition-colors",
                   selectedGroup === group.id 
                     ? "bg-primary text-primary-foreground" 
                     : "hover:bg-accent text-foreground"
@@ -81,14 +81,14 @@ export const PermissionsGroupSidebar = ({
                 <div className="flex-1 text-left">
                   <div className="font-medium">{group.label}</div>
                   {selectedGroup !== group.id && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-caption-sm text-muted-foreground">
                       {group.description}
                     </div>
                   )}
                 </div>
                 <Badge 
                   variant={selectedGroup === group.id ? "secondary" : "outline"} 
-                  className="text-xs shrink-0"
+                  className="text-caption-sm shrink-0"
                 >
                   {count}
                 </Badge>

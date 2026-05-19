@@ -19,7 +19,7 @@ export const JohariCompetencyCard: React.FC<JohariCompetencyCardProps> = ({ comp
   return (
     <div className="p-2.5 rounded border bg-card hover:bg-muted/50 transition-colors">
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h4 className="font-medium text-sm leading-tight flex-1 min-w-0">
+        <h4 className="font-medium text-body-md leading-tight flex-1 min-w-0">
           {competency.category}
         </h4>
         <Badge variant="secondary" className="text-[11px] px-1.5 py-0 shrink-0">

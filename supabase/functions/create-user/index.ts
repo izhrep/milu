@@ -96,6 +96,8 @@ serve(async (req) => {
       position_id,
       department_id,
       grade_id,
+      timezone,
+      timezone_manual,
     } = body;
 
     // --- Validate required fields ---
@@ -187,21 +189,29 @@ serve(async (req) => {
     console.log("Auth user created:", authUser.id);
 
     // Create user record
+    const insertData: Record<string, unknown> = {
+      id: authUser.id,
+      email,
+      first_name,
+      last_name,
+      middle_name,
+      employee_number: `EMP${Date.now().toString().slice(-6)}`,
+      manager_id: manager_id || null,
+      position_id: position_id || null,
+      department_id: department_id || null,
+      grade_id: grade_id || null,
+      status: true,
+    };
+
+    // If admin specified timezone, save it with timezone_manual=true
+    if (timezone && typeof timezone === "string" && timezone.length > 0) {
+      insertData.timezone = timezone;
+      insertData.timezone_manual = true;
+    }
+
     const { data: newUser, error: createUserError } = await supabaseAdmin
       .from("users")
-      .insert({
-        id: authUser.id,
-        email,
-        first_name,
-        last_name,
-        middle_name,
-        employee_number: `EMP${Date.now().toString().slice(-6)}`,
-        manager_id: manager_id || null,
-        position_id: position_id || null,
-        department_id: department_id || null,
-        grade_id: grade_id || null,
-        status: true,
-      })
+      .insert(insertData)
       .select()
       .single();
 

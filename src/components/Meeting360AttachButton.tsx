@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, Download, RefreshCw } from 'lucide-react';
+import { Loader2, FileText, Download, RefreshCw } from "@/components/icons";
 import { useMeeting360Attachment } from '@/hooks/useMeeting360Attachment';
 
 interface Meeting360AttachButtonProps {
@@ -61,9 +61,9 @@ export const Meeting360AttachButton: React.FC<Meeting360AttachButtonProps> = ({
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
             {existingArtifact ? (
-              <span className="text-sm text-muted-foreground truncate">Данные ОС 360 прикреплены</span>
+              <span className="text-body-md text-muted-foreground truncate">Данные ОС 360 прикреплены</span>
             ) : (
-              <span className="text-sm text-muted-foreground">Снимок результатов ОС 360</span>
+              <span className="text-body-md text-muted-foreground">Снимок результатов ОС 360</span>
             )}
           </div>
 

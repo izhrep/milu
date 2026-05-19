@@ -99,30 +99,30 @@ const UserAuditSheet: React.FC<UserAuditSheetProps> = ({ userId, open, onOpenCha
               <div key={log.id} className="border rounded-lg p-4 space-y-2">
                 <div className="flex items-start justify-between">
                   <Badge variant="outline">{getActionLabel(log.action_type)}</Badge>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-body-md text-muted-foreground">
                     {format(new Date(log.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
                   </span>
                 </div>
 
                 {log.field && (
-                  <div className="text-sm">
+                  <div className="text-body-md">
                     <span className="font-medium">Поле:</span> {log.field}
                   </div>
                 )}
 
                 {log.old_value && (
-                  <div className="text-sm">
+                  <div className="text-body-md">
                     <span className="font-medium">Было:</span> {log.old_value}
                   </div>
                 )}
 
                 {log.new_value && (
-                  <div className="text-sm">
+                  <div className="text-body-md">
                     <span className="font-medium">Стало:</span> {log.new_value}
                   </div>
                 )}
 
-                <div className="text-sm text-muted-foreground">
+                <div className="text-body-md text-muted-foreground">
                   Администратор: {log.admin_email}
                 </div>
               </div>

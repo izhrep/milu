@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Target } from 'lucide-react';
+import { Target } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { CareerTrackDetails } from '@/components/CareerTrackDetails';
 import { CareerTracksWidget } from '@/components/CareerTracksWidget';
@@ -28,10 +28,10 @@ const DevelopmentCareerTrackPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-text-secondary">
+          <p className="mt-4 text-muted-foreground">
             {!currentUser ? 'Загрузка пользователя...' : 
              profileLoading ? 'Загрузка профиля компетенций...' : 
              'Загрузка карьерных треков...'}
@@ -47,8 +47,8 @@ const DevelopmentCareerTrackPage = () => {
       
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Карьерный трек</h1>
-          <p className="text-text-secondary mt-1">Ваш путь профессионального развития</p>
+          <h1 className="text-heading-2 font-bold text-foreground">Карьерный трек</h1>
+          <p className="text-muted-foreground mt-1">Ваш путь профессионального развития</p>
         </div>
         <Button
           onClick={() => navigate('/development/career-track/recommendations')}
@@ -66,8 +66,8 @@ const DevelopmentCareerTrackPage = () => {
 
         {/* Recommended Career Tracks */}
         <div className="mt-8">
-          <h2 className="text-2xl font-semibold text-text-primary mb-4">Рекомендуемые карьерные треки</h2>
-          <p className="text-text-secondary mb-6">
+          <h2 className="text-heading-3 font-semibold text-foreground mb-4">Рекомендуемые карьерные треки</h2>
+          <p className="text-muted-foreground mb-6">
             Выберите карьерный трек, соответствующий вашим целям и навыкам. 
             Каждый трек содержит детальную информацию о шагах развития, требованиях и вашем текущем прогрессе.
           </p>

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Search, Info, Plus } from 'lucide-react';
+import { Search, Info, Plus } from "@/components/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { RolePermissionsStats } from './RolePermissionsStats';
@@ -367,15 +367,15 @@ const RolesPermissionsManager = () => {
                         className={`p-3 rounded-lg border-l-4 ${role.color} bg-muted/30`}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-lg">{role.icon}</span>
-                          <Badge variant={role.variant} className="text-xs">
+                          <span className="text-body-lg">{role.icon}</span>
+                          <Badge variant={role.variant} className="text-caption-sm">
                             {role.label}
                           </Badge>
                         </div>
-                        <div className="text-xl font-bold">
+                        <div className="text-heading-4 font-bold">
                           {rolePermissionsCount[role.value] || 0}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-caption-sm text-muted-foreground">
                           {role.value === 'admin' ? 'все права' : `из ${totalPermissions}`}
                         </div>
                       </div>
@@ -392,7 +392,7 @@ const RolesPermissionsManager = () => {
               />
 
               {filteredPermissions.length > 0 && (
-                <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground">
+                <div className="p-4 bg-muted/30 rounded-lg text-body-md text-muted-foreground">
                   <p className="flex items-center gap-2">
                     <Info className="h-4 w-4" />
                     Администраторы имеют все права по умолчанию и не могут быть изменены

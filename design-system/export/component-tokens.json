@@ -1,0 +1,55 @@
+{
+  "color": {
+    "component": {
+      "button.primary.bg": {
+        "value": "{color.semantic.brand.primary}"
+      },
+      "button.primary.fg": {
+        "value": "{color.semantic.foreground.inverse}"
+      },
+      "button.destructive.bg": {
+        "value": "{color.semantic.status.error}"
+      },
+      "card.bg": {
+        "value": "{color.semantic.surface}"
+      },
+      "card.fg": {
+        "value": "{color.semantic.foreground.primary}"
+      },
+      "input.bg": {
+        "value": "{color.semantic.surface}"
+      },
+      "input.border": {
+        "value": "{color.semantic.border}"
+      },
+      "input.focus.ring": {
+        "value": "{color.semantic.ring}"
+      },
+      "sidebar.bg": {
+        "value": "hsl(60 20% 98%)",
+        "$dark": "hsl(300 0% 6%)"
+      },
+      "sidebar.fg": {
+        "value": "hsl(0 0% 15%)"
+      },
+      "sidebar.accent": {
+        "value": "hsl(255 100% 96%)"
+      },
+      "chart.1": {
+        "value": "hsl(245 92% 50%)"
+      },
+      "chart.2": {
+        "value": "hsl(239 95% 44%)"
+      },
+      "chart.3": {
+        "value": "hsl(233 90% 37%)"
+      },
+      "chart.4": {
+        "value": "hsl(230 83% 31%)"
+      },
+      "chart.5": {
+        "value": "hsl(229 78% 26%)"
+      }
+    }
+  }
+}

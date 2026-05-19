@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle, XCircle, Plus } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plus } from "@/components/icons";
 import { ManagerAddRespondentDialog } from './ManagerAddRespondentDialog';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -301,7 +301,7 @@ export const ManagerRespondentApproval: React.FC<ManagerRespondentApprovalProps>
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">{assignment.evaluating_user_name}</p>
-                    <div className="text-sm text-muted-foreground space-y-0.5">
+                    <div className="text-body-md text-muted-foreground space-y-0.5">
                       {assignment.position && <p>{assignment.position}</p>}
                       {assignment.company && <p>Компания: {assignment.company}</p>}
                       {assignment.department && <p>Подразделение: {assignment.department}</p>}
@@ -334,25 +334,25 @@ export const ManagerRespondentApproval: React.FC<ManagerRespondentApprovalProps>
             {assignments.filter(a => a.status === 'approved').length > 0 && (
               <>
                 <div className="pt-4 border-t">
-                  <h4 className="font-semibold text-sm text-muted-foreground mb-3">Утвержденные респонденты</h4>
+                  <h4 className="font-semibold text-body-md text-muted-foreground mb-3">Утвержденные респонденты</h4>
                 </div>
                 {assignments
                   .filter(a => a.status === 'approved')
                   .map((assignment) => (
                     <div 
                       key={assignment.id} 
-                      className="flex items-center justify-between p-4 border rounded-lg bg-green-50"
+                      className="flex items-center justify-between p-4 border rounded-lg bg-success/10"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{assignment.evaluating_user_name}</p>
-                        <div className="text-sm text-muted-foreground space-y-0.5">
+                        <div className="text-body-md text-muted-foreground space-y-0.5">
                           {assignment.position && <p>{assignment.position}</p>}
                           {assignment.company && <p>Компания: {assignment.company}</p>}
                           {assignment.department && <p>Подразделение: {assignment.department}</p>}
                         </div>
                       </div>
                       
-                      <Badge variant="outline" className="ml-4 bg-green-100 flex-shrink-0">
+                      <Badge variant="outline" className="ml-4 bg-success/20 flex-shrink-0">
                         Утвержден
                       </Badge>
                     </div>
@@ -363,25 +363,25 @@ export const ManagerRespondentApproval: React.FC<ManagerRespondentApprovalProps>
             {assignments.filter(a => a.status === 'rejected').length > 0 && (
               <>
                 <div className="pt-4 border-t">
-                  <h4 className="font-semibold text-sm text-muted-foreground mb-3">Отклоненные респонденты</h4>
+                  <h4 className="font-semibold text-body-md text-muted-foreground mb-3">Отклоненные респонденты</h4>
                 </div>
                 {assignments
                   .filter(a => a.status === 'rejected')
                   .map((assignment) => (
                     <div 
                       key={assignment.id} 
-                      className="flex items-center justify-between p-4 border rounded-lg bg-red-50"
+                      className="flex items-center justify-between p-4 border rounded-lg bg-destructive/10"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{assignment.evaluating_user_name}</p>
-                        <div className="text-sm text-muted-foreground space-y-0.5">
+                        <div className="text-body-md text-muted-foreground space-y-0.5">
                           {assignment.position && <p>{assignment.position}</p>}
                           {assignment.company && <p>Компания: {assignment.company}</p>}
                           {assignment.department && <p>Подразделение: {assignment.department}</p>}
                         </div>
                       </div>
                       
-                      <Badge variant="outline" className="ml-4 bg-red-100 flex-shrink-0">
+                      <Badge variant="outline" className="ml-4 bg-destructive/20 flex-shrink-0">
                         Отклонен
                       </Badge>
                     </div>

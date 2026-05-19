@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search } from "@/components/icons";
 import { decryptUserData } from '@/lib/userDataDecryption';
 import { usePeerSelectionUsers, PeerSelectionUser } from '@/hooks/usePeerSelectionUsers';
 // Use PeerSelectionUser from hook instead of local User interface
@@ -392,7 +392,7 @@ export const ColleagueSelectionDialog = ({
               {/* Existing assignments section */}
               {existingAssignments.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-muted-foreground">Выбранные коллеги</h4>
+                  <h4 className="text-body-md font-semibold text-muted-foreground">Выбранные коллеги</h4>
                   <div className="space-y-2">
                     {existingAssignments
                       .filter(a => a.evaluating_user_id !== currentUserId)
@@ -423,12 +423,12 @@ export const ColleagueSelectionDialog = ({
                               <div className="font-medium">
                                 {colleague.last_name} {colleague.first_name} {colleague.middle_name}
                                 {isManager && (
-                                  <span className="ml-2 text-xs text-muted-foreground">
+                                  <span className="ml-2 text-caption-sm text-muted-foreground">
                                     (Руководитель - нельзя удалить)
                                   </span>
                                 )}
                                 {!isManager && isApproved && (
-                                  <span className="ml-2 text-xs text-muted-foreground">
+                                  <span className="ml-2 text-caption-sm text-muted-foreground">
                                     (Согласовано - нельзя удалить)
                                   </span>
                                 )}
@@ -436,16 +436,16 @@ export const ColleagueSelectionDialog = ({
                               <div className="space-y-1 mt-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {colleague.position_category && (
-                                    <span className="text-sm text-muted-foreground">
+                                    <span className="text-body-md text-muted-foreground">
                                       {colleague.position_category}
                                     </span>
                                   )}
                                   {colleague.position_name && (
-                                    <span className="text-sm text-muted-foreground">
+                                    <span className="text-body-md text-muted-foreground">
                                       • {colleague.position_name}
                                     </span>
                                   )}
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                  <span className="text-caption-sm px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {getStatusLabel(assignment.status)}
                                   </span>
                                 </div>
@@ -465,7 +465,7 @@ export const ColleagueSelectionDialog = ({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-muted-foreground">
+                  <h4 className="text-body-md font-semibold text-muted-foreground">
                     Доступные коллеги {searchQuery && `(найдено: ${filteredColleagues.filter(c => !existingAssignments.some(a => a.evaluating_user_id === c.id)).length})`}
                   </h4>
                   <div className="space-y-2">
@@ -489,7 +489,7 @@ export const ColleagueSelectionDialog = ({
                               {colleague.last_name} {colleague.first_name} {colleague.middle_name}
                             </div>
                             <div className="space-y-1 mt-1">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                              <div className="flex items-center gap-2 text-body-md text-muted-foreground flex-wrap">
                                 {colleague.position_category && (
                                   <span>{colleague.position_category}</span>
                                 )}

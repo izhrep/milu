@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink } from "@/components/icons";
 import blockHead from '@/assets/block-head.svg';
 
 const AuthPage = () => {
@@ -133,7 +133,7 @@ const AuthPage = () => {
 
         <Card className="w-full shadow-lg border-0 rounded-t-none">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-2xl font-bold text-foreground">Вход в систему</CardTitle>
+            <CardTitle className="text-heading-3 font-bold text-foreground">Вход в систему</CardTitle>
             <CardDescription className="text-muted-foreground">
               Введите ваш email и пароль для входа
             </CardDescription>
@@ -151,7 +151,7 @@ const AuthPage = () => {
                   placeholder="email@example.com"
                   required
                   autoComplete="email"
-                  className="bg-surface border-border focus:border-primary focus:ring-primary"
+                  className="bg-card border-border focus:border-primary focus:ring-primary"
                 />
               </div>
               <div className="space-y-2">
@@ -164,13 +164,13 @@ const AuthPage = () => {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="bg-surface border-border focus:border-primary focus:ring-primary"
+                  className="bg-card border-border focus:border-primary focus:ring-primary"
                 />
               </div>
 
               {needsCookieConsent && (
                 <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-body-md text-muted-foreground">
                     Мы используем cookie-файлы для обеспечения работы сайта и улучшения 
                     пользовательского опыта. Продолжая использовать сайт, вы соглашаетесь 
                     с использованием cookie-файлов.
@@ -185,14 +185,14 @@ const AuthPage = () => {
                     <div className="grid gap-1.5 leading-none">
                       <label
                         htmlFor="cookies"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground"
+                        className="text-body-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground"
                       >
                         Я принимаю{' '}
                         <a
                           href="http://milu.raketa.im/cookies-policy.html"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-brand-teal hover:underline inline-flex items-center gap-1"
+                          className="text-accent hover:underline inline-flex items-center gap-1"
                         >
                           политику использования cookie
                           <ExternalLink className="h-3 w-3" />

@@ -89,7 +89,7 @@ const EmployeeHistoryEventDialog: React.FC<Props> = ({ open, onOpenChange, type,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="text-base">
+          <DialogTitle className="text-body-base">
             {isEdit ? 'Редактирование' : 'Новое изменение'} {TYPE_LABELS[type]}
           </DialogTitle>
         </DialogHeader>
@@ -99,11 +99,11 @@ const EmployeeHistoryEventDialog: React.FC<Props> = ({ open, onOpenChange, type,
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Дата</Label>
+                  <Label className="text-caption-sm">Дата</Label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Сумма</Label>
+                  <Label className="text-caption-sm">Сумма</Label>
                   <Input type="number" placeholder="₽" value={amount} onChange={e => setAmount(e.target.value)} />
                 </div>
               </div>
@@ -114,20 +114,20 @@ const EmployeeHistoryEventDialog: React.FC<Props> = ({ open, onOpenChange, type,
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Дата начала</Label>
+                  <Label className="text-caption-sm">Дата начала</Label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Дата окончания</Label>
+                  <Label className="text-caption-sm">Дата окончания</Label>
                   <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Проект</Label>
+                <Label className="text-caption-sm">Проект</Label>
                 <Input value={to} onChange={e => setTo(e.target.value)} placeholder="Название проекта" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Клиент</Label>
+                <Label className="text-caption-sm">Клиент</Label>
                 <Input value={from} onChange={e => setFrom(e.target.value)} placeholder="Название клиента" />
               </div>
             </>
@@ -137,27 +137,27 @@ const EmployeeHistoryEventDialog: React.FC<Props> = ({ open, onOpenChange, type,
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Дата начала</Label>
+                  <Label className="text-caption-sm">Дата начала</Label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Дата окончания</Label>
+                  <Label className="text-caption-sm">Дата окончания</Label>
                   <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Должность / роль</Label>
+                <Label className="text-caption-sm">Должность / роль</Label>
                 <Input value={to} onChange={e => setTo(e.target.value)} placeholder="Название" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Предыдущая</Label>
+                <Label className="text-caption-sm">Предыдущая</Label>
                 <Input value={from} onChange={e => setFrom(e.target.value)} placeholder="Если применимо" />
               </div>
             </>
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Комментарий</Label>
+            <Label className="text-caption-sm">Комментарий</Label>
             <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Необязательный комментарий" rows={2} />
           </div>
         </div>

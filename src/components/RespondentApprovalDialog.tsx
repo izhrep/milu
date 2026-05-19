@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Check, X, UserPlus } from 'lucide-react';
+import { Loader2, Check, X, UserPlus } from "@/components/icons";
 import { ColleagueSelectionDialog } from './ColleagueSelectionDialog';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -235,7 +235,7 @@ export const RespondentApprovalDialog = ({
                     )}
                   </div>
                   {respondent.evaluator_position && (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-body-md text-muted-foreground">
                       {respondent.evaluator_position}
                     </div>
                   )}

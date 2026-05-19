@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowUpDown, Download, Filter } from 'lucide-react';
+import { ArrowUpDown, Download, Filter } from "@/components/icons";
 import { EmployeeComparison } from '@/hooks/useManagerComparison';
 import { getScoreColor } from '@/lib/scoreLabels';
 
@@ -274,7 +274,7 @@ export const ManagerComparisonTable = ({
         </div>
 
         {filteredAndSortedEmployees.length > 50 && (
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="text-body-md text-muted-foreground mt-4">
             Показано 50 из {filteredAndSortedEmployees.length} записей. Используйте фильтры для уточнения результатов.
           </p>
         )}

@@ -5,7 +5,7 @@ import { usePermission } from '@/hooks/usePermission';
 import RolesPermissionsManager from '@/components/security/RolesPermissionsManager';
 import AuditLogViewer from '@/components/security/AuditLogViewer';
 import DiagnosticStageSnapshotPanel from '@/components/security/DiagnosticStageSnapshotPanel';
-import { ArrowLeft, Key, History, Shield, Database } from 'lucide-react';
+import { ArrowLeft, Key, History, Shield, Database } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -48,7 +48,7 @@ const SecurityManagementPage = () => {
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2 mb-3">
             <Shield className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold text-lg">Безопасность</h2>
+            <h2 className="font-semibold text-body-lg">Безопасность</h2>
           </div>
           <Button
             variant="ghost"
@@ -67,7 +67,7 @@ const SecurityManagementPage = () => {
               key={section.id}
               onClick={() => setActiveSection(section.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left',
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md transition-colors text-left',
                 activeSection === section.id
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -83,12 +83,12 @@ const SecurityManagementPage = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-background border-b border-border p-4 sticky top-0 z-10">
-          <h1 className="text-xl font-semibold">
+          <h1 className="text-heading-4 font-semibold">
             {activeSection === 'roles' && 'Управление ролями и правами'}
             {activeSection === 'audit' && 'История изменений'}
             {activeSection === 'diagnostic-snapshots' && 'Снапшоты диагностики'}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body-md text-muted-foreground">
             {activeSection === 'roles' && 'Назначение прав доступа для каждой роли'}
             {activeSection === 'audit' && 'Журнал всех административных действий'}
             {activeSection === 'diagnostic-snapshots' && 'Ручной запуск создания снапшотов по завершённому этапу'}

@@ -123,13 +123,13 @@ export function formatTimeInTimezone(date: Date, timezone: string): string {
 /**
  * Get a short human-readable timezone offset label like "UTC+7" or "UTC−3:30".
  */
-export function getTimezoneOffsetLabel(timezone: string): string {
+export function getTimezoneOffsetLabel(timezone: string, date: Date = new Date()): string {
   try {
     // Use Intl to get the GMT offset string
     const formatted = new Intl.DateTimeFormat('en-GB', {
       timeZone: timezone,
       timeZoneName: 'shortOffset',
-    }).format(new Date());
+    }).format(date);
     // Extracts "GMT+7", "GMT-3:30", "GMT" etc.
     const match = formatted.match(/GMT([+-]\d{1,2}(?::\d{2})?)?/);
     if (!match) return timezone;

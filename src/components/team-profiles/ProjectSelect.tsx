@@ -27,15 +27,15 @@ const ProjectSelect = ({
     <Select value={value || undefined} onValueChange={onChange}>
       <SelectTrigger
         className={compact
-          ? 'h-7 text-xs border-0 bg-transparent shadow-none px-1 hover:bg-muted/60 focus:ring-0 focus:ring-offset-0 min-w-[120px]'
-          : `h-9 text-sm ${className ?? ''}`
+          ? 'h-7 text-caption-sm border-0 bg-transparent shadow-none px-1 hover:bg-muted/60 focus:ring-0 focus:ring-offset-0 min-w-[120px]'
+          : `h-9 text-body-md ${className ?? ''}`
         }
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {PROJECT_LIST.map((p) => (
-          <SelectItem key={p} value={p} className={compact ? 'text-xs' : 'text-sm'}>
+          <SelectItem key={p} value={p} className={compact ? 'text-caption-sm' : 'text-body-md'}>
             {p}
           </SelectItem>
         ))}

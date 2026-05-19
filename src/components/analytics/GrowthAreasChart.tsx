@@ -55,15 +55,15 @@ export const GrowthAreasChart = ({ growthAreas }: GrowthAreasChartProps) => {
                       {area.type === 'skill' ? 'Навык' : 'Качество'}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-caption-sm text-muted-foreground mt-1">
                     Затронуто сотрудников: {area.employees_affected}
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold text-destructive">
+                  <div className="text-body-lg font-bold text-destructive">
                     {area.gap.toFixed(2)}
                   </div>
-                  <p className="text-xs text-muted-foreground">разрыв</p>
+                  <p className="text-caption-sm text-muted-foreground">разрыв</p>
                 </div>
               </div>
             ))}

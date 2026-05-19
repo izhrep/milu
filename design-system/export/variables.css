@@ -1,0 +1,29 @@
+/* Milu Design System — exported semantic CSS variables (light/dark) */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --surface: 0 0% 100%;
+  --surface-secondary: 210 20% 96%;
+  --border: 70 13% 91%;
+  --ring: 245 92% 50%;
+  --brand-navy: 222 80% 20%;
+  --brand-teal: 180 70% 45%;
+  --accent-orange: 28 92% 61%;
+  --success: 160 84% 39%;
+  --warning: 38 92% 50%;
+  --error: 0 72% 51%;
+  --text-primary: 222 47% 11%;
+  --text-secondary: 215 16% 47%;
+  --text-tertiary: 215 20% 65%;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --shadow-card: 0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 1px 2px -19px hsl(0 0% 10% / 0.18);
+  /* … full set lives in src/index.css */
+}
+.dark {
+  --background: 240 0% 2%;
+  --foreground: 120 0% 90%;
+  --surface: 0 0% 0%;
+  --border: 240 4% 16%;
+  /* … */
+}

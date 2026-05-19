@@ -2,7 +2,7 @@ import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Briefcase, MapPin } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, MapPin } from "@/components/icons";
 import EmployeeCurrentProfile from './EmployeeCurrentProfile';
 import EmployeeChangeHistory from './EmployeeChangeHistory';
 import EmployeeSkills from './EmployeeSkills';
@@ -23,7 +23,7 @@ const EmployeeCard: React.FC<Props> = ({ employee, onBack, fromMap }) => {
   return (
     <div className="space-y-5">
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <nav className="flex items-center gap-1.5 text-caption-sm text-muted-foreground">
         <button onClick={onBack} className="hover:text-foreground transition-colors">Моя команда</button>
         <span>/</span>
         {fromMap && (
@@ -45,10 +45,10 @@ const EmployeeCard: React.FC<Props> = ({ employee, onBack, fromMap }) => {
             <User className="w-7 h-7 text-primary" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-foreground truncate">{employee.name}</h1>
+            <h1 className="text-heading-4 font-bold text-foreground truncate">{employee.name}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-sm text-muted-foreground">{employee.position}</span>
-              <Badge variant="secondary" className="text-[10px] gap-1">
+              <span className="text-body-md text-muted-foreground">{employee.position}</span>
+              <Badge variant="secondary" className="text-helpertext-xs gap-1">
                 <Briefcase className="w-2.5 h-2.5" />
                 Останкино казна
               </Badge>

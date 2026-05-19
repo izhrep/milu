@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Calendar, DollarSign, Briefcase, User, Plus, Pencil, Trash2, TrendingUp, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useRef } from 'react';
+import { Calendar, DollarSign, Briefcase, User, Plus, Pencil, Trash2, TrendingUp, Info, ChevronDown, ChevronUp, ArrowUpRight } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import EmployeeHistoryEventDialog, { type HistoryEvent, type EventType } from './EmployeeHistoryEventDialog';
 
 /* ── Mock data ─────────────────────────────────────────── */
@@ -38,13 +38,67 @@ const fmtShort = (iso: string) => {
 };
 const fmtMoney = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
 
-/* ── Section component ─────────────────────────────────── */
-const SECTION_META: Record<EventType, { label: string; icon: React.ReactNode }> = {
-  salary: { label: 'История зарплаты', icon: <DollarSign className="w-4 h-4 text-primary" /> },
-  project: { label: 'История проектов', icon: <Briefcase className="w-4 h-4 text-primary" /> },
-  role: { label: 'История должности / роли', icon: <User className="w-4 h-4 text-primary" /> },
+const pctChange = (from: number, to: number) => {
+  if (!from || from === 0) return null;
+  const diff = ((to - from) / from) * 100;
+  return Math.round(diff);
 };
 
+/* ── Color palettes per section type ───────────────────── */
+const PALETTES: Record<EventType, {
+  dot: string; dotFirst: string; line: string;
+  iconBg: string; iconText: string;
+  dateBgFirst: string; dateTextFirst: string;
+  scrollGradient: string;
+}> = {
+  salary: {
+    dot: 'border-success/40 dark:border-success',
+    dotFirst: 'border-success bg-success/20 dark:border-success/40 dark:bg-success/20',
+    line: 'bg-success/20 dark:bg-success/50',
+    iconBg: 'bg-success/10 dark:bg-success/40',
+    iconText: 'text-success dark:text-success/80',
+    dateBgFirst: 'bg-success/10 text-success dark:bg-success/40 dark:text-success/70',
+    dateTextFirst: 'text-success dark:text-success/70',
+    scrollGradient: 'from-card',
+  },
+  project: {
+    dot: 'border-primary/40 dark:border-primary',
+    dotFirst: 'border-primary bg-primary/20 dark:border-primary/40 dark:bg-primary/20',
+    line: 'bg-primary/20 dark:bg-primary/50',
+    iconBg: 'bg-primary/10 dark:bg-primary/40',
+    iconText: 'text-primary dark:text-primary/80',
+    dateBgFirst: 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary/70',
+    dateTextFirst: 'text-primary dark:text-primary/70',
+    scrollGradient: 'from-card',
+  },
+  role: {
+    dot: 'border-chart-3/40 dark:border-chart-3',
+    dotFirst: 'border-chart-3 bg-chart-3/20 dark:border-chart-3/40 dark:bg-chart-3/20',
+    line: 'bg-chart-3/20 dark:bg-chart-3/50',
+    iconBg: 'bg-chart-3/10 dark:bg-chart-3/40',
+    iconText: 'text-chart-3 dark:text-chart-3/80',
+    dateBgFirst: 'bg-chart-3/10 text-chart-3 dark:bg-chart-3/40 dark:text-chart-3/70',
+    dateTextFirst: 'text-chart-3 dark:text-chart-3/70',
+    scrollGradient: 'from-card',
+  },
+};
+
+/* ── Section meta ──────────────────────────────────────── */
+const SECTION_META: Record<EventType, { label: string; Icon: React.FC<{ className?: string }> }> = {
+  salary: { label: 'История зарплаты', Icon: DollarSign },
+  project: { label: 'История проектов', Icon: Briefcase },
+  role: { label: 'История должности / роли', Icon: User },
+};
+
+const pluralRecords = (n: number) => {
+  const mod = n % 10;
+  const mod100 = n % 100;
+  if (mod === 1 && mod100 !== 11) return `${n} запись`;
+  if (mod >= 2 && mod <= 4 && (mod100 < 10 || mod100 >= 20)) return `${n} записи`;
+  return `${n} записей`;
+};
+
+/* ── Section component ─────────────────────────────────── */
 interface SectionProps {
   type: EventType;
   events: HistoryEvent[];
@@ -55,19 +109,41 @@ interface SectionProps {
 
 const HistorySection: React.FC<SectionProps> = ({ type, events, onAdd, onEdit, onDelete }) => {
   const meta = SECTION_META[type];
+  const pal = PALETTES[type];
+  const [expanded, setExpanded] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const renderDetail = (e: HistoryEvent) => {
+  const renderDetail = (e: HistoryEvent, isFirst: boolean) => {
     if (type === 'salary') {
+      const pct = e.amountFrom && e.amount ? pctChange(e.amountFrom, e.amount) : null;
       return (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-foreground">{e.amount ? fmtMoney(e.amount) : '—'}</span>
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-body-md font-semibold text-foreground">{e.amount ? fmtMoney(e.amount) : '—'}</span>
+            {pct !== null && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-success dark:text-success/80 bg-success/10 dark:bg-success/40 rounded-md px-1.5 py-0.5">
+                <ArrowUpRight className="w-3 h-3" />
+                {pct > 0 ? '+' : ''}{pct}%
+              </span>
+            )}
+          </div>
+          {e.amountFrom && e.amount && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {fmtMoney(e.amountFrom)} → {fmtMoney(e.amount)}
+            </p>
+          )}
         </div>
       );
     }
     if (type === 'project') {
       return (
         <div>
-          <p className="text-sm font-medium text-foreground">{e.to}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-body-md font-medium text-foreground">{e.to}</p>
+            {isFirst && !e.endDate && (
+              <span className="text-helpertext-xs font-medium text-primary dark:text-primary/80 bg-primary/10 dark:bg-primary/40 rounded px-1.5 py-0.5">сейчас</span>
+            )}
+          </div>
           {e.from && <p className="text-[11px] text-muted-foreground">Клиент: {e.from}</p>}
           <p className="text-[11px] text-muted-foreground">
             {fmt(e.date)}{e.endDate ? ` — ${fmt(e.endDate)}` : ' — настоящее время'}
@@ -77,7 +153,12 @@ const HistorySection: React.FC<SectionProps> = ({ type, events, onAdd, onEdit, o
     }
     return (
       <div>
-        <p className="text-sm font-medium text-foreground">{e.to}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-body-md font-medium text-foreground">{e.to}</p>
+          {isFirst && !e.endDate && (
+            <span className="text-helpertext-xs font-medium text-chart-3 dark:text-chart-3/80 bg-chart-3/10 dark:bg-chart-3/40 rounded px-1.5 py-0.5">сейчас</span>
+          )}
+        </div>
         {e.from && <p className="text-[11px] text-muted-foreground">Ранее: {e.from}</p>}
         <p className="text-[11px] text-muted-foreground">
           с {fmt(e.date)}{e.endDate ? ` по ${fmt(e.endDate)}` : ''}
@@ -87,81 +168,123 @@ const HistorySection: React.FC<SectionProps> = ({ type, events, onAdd, onEdit, o
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          {meta.icon}
-          {meta.label}
-          <Badge variant="outline" className="text-[10px] ml-1">{events.length}</Badge>
-        </h3>
-        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onAdd}>
-          <Plus className="w-3 h-3" />
-          Добавить
-        </Button>
-      </div>
-
-      {/* Events */}
-      {events.length === 0 ? (
-        <div className="px-5 py-8 text-center">
-          <p className="text-sm text-muted-foreground">Нет записей</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Нажмите «Добавить», чтобы внести первое изменение</p>
+    <div className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow">
+      {/* Header — clickable to collapse */}
+      <button
+        type="button"
+        className="flex items-center justify-between w-full px-4 py-3 text-left"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${pal.iconBg}`}>
+            <meta.Icon className={`w-4 h-4 ${pal.iconText}`} />
+          </div>
+          <div>
+            <h3 className="text-body-md font-semibold text-foreground">{meta.label}</h3>
+            <span className="text-[11px] text-muted-foreground">{pluralRecords(events.length)}</span>
+          </div>
         </div>
-      ) : (
-        <div className="relative px-5 py-4">
-          <div className="absolute left-[30px] top-4 bottom-4 w-px bg-border" />
-          <div className="space-y-5">
-            {events.map((e, i) => (
-              <div key={e.id} className="relative pl-7 group">
-                {/* Dot */}
-                <div className={`absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 ${i === 0 ? 'border-primary bg-primary/20' : 'border-muted-foreground/40 bg-background'}`} />
+        <div className="flex items-center gap-1">
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={e2 => { e2.stopPropagation(); onAdd(); }}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-caption-sm">Добавить</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </div>
+      </button>
 
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant={i === 0 ? 'default' : 'outline'} className="text-[10px] gap-1 flex-shrink-0">
-                        <Calendar className="w-2.5 h-2.5" />
-                        {fmt(e.date)}
-                      </Badge>
-                    </div>
-                    {renderDetail(e)}
-                    {e.comment && (
-                      <p className="text-[11px] text-muted-foreground/70 mt-1 italic">«{e.comment}»</p>
-                    )}
-                  </div>
+      {/* Events — collapsible */}
+      {expanded && (
+        <>
+          {events.length === 0 ? (
+            <div className="px-4 py-6 text-center border-t border-border/50">
+              <p className="text-body-md text-muted-foreground">Нет записей</p>
+              <p className="text-caption-sm text-muted-foreground/60 mt-1">Нажмите «+», чтобы внести первое изменение</p>
+            </div>
+          ) : (
+            <div className="relative border-t border-border/50">
+              <div ref={scrollRef} className="overflow-y-auto max-h-[320px] px-4 py-3">
+                <div className="relative">
+                  {/* Vertical line */}
+                  <div className={`absolute left-[5px] top-2 bottom-2 w-0.5 rounded-full ${pal.line}`} />
+                  <div className="space-y-0">
+                    {events.map((e, i) => (
+                      <div
+                        key={e.id}
+                        className={`relative pl-6 group py-2.5 ${i < events.length - 1 ? 'border-b border-border/50' : ''}`}
+                      >
+                        {/* Dot */}
+                        <div
+                          className={`absolute left-0 top-4 w-2.5 h-2.5 rounded-full border-2 transition-transform group-hover:scale-125 ${
+                            i === 0 ? `${pal.dotFirst} scale-110` : `${pal.dot} bg-background`
+                          }`}
+                        />
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(e)}>
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">Редактировать</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => onDelete(e.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">Удалить</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`text-helpertext-xs rounded-md px-2 py-0.5 ${
+                                i === 0 ? pal.dateBgFirst : 'bg-muted text-muted-foreground'
+                              }`}>
+                                <Calendar className="w-2.5 h-2.5 inline mr-1" />
+                                {fmt(e.date)}
+                              </span>
+                            </div>
+                            {renderDetail(e, i === 0)}
+                            {e.comment && (
+                              <p className="text-[11px] text-muted-foreground/70 mt-1 italic">«{e.comment}»</p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(e)}>
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-caption-sm">Редактировать</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => onDelete(e.id)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-caption-sm">Удалить</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+              {/* Scroll fade indicator */}
+              <div className={`sticky bottom-0 h-4 bg-gradient-to-t ${pal.scrollGradient} to-transparent pointer-events-none`} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 };
 
-/* ── Dynamics visualization (redesigned) ───────────────── */
+/* ── Dynamics visualization ────────────────────────────── */
 const DynamicsBlock: React.FC<{
   salary: HistoryEvent[];
   projects: HistoryEvent[];
@@ -169,7 +292,6 @@ const DynamicsBlock: React.FC<{
 }> = ({ salary, projects, roles }) => {
   const [hoveredMilestone, setHoveredMilestone] = useState<string | null>(null);
 
-  // Collect all dates
   const allDates = [
     ...salary.map(e => e.date),
     ...projects.flatMap(e => [e.date, e.endDate].filter(Boolean) as string[]),
@@ -182,7 +304,6 @@ const DynamicsBlock: React.FC<{
   const now = new Date();
   const maxDate = new Date(Math.max(now.getTime(), new Date(sorted[sorted.length - 1] + 'T00:00:00').getTime()));
 
-  // Add padding: 1 month before and after
   const padMs = 30 * 24 * 60 * 60 * 1000;
   const tMin = minDate.getTime() - padMs;
   const tMax = maxDate.getTime() + padMs;
@@ -194,7 +315,6 @@ const DynamicsBlock: React.FC<{
   };
   const pctTs = (ts: number) => ((ts - tMin) / totalMs) * 100;
 
-  // Quarter grid lines
   const gridLines: { label: string; pct: number }[] = [];
   const cursor = new Date(minDate);
   cursor.setDate(1);
@@ -208,7 +328,6 @@ const DynamicsBlock: React.FC<{
     cursor.setMonth(cursor.getMonth() + 3);
   }
 
-  // Milestone events (transition points)
   const milestones: { id: string; date: string; pct: number; type: EventType; label: string }[] = [];
   salary.forEach(s => milestones.push({ id: s.id, date: s.date, pct: pct(s.date), type: 'salary', label: s.title || 'Зарплата' }));
   projects.forEach(p => milestones.push({ id: p.id, date: p.date, pct: pct(p.date), type: 'project', label: p.to || p.title }));
@@ -221,11 +340,9 @@ const DynamicsBlock: React.FC<{
   const sMin = Math.min(...salaryVals, 0);
   const sRange = sMax - sMin || 1;
 
-  // Build SVG step path
   const TRACK_H = 110;
   const PAD_Y = 30;
   const usable = TRACK_H - PAD_Y * 2;
-
   const salaryY = (val: number) => PAD_Y + usable - ((val - sMin) / sRange) * usable;
 
   let stepPath = '';
@@ -237,20 +354,17 @@ const DynamicsBlock: React.FC<{
     if (i === 0) {
       stepPath += `M ${x} ${y}`;
     } else {
-      // horizontal to this x at previous y, then vertical to new y
       const prevY = salaryY(sortedSalary[i - 1].amount || 0);
       stepPath += ` L ${x} ${prevY} L ${x} ${y}`;
     }
     salaryPoints.push({ x, y, val: s.amount || 0, id: s.id, date: s.date });
   });
-  // Extend to "now"
   if (sortedSalary.length > 0) {
     const lastY = salaryY(sortedSalary[sortedSalary.length - 1].amount || 0);
     const nowPct = pctTs(now.getTime());
     stepPath += ` L ${nowPct} ${lastY}`;
   }
 
-  // Fill path (area under step)
   let fillPath = stepPath;
   if (sortedSalary.length > 0) {
     const nowPct = pctTs(now.getTime());
@@ -258,19 +372,18 @@ const DynamicsBlock: React.FC<{
     fillPath += ` L ${nowPct} ${TRACK_H} L ${firstX} ${TRACK_H} Z`;
   }
 
-  // Sorted projects/roles by date
   const sortedProjects = [...projects].sort((a, b) => a.date.localeCompare(b.date));
   const sortedRoles = [...roles].sort((a, b) => a.date.localeCompare(b.date));
-
   const SEG_H = 36;
-
   const isHighlighted = (id: string) => hoveredMilestone === id;
 
   return (
-    <div className="bg-card border border-border rounded-lg p-5">
+    <div className="bg-card border border-border rounded-xl shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-primary" />
+        <h3 className="text-body-md font-semibold text-foreground flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-primary" />
+          </div>
           Динамика сотрудника
         </h3>
         <TooltipProvider delayDuration={200}>
@@ -278,206 +391,160 @@ const DynamicsBlock: React.FC<{
             <TooltipTrigger>
               <Info className="w-3.5 h-3.5 text-muted-foreground" />
             </TooltipTrigger>
-            <TooltipContent className="text-xs max-w-[280px]">
-              Единый timeline: зарплата как ступенчатая числовая динамика, проекты и роли как интервальные периоды. Наведите на маркер перехода, чтобы увидеть событие.
+            <TooltipContent className="text-caption-sm max-w-[280px]">
+              Единый timeline: зарплата как ступенчатая числовая динамика, проекты и роли как интервальные периоды.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
-      {/* Timeline container with shared grid — horizontal scroll */}
       <div className="overflow-x-auto pb-2 -mx-5 px-5">
         <div className="relative" style={{ minWidth: 700 }}>
-        {/* Vertical grid lines — span all tracks */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-          {gridLines.map((g, i) => (
-            <div
-              key={i}
-              className="absolute top-0 bottom-0 border-l border-border/40"
-              style={{ left: `${g.pct}%` }}
-            />
-          ))}
-        </div>
-
-        {/* Milestone vertical markers */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2 }}>
-          {milestones.map(m => (
-            <div
-              key={`ml-${m.id}`}
-              className="absolute top-0 bottom-0"
-              style={{
-                left: `${m.pct}%`,
-                borderLeft: '1px dashed',
-                borderColor: hoveredMilestone === m.id
-                  ? 'hsl(var(--primary))'
-                  : 'hsl(var(--primary) / 0.15)',
-                opacity: hoveredMilestone === m.id ? 1 : 0.6,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Track labels column + tracks */}
-        <div className="space-y-1 relative" style={{ zIndex: 1 }}>
-
-          {/* ─── Track 1: Salary ─── */}
-          <div className="flex items-stretch">
-            <div className="w-[72px] flex-shrink-0 flex items-center">
-              <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                <DollarSign className="w-3 h-3" /> Зарплата
-              </span>
-            </div>
-            <div className="flex-1 relative bg-muted/20 rounded border border-border/60" style={{ height: TRACK_H }}>
-              {/* Fill area */}
-              <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox={`0 0 100 ${TRACK_H}`} preserveAspectRatio="none">
-                <path d={fillPath} fill="hsl(var(--primary) / 0.06)" />
-                <path d={stepPath} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-              </svg>
-
-              {/* Value labels + dots */}
-              {salaryPoints.map((pt, i) => (
-                <React.Fragment key={pt.id}>
-                  {/* Dot */}
-                  <div
-                    className={`absolute w-2.5 h-2.5 rounded-full border-2 border-primary -translate-x-1/2 -translate-y-1/2 cursor-pointer ${
-                      isHighlighted(pt.id) ? 'bg-primary scale-150' : 'bg-background'
-                    }`}
-                    style={{ left: `${pt.x}%`, top: `${(pt.y / TRACK_H) * 100}%` }}
-                    onMouseEnter={() => setHoveredMilestone(pt.id)}
-                    onMouseLeave={() => setHoveredMilestone(null)}
-                  />
-                  {/* Value label — positioned above dot */}
-                  <div
-                    className="absolute -translate-x-1/2 pointer-events-none"
-                    style={{
-                      left: `${pt.x}%`,
-                      top: `${Math.max((pt.y / TRACK_H) * 100 - 22, 0)}%`,
-                    }}
-                  >
-                    <span className={`text-[11px] font-bold whitespace-nowrap ${isHighlighted(pt.id) ? 'text-primary' : 'text-foreground/80'}`}>
-                      {fmtMoney(pt.val)}
-                    </span>
-                  </div>
-                  {/* Horizontal plateau indicator */}
-                  {i < salaryPoints.length - 1 && (
-                    <div
-                      className="absolute h-px bg-primary/20 pointer-events-none"
-                      style={{
-                        left: `${pt.x}%`,
-                        width: `${salaryPoints[i + 1].x - pt.x}%`,
-                        top: `${(pt.y / TRACK_H) * 100}%`,
-                      }}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          {/* ─── Track 2: Projects ─── */}
-          <div className="flex items-stretch">
-            <div className="w-[72px] flex-shrink-0 flex items-center">
-              <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                <Briefcase className="w-3 h-3" /> Проекты
-              </span>
-            </div>
-            <div className="flex-1 relative bg-muted/20 rounded border border-border/60" style={{ height: SEG_H }}>
-              {sortedProjects.map((p, i) => {
-                const left = pct(p.date);
-                const right = p.endDate ? pct(p.endDate) : pctTs(now.getTime());
-                const width = Math.max(right - left, 0.5);
-                const highlighted = isHighlighted(p.id);
-                // Alternate muted accent colors
-                const bgClass = i % 2 === 0
-                  ? 'bg-primary/15 border-primary/30'
-                  : 'bg-accent/40 border-accent/60';
-                return (
-                  <div
-                    key={p.id}
-                    className={`absolute top-1 bottom-1 rounded flex items-center border cursor-pointer ${bgClass} ${
-                      highlighted ? 'ring-2 ring-primary/50 shadow-sm' : ''
-                    }`}
-                    style={{ left: `${left}%`, width: `${width}%` }}
-                    onMouseEnter={() => setHoveredMilestone(p.id)}
-                    onMouseLeave={() => setHoveredMilestone(null)}
-                  >
-                    <span className={`text-[10px] font-medium truncate px-2 ${highlighted ? 'text-primary' : 'text-foreground/80'}`}>
-                      {p.to}
-                    </span>
-                  </div>
-                );
-              })}
-              {/* Transition markers between projects */}
-              {sortedProjects.slice(1).map(p => (
-                <div
-                  key={`pt-${p.id}`}
-                  className="absolute top-0 bottom-0 w-0.5 bg-primary/40"
-                  style={{ left: `${pct(p.date)}%` }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* ─── Track 3: Roles ─── */}
-          <div className="flex items-stretch">
-            <div className="w-[72px] flex-shrink-0 flex items-center">
-              <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                <User className="w-3 h-3" /> Роль
-              </span>
-            </div>
-            <div className="flex-1 relative bg-muted/20 rounded border border-border/60" style={{ height: SEG_H }}>
-              {sortedRoles.map((r, i) => {
-                const left = pct(r.date);
-                const right = r.endDate ? pct(r.endDate) : pctTs(now.getTime());
-                const width = Math.max(right - left, 0.5);
-                const highlighted = isHighlighted(r.id);
-                const intensity = 0.12 + (i / Math.max(sortedRoles.length - 1, 1)) * 0.25;
-                return (
-                  <div
-                    key={r.id}
-                    className={`absolute top-1 bottom-1 rounded flex items-center border border-secondary/50 cursor-pointer ${
-                      highlighted ? 'ring-2 ring-primary/50 shadow-sm' : ''
-                    }`}
-                    style={{
-                      left: `${left}%`,
-                      width: `${width}%`,
-                      backgroundColor: `hsl(var(--primary) / ${intensity})`,
-                    }}
-                    onMouseEnter={() => setHoveredMilestone(r.id)}
-                    onMouseLeave={() => setHoveredMilestone(null)}
-                  >
-                    <span className={`text-[10px] font-medium truncate px-2 ${highlighted ? 'text-primary' : 'text-foreground/80'}`}>
-                      {r.to}
-                    </span>
-                  </div>
-                );
-              })}
-              {/* Transition markers */}
-              {sortedRoles.slice(1).map(r => (
-                <div
-                  key={`rt-${r.id}`}
-                  className="absolute top-0 bottom-0 w-0.5 bg-primary/40"
-                  style={{ left: `${pct(r.date)}%` }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Time axis ─── */}
-        <div className="flex items-stretch mt-1">
-          <div className="w-[72px] flex-shrink-0" />
-          <div className="flex-1 relative h-5 border-t border-border/60">
+          {/* Grid lines */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
             {gridLines.map((g, i) => (
-              <div key={i} className="absolute flex flex-col items-center -translate-x-1/2" style={{ left: `${g.pct}%`, top: 0 }}>
-                <div className="w-px h-1.5 bg-border" />
-                <span className="text-[9px] text-muted-foreground mt-0.5 whitespace-nowrap">{g.label}</span>
-              </div>
+              <div key={i} className="absolute top-0 bottom-0 border-l border-border/40" style={{ left: `${g.pct}%` }} />
             ))}
           </div>
+
+          {/* Milestone markers */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2 }}>
+            {milestones.map(m => (
+              <div
+                key={`ml-${m.id}`}
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: `${m.pct}%`,
+                  borderLeft: '1px dashed',
+                  borderColor: hoveredMilestone === m.id ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.15)',
+                  opacity: hoveredMilestone === m.id ? 1 : 0.6,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="space-y-1 relative" style={{ zIndex: 1 }}>
+            {/* Track 1: Salary */}
+            <div className="flex items-stretch">
+              <div className="w-[80px] flex-shrink-0 flex items-center">
+                <span className="text-[11px] font-medium text-success dark:text-success/80 flex items-center gap-1">
+                  <DollarSign className="w-3 h-3" /> Зарплата
+                </span>
+              </div>
+              <div className="flex-1 relative bg-muted/20 rounded border border-border/60" style={{ height: TRACK_H }}>
+                <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox={`0 0 100 ${TRACK_H}`} preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="salaryFillGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgb(16, 185, 129)" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="rgb(16, 185, 129)" stopOpacity="0.02" />
+                    </linearGradient>
+                  </defs>
+                  <path d={fillPath} fill="url(#salaryFillGrad)" />
+                  <path d={stepPath} fill="none" stroke="rgb(16, 185, 129)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                </svg>
+
+                {salaryPoints.map((pt) => (
+                  <React.Fragment key={pt.id}>
+                    <div
+                      className={`absolute w-2.5 h-2.5 rounded-full border-2 border-success -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 ${
+                        isHighlighted(pt.id) ? 'bg-success scale-150 shadow-lg shadow-emerald-500/30' : 'bg-background'
+                      }`}
+                      style={{ left: `${pt.x}%`, top: `${(pt.y / TRACK_H) * 100}%` }}
+                      onMouseEnter={() => setHoveredMilestone(pt.id)}
+                      onMouseLeave={() => setHoveredMilestone(null)}
+                    />
+                    <div
+                      className="absolute -translate-x-1/2 pointer-events-none"
+                      style={{ left: `${pt.x}%`, top: `${Math.max((pt.y / TRACK_H) * 100 - 22, 0)}%` }}
+                    >
+                      <span className={`text-[11px] font-bold whitespace-nowrap ${isHighlighted(pt.id) ? 'text-success dark:text-success/80' : 'text-foreground/80'}`}>
+                        {fmtMoney(pt.val)}
+                      </span>
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            {/* Track 2: Projects */}
+            <div className="flex items-stretch">
+              <div className="w-[80px] flex-shrink-0 flex items-center">
+                <span className="text-[11px] font-medium text-primary dark:text-primary/80 flex items-center gap-1">
+                  <Briefcase className="w-3 h-3" /> Проекты
+                </span>
+              </div>
+              <div className="flex-1 relative bg-primary/50 dark:bg-primary/20 rounded border border-primary/20 dark:border-primary/40" style={{ height: SEG_H }}>
+                {sortedProjects.map((p) => {
+                  const left = pct(p.date);
+                  const right = p.endDate ? pct(p.endDate) : pctTs(now.getTime());
+                  const width = Math.max(right - left, 0.5);
+                  const highlighted = isHighlighted(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`absolute top-1 bottom-1 rounded-md flex items-center cursor-pointer bg-primary/80 dark:bg-primary/30 border border-primary/20 dark:border-primary/40 ${
+                        highlighted ? 'ring-2 ring-primary shadow-md bg-primary/80 dark:bg-primary/40' : ''
+                      }`}
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                      onMouseEnter={() => setHoveredMilestone(p.id)}
+                      onMouseLeave={() => setHoveredMilestone(null)}
+                    >
+                      <span className={`text-helpertext-xs font-medium truncate px-2 ${highlighted ? 'text-primary dark:text-primary/70' : 'text-primary/70 dark:text-primary/70'}`}>
+                        {p.to}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Track 3: Roles */}
+            <div className="flex items-stretch">
+              <div className="w-[80px] flex-shrink-0 flex items-center">
+                <span className="text-[11px] font-medium text-chart-3 dark:text-chart-3/80 flex items-center gap-1">
+                  <User className="w-3 h-3" /> Роль
+                </span>
+              </div>
+              <div className="flex-1 relative bg-chart-3/50 dark:bg-chart-3/20 rounded border border-chart-3/20 dark:border-chart-3/40" style={{ height: SEG_H }}>
+                {sortedRoles.map((r) => {
+                  const left = pct(r.date);
+                  const right = r.endDate ? pct(r.endDate) : pctTs(now.getTime());
+                  const width = Math.max(right - left, 0.5);
+                  const highlighted = isHighlighted(r.id);
+                  return (
+                    <div
+                      key={r.id}
+                      className={`absolute top-1 bottom-1 rounded-md flex items-center cursor-pointer bg-chart-3/80 dark:bg-chart-3/30 border border-chart-3/20 dark:border-chart-3/40 ${
+                        highlighted ? 'ring-2 ring-chart-3 shadow-md bg-chart-3/80 dark:bg-chart-3/40' : ''
+                      }`}
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                      onMouseEnter={() => setHoveredMilestone(r.id)}
+                      onMouseLeave={() => setHoveredMilestone(null)}
+                    >
+                      <span className={`text-helpertext-xs font-medium truncate px-2 ${highlighted ? 'text-chart-3 dark:text-chart-3/70' : 'text-chart-3/70 dark:text-chart-3/70'}`}>
+                        {r.to}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Time axis */}
+          <div className="flex items-stretch mt-2">
+            <div className="w-[80px] flex-shrink-0" />
+            <div className="flex-1 relative h-5 border-t border-border/40">
+              {gridLines.map((g, i) => (
+                <div key={i} className="absolute flex flex-col items-center -translate-x-1/2" style={{ left: `${g.pct}%`, top: 0 }}>
+                  <div className="w-px h-1.5 bg-border" />
+                  <span className="text-helpertext-xs font-medium text-muted-foreground mt-0.5 whitespace-nowrap">{g.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        </div>{/* close relative / min-width */}
-      </div>{/* close overflow-x-auto */}
+      </div>
 
       {/* Hover tooltip */}
       {hoveredMilestone && (() => {
@@ -485,10 +552,8 @@ const DynamicsBlock: React.FC<{
         if (!m) return null;
         const typeLabel = m.type === 'salary' ? 'Зарплата' : m.type === 'project' ? 'Проект' : 'Роль';
         return (
-          <div
-            className="mt-3 px-3 py-2 bg-muted/50 border border-primary/20 rounded-md flex items-center gap-3 text-xs transition-all"
-          >
-            <Badge variant="outline" className="text-[10px] gap-1">
+          <div className="mt-3 px-3 py-2 bg-muted/50 border border-primary/20 rounded-md flex items-center gap-3 text-caption-sm transition-all">
+            <Badge variant="outline" className="text-helpertext-xs gap-1">
               <Calendar className="w-2.5 h-2.5" />
               {fmt(m.date)}
             </Badge>
@@ -496,15 +561,11 @@ const DynamicsBlock: React.FC<{
             <span className="font-medium text-foreground">{m.label}</span>
             {m.type === 'salary' && (() => {
               const ev = salary.find(s => s.id === m.id);
-              return ev?.amount ? <span className="text-primary font-semibold">{fmtMoney(ev.amount)}</span> : null;
+              return ev?.amount ? <span className="text-success dark:text-success/80 font-semibold">{fmtMoney(ev.amount)}</span> : null;
             })()}
           </div>
         );
       })()}
-
-      <p className="text-[10px] text-muted-foreground/40 mt-2 italic text-right">
-        Prototype · управленческий timeline для согласования UX
-      </p>
     </div>
   );
 };
@@ -518,7 +579,6 @@ const EmployeeChangeHistory: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<EventType>('salary');
   const [editingEvent, setEditingEvent] = useState<HistoryEvent | null>(null);
-
   const [deleteTarget, setDeleteTarget] = useState<{ type: EventType; id: string } | null>(null);
 
   const getList = (type: EventType) => type === 'salary' ? salary : type === 'project' ? projects : roles;
@@ -528,31 +588,15 @@ const EmployeeChangeHistory: React.FC = () => {
     else setRoles(list);
   };
 
-  const handleAdd = (type: EventType) => {
-    setDialogType(type);
-    setEditingEvent(null);
-    setDialogOpen(true);
-  };
-
-  const handleEdit = (event: HistoryEvent) => {
-    setDialogType(event.type);
-    setEditingEvent(event);
-    setDialogOpen(true);
-  };
-
+  const handleAdd = (type: EventType) => { setDialogType(type); setEditingEvent(null); setDialogOpen(true); };
+  const handleEdit = (event: HistoryEvent) => { setDialogType(event.type); setEditingEvent(event); setDialogOpen(true); };
   const handleSave = (event: HistoryEvent) => {
     const list = getList(event.type);
     const exists = list.find(e => e.id === event.id);
-    const updated = exists
-      ? list.map(e => e.id === event.id ? event : e)
-      : [event, ...list];
+    const updated = exists ? list.map(e => e.id === event.id ? event : e) : [event, ...list];
     setList(event.type, updated.sort((a, b) => b.date.localeCompare(a.date)));
   };
-
-  const handleDelete = (type: EventType, id: string) => {
-    setDeleteTarget({ type, id });
-  };
-
+  const handleDelete = (type: EventType, id: string) => { setDeleteTarget({ type, id }); };
   const confirmDelete = () => {
     if (!deleteTarget) return;
     setList(deleteTarget.type, getList(deleteTarget.type).filter(e => e.id !== deleteTarget.id));
@@ -562,64 +606,46 @@ const EmployeeChangeHistory: React.FC = () => {
   const showEmpty = salary.length === 0 && projects.length === 0 && roles.length === 0;
 
   return (
-    <div className="space-y-5 mt-4">
-      {/* Intro */}
-      <div className="bg-muted/30 border border-border rounded-lg px-4 py-3">
-        <p className="text-xs text-muted-foreground">
-          Здесь отображается история ключевых изменений по сотруднику: зарплата, проекты, должность / роль.
-          Динамика, добавление событий и просмотр прошлых изменений — доступны в каждой секции ниже.
-        </p>
+    <div className="mt-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+      <div className="space-y-5">
+        {showEmpty ? (
+          <div className="bg-card border border-border rounded-xl px-6 py-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+              <Calendar className="w-7 h-7 text-muted-foreground/40" />
+            </div>
+            <p className="text-body-md font-medium text-foreground">История изменений по сотруднику пока не заполнена</p>
+            <p className="text-caption-sm text-muted-foreground mt-1">Добавьте первое событие, чтобы начать вести историю</p>
+            <div className="flex items-center justify-center gap-1.5 mt-4">
+              <Button variant="outline" size="sm" className="text-caption-sm gap-1 rounded-lg" onClick={() => handleAdd('salary')}>
+                <DollarSign className="w-3 h-3" /> Зарплата
+              </Button>
+              <Button variant="outline" size="sm" className="text-caption-sm gap-1 rounded-lg" onClick={() => handleAdd('project')}>
+                <Briefcase className="w-3 h-3" /> Проект
+              </Button>
+              <Button variant="outline" size="sm" className="text-caption-sm gap-1 rounded-lg" onClick={() => handleAdd('role')}>
+                <User className="w-3 h-3" /> Роль
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <DynamicsBlock salary={salary} projects={projects} roles={roles} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <HistorySection type="salary" events={salary} onAdd={() => handleAdd('salary')} onEdit={handleEdit} onDelete={id => handleDelete('salary', id)} />
+              <HistorySection type="project" events={projects} onAdd={() => handleAdd('project')} onEdit={handleEdit} onDelete={id => handleDelete('project', id)} />
+              <HistorySection type="role" events={roles} onAdd={() => handleAdd('role')} onEdit={handleEdit} onDelete={id => handleDelete('role', id)} />
+            </div>
+          </>
+        )}
       </div>
 
-      {showEmpty ? (
-        /* Empty state */
-        <div className="bg-card border border-border rounded-lg px-6 py-12 text-center">
-          <Calendar className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">История изменений по сотруднику пока не заполнена</p>
-          <p className="text-xs text-muted-foreground mt-1">Добавьте первое событие, чтобы начать вести историю</p>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => handleAdd('salary')}>
-              <DollarSign className="w-3 h-3" /> Зарплата
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => handleAdd('project')}>
-              <Briefcase className="w-3 h-3" /> Проект
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => handleAdd('role')}>
-              <User className="w-3 h-3" /> Роль
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Dynamics visualization */}
-          <DynamicsBlock salary={salary} projects={projects} roles={roles} />
+      <EmployeeHistoryEventDialog open={dialogOpen} onOpenChange={setDialogOpen} type={dialogType} event={editingEvent} onSave={handleSave} />
 
-          {/* Three sections */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <HistorySection type="salary" events={salary} onAdd={() => handleAdd('salary')} onEdit={handleEdit} onDelete={id => handleDelete('salary', id)} />
-            <HistorySection type="project" events={projects} onAdd={() => handleAdd('project')} onEdit={handleEdit} onDelete={id => handleDelete('project', id)} />
-            <HistorySection type="role" events={roles} onAdd={() => handleAdd('role')} onEdit={handleEdit} onDelete={id => handleDelete('role', id)} />
-          </div>
-        </>
-      )}
-
-      {/* Add / Edit dialog */}
-      <EmployeeHistoryEventDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        type={dialogType}
-        event={editingEvent}
-        onSave={handleSave}
-      />
-
-      {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Удалить запись?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
-              Это действие нельзя отменить. Запись будет удалена из истории.
-            </AlertDialogDescription>
+            <AlertDialogTitle className="text-body-base">Удалить запись?</AlertDialogTitle>
+            <AlertDialogDescription className="text-body-md">Это действие нельзя отменить. Запись будет удалена из истории.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Отмена</AlertDialogCancel>

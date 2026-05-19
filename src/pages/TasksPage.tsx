@@ -8,8 +8,8 @@ const TasksPage = () => {
       <Breadcrumbs />
       
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Мои задачи</h1>
-        <p className="text-text-secondary mt-1">Управление вашими задачами</p>
+        <h1 className="text-heading-2 font-bold text-foreground">Мои задачи</h1>
+        <p className="text-muted-foreground mt-1">Управление вашими задачами</p>
       </div>
 
       <TasksManager />

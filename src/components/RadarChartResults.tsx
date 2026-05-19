@@ -4,8 +4,9 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, 
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from "@/components/icons";
 import { CompetencyFilterType, RadarRoleType } from '@/components/CompetencyFilter';
+import { COLORS } from '@/lib/colors';
 
 interface AssessmentData {
   name: string;
@@ -30,15 +31,15 @@ interface RadarChartResultsProps {
 // Цвета согласно требованиям
 const CHART_COLORS = {
   self: {
-    stroke: '#3A3FBC',
+    stroke: COLORS.brandNavy,
     fill: 'rgba(58, 63, 188, 0.22)' // ~22% opacity
   },
   peers: {
-    stroke: '#2EAE80',
+    stroke: COLORS.success,
     fill: 'rgba(46, 174, 128, 0.22)'
   },
   manager: {
-    stroke: '#F28C28',
+    stroke: COLORS.accentOrange,
     fill: 'rgba(242, 140, 40, 0.22)'
   }
 };
@@ -973,26 +974,26 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
             {hasSelfAssessment && (
               <div className="flex items-center">
                 <LegendCircleMarker color={CHART_COLORS.self.stroke} />
-                <span className="text-sm text-foreground">Личный фидбек</span>
+                <span className="text-body-md text-foreground">Личный фидбек</span>
               </div>
             )}
             {hasPeersAverage && (
               <div className="flex items-center">
                 <LegendSquareMarker color={CHART_COLORS.peers.stroke} />
-                <span className="text-sm text-foreground">Все кроме фидбека сотрудника</span>
+                <span className="text-body-md text-foreground">Все кроме фидбека сотрудника</span>
               </div>
             )}
             {hasManagerAssessment && (
               <div className="flex items-center">
                 <LegendTriangleMarker color={CHART_COLORS.manager.stroke} />
-                <span className="text-sm text-foreground">Фидбек unit-лида</span>
+                <span className="text-body-md text-foreground">Фидбек unit-лида</span>
               </div>
             )}
           </div>
           
-          <div className="text-sm text-muted-foreground text-center mt-4 space-y-1">
+          <div className="text-body-md text-muted-foreground text-center mt-4 space-y-1">
             {assessedCount < data.length && (
-              <p className="text-amber-600 dark:text-amber-400">
+              <p className="text-warning dark:text-warning/80">
                 Оценено {assessedCount} из {data.length} компетенций
               </p>
             )}
@@ -1008,7 +1009,7 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
           <CardHeader className="py-2">
             <CollapsibleTrigger asChild>
               <div className="flex items-center justify-between cursor-pointer group">
-                <CardTitle className="text-base">{getDetailTableTitle()}</CardTitle>
+                <CardTitle className="text-body-base">{getDetailTableTitle()}</CardTitle>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 group-hover:bg-muted">
                   {isTableOpen ? (
                     <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -1048,16 +1049,16 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
                   onMouseLeave={() => isSkillsLevel && setHoveredCategory(null)}
                 >
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <h3 className="font-medium text-foreground text-sm leading-tight">{item.name}</h3>
+                    <h3 className="font-medium text-foreground text-body-md leading-tight">{item.name}</h3>
                     {/* Показываем категорию и подкатегорию для всех уровней фильтрации */}
                     <div className="flex gap-1.5 flex-wrap">
                       {item.category_name && (
-                        <Badge variant="outline" className="text-xs py-0 px-1.5 font-normal">
+                        <Badge variant="outline" className="text-caption-sm py-0 px-1.5 font-normal">
                           {item.category_name}
                         </Badge>
                       )}
                       {item.subcategory_name && (
-                        <Badge variant="secondary" className="text-xs py-0 px-1.5 font-normal">
+                        <Badge variant="secondary" className="text-caption-sm py-0 px-1.5 font-normal">
                           {item.subcategory_name}
                         </Badge>
                       )}
@@ -1065,10 +1066,10 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
                   </div>
                   {/* Всегда показываем grid с фиксированными позициями для выбранных ролей */}
                   {selectedCount > 0 ? (
-                    <div className={`grid ${gridColsClass} gap-3 text-sm`}>
+                    <div className={`grid ${gridColsClass} gap-3 text-body-md`}>
                       {showSelf && (
                         <div>
-                          <span className={`text-xs ${hasSelf ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>Личный фидбек:</span>
+                          <span className={`text-caption-sm ${hasSelf ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>Личный фидбек:</span>
                           {hasSelf ? (
                             <span className="ml-1.5 font-medium" style={{ color: CHART_COLORS.self.stroke }}>
                               {item.self_assessment.toFixed(1)}
@@ -1080,7 +1081,7 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
                       )}
                       {showManager && (
                         <div>
-                          <span className={`text-xs ${hasManager ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>Фидбек unit-лида:</span>
+                          <span className={`text-caption-sm ${hasManager ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>Фидбек unit-лида:</span>
                           {hasManager ? (
                             <span className="ml-1.5 font-medium" style={{ color: CHART_COLORS.manager.stroke }}>
                               {item.manager_assessment.toFixed(1)}
@@ -1092,7 +1093,7 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
                       )}
                       {showPeers && (
                         <div>
-                          <span className={`text-xs ${hasPeers ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>Все кроме фидбека сотрудника:</span>
+                          <span className={`text-caption-sm ${hasPeers ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>Все кроме фидбека сотрудника:</span>
                           {hasPeers ? (
                             <span className="ml-1.5 font-medium" style={{ color: CHART_COLORS.peers.stroke }}>
                               {item.all_except_self.toFixed(1)}
@@ -1104,7 +1105,7 @@ export const RadarChartResults: React.FC<RadarChartResultsProps> = ({
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">Ещё не оценено</p>
+                    <p className="text-caption-sm text-muted-foreground italic">Ещё не оценено</p>
                   )}
                 </div>
               );

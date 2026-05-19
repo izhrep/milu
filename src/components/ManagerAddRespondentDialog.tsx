@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "@/components/icons";
 import { decryptUserData } from '@/lib/userDataDecryption';
 
 interface User {
@@ -320,7 +320,7 @@ export const ManagerAddRespondentDialog: React.FC<ManagerAddRespondentDialogProp
                         {user.last_name} {user.first_name}{' '}
                         {user.middle_name && user.middle_name}
                       </p>
-                      <div className="text-sm text-muted-foreground space-y-0.5">
+                      <div className="text-body-md text-muted-foreground space-y-0.5">
                         {user.email && <p>{user.email}</p>}
                         {user.position && <p>{user.position}</p>}
                         {user.position_category && <p>Категория должности: {user.position_category}</p>}
@@ -334,7 +334,7 @@ export const ManagerAddRespondentDialog: React.FC<ManagerAddRespondentDialogProp
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-md text-muted-foreground">
                 Выбрано: {selectedUsers.size}
               </p>
               <div className="flex gap-2">

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, ClipboardList, Users, Settings } from 'lucide-react';
+import { Calendar, ClipboardList, Users, Settings } from "@/components/icons";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermission } from '@/hooks/usePermission';
@@ -26,7 +26,7 @@ export const QuickActions = () => {
       description: 'Заполнить форму обратной связи',
       icon: ClipboardList,
       action: () => navigate('/questionnaires'),
-      color: 'bg-brand-teal',
+      color: 'bg-accent',
       show: true,
     },
     {
@@ -34,7 +34,7 @@ export const QuickActions = () => {
       description: 'Встреча one-to-one с unit-лидом',
       icon: Calendar,
       action: () => navigate('/meetings'),
-      color: 'bg-brand-navy-light',
+      color: 'bg-primary/80',
       show: true,
     },
     {
@@ -52,7 +52,7 @@ export const QuickActions = () => {
   return (
     <Card className="border-0 shadow-card">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Быстрые действия</CardTitle>
+        <CardTitle className="text-body-lg font-semibold">Быстрые действия</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -61,7 +61,7 @@ export const QuickActions = () => {
               key={action.title}
               onClick={action.action}
               variant="outline"
-              className="h-auto p-4 flex flex-col items-start gap-2 hover:shadow-sm transition-shadow bg-surface"
+              className="h-auto p-4 flex flex-col items-start gap-2 hover:shadow-sm transition-shadow bg-card"
             >
               <div className="flex items-center gap-3 w-full">
                 <div className={`p-2 rounded-lg ${action.color}`}>
@@ -69,7 +69,7 @@ export const QuickActions = () => {
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-medium text-foreground">{action.title}</div>
-                  <div className="text-xs text-muted-foreground">{action.description}</div>
+                  <div className="text-caption-sm text-muted-foreground">{action.description}</div>
                 </div>
               </div>
             </Button>

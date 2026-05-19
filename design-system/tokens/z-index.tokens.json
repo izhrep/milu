@@ -1,0 +1,13 @@
+{
+  "z": {
+    "base":       {"value":0},
+    "raised":     {"value":10},
+    "sticky":     {"value":20},
+    "dropdown":   {"value":30},
+    "overlay":    {"value":40},
+    "modal":      {"value":50},
+    "popover":    {"value":60},
+    "toast":      {"value":70},
+    "tooltip":    {"value":80}
+  }
+}

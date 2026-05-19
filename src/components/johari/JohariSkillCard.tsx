@@ -37,7 +37,7 @@ export const JohariSkillCard: React.FC<JohariSkillCardProps> = ({ skill, scaleMa
           } ${isPreliminary ? 'border-dashed' : ''}`}>
             {/* A) Skill name + markers */}
             <div className="flex items-start gap-1 flex-1 min-h-[2rem]">
-              <h4 className="font-medium text-sm leading-tight flex-1 min-w-0">{skill.skill_name}</h4>
+              <h4 className="font-medium text-body-md leading-tight flex-1 min-w-0">{skill.skill_name}</h4>
               <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5 flex-wrap justify-end">
                 {isPreliminary && (
                   <Badge variant="outline" className="text-[9px] px-1 py-0 border-dashed">
@@ -65,14 +65,14 @@ export const JohariSkillCard: React.FC<JohariSkillCardProps> = ({ skill, scaleMa
             <div className="grid grid-cols-3 text-center">
               {metricColumns.map((col) => (
                 <div key={col.key} className="flex flex-col items-center">
-                  <div className="text-[10px] text-muted-foreground/70 leading-none h-[20px] flex items-end justify-center pb-0.5">{col.label}</div>
-                  <div className="text-xs font-normal text-muted-foreground tabular-nums leading-tight">{fmt(skill[col.key])}</div>
+                  <div className="text-helpertext-xs text-muted-foreground/70 leading-none h-[20px] flex items-end justify-center pb-0.5">{col.label}</div>
+                  <div className="text-caption-sm font-normal text-muted-foreground tabular-nums leading-tight">{fmt(skill[col.key])}</div>
                 </div>
               ))}
               <div className="flex flex-col items-center">
-                <div className="text-[10px] text-muted-foreground/70 leading-none h-[20px] flex items-end justify-center pb-0.5">Δ</div>
-                <div className={`text-sm font-semibold tabular-nums leading-tight ${
-                  Math.abs(skill.delta) >= 0.5 ? 'text-orange-600' : 'text-foreground'
+                <div className="text-helpertext-xs text-muted-foreground/70 leading-none h-[20px] flex items-end justify-center pb-0.5">Δ</div>
+                <div className={`text-body-md font-semibold tabular-nums leading-tight ${
+                  Math.abs(skill.delta) >= 0.5 ? 'text-warning' : 'text-foreground'
                 }`}>
                   {skill.signed_delta !== undefined
                     ? (skill.signed_delta >= 0 ? '+' : '') + skill.signed_delta.toFixed(2)
@@ -83,8 +83,8 @@ export const JohariSkillCard: React.FC<JohariSkillCardProps> = ({ skill, scaleMa
             </div>
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs space-y-1.5 p-3">
-          <p className="font-semibold text-sm">{skill.skill_name}</p>
+        <TooltipContent side="top" className="max-w-xs text-caption-sm space-y-1.5 p-3">
+          <p className="font-semibold text-body-md">{skill.skill_name}</p>
           
           {/* Skill description */}
           {skill.skill_description && (
@@ -136,7 +136,7 @@ export const JohariSkillCard: React.FC<JohariSkillCardProps> = ({ skill, scaleMa
             </p>
           )}
 
-          <p className="text-muted-foreground/70 text-[10px]">
+          <p className="text-muted-foreground/70 text-helpertext-xs">
             Респондентов: {skill.others_raters_cnt}
           </p>
         </TooltipContent>

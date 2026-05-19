@@ -18,7 +18,7 @@ import {
   Heart,
   AlertTriangle,
   HelpCircle,
-} from 'lucide-react';
+} from "@/components/icons";
 import type {
   CommentsClassification,
   ClassifiedComment,
@@ -115,7 +115,7 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
     return (
       <div
         key={comment.comment_id}
-        className={`text-sm p-3 rounded-lg border transition-opacity ${
+        className={`text-body-md p-3 rounded-lg border transition-opacity ${
           isHidden ? 'opacity-40 bg-muted/20' : 'bg-card'
         }`}
       >
@@ -138,12 +138,12 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
           )}
         </div>
         {comment.source_skill_name && (
-          <span className="text-xs text-muted-foreground mt-1 block">
+          <span className="text-caption-sm text-muted-foreground mt-1 block">
             Навык: {comment.source_skill_name}
           </span>
         )}
         {comment.reassignment_suggestion && !isHidden && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 rounded px-2 py-1">
+          <div className="mt-2 flex items-center gap-1.5 text-caption-sm text-muted-foreground bg-muted/30 rounded px-2 py-1">
             <Lightbulb className="w-3 h-3 shrink-0" />
             <span>
               AI-предложение: → <strong>{comment.reassignment_suggestion.suggested_skill_name}</strong>
@@ -165,15 +165,15 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
         {/* Zone header */}
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.headerClass}`}>
           <span>{config.emoji}</span>
-          <span className="font-semibold text-sm">{config.label}</span>
-          <Badge variant="outline" className={`text-[10px] ml-auto ${config.badgeClass}`}>
+          <span className="font-semibold text-body-md">{config.label}</span>
+          <Badge variant="outline" className={`text-helpertext-xs ml-auto ${config.badgeClass}`}>
             {visibleSkills.reduce((sum, s) => sum + s.comments.length, 0)} комм.
           </Badge>
         </div>
 
         {/* Zone summary */}
         {group.zone_summary && (
-          <p className="text-sm text-muted-foreground px-1 italic">
+          <p className="text-body-md text-muted-foreground px-1 italic">
             {group.zone_summary}
           </p>
         )}
@@ -185,11 +185,11 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start gap-2 text-sm font-medium h-8 px-2"
+                className="w-full justify-start gap-2 text-body-md font-medium h-8 px-2"
               >
                 <ChevronDown className="w-3.5 h-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
                 {skillGroup.skill_name}
-                <span className="text-xs text-muted-foreground ml-auto">
+                <span className="text-caption-sm text-muted-foreground ml-auto">
                   {skillGroup.comments.length}
                 </span>
               </Button>
@@ -208,14 +208,14 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-body-base">
           <MessageSquareText className="w-4 h-4 text-primary" />
           {isExternalOnly ? 'Классификация комментариев внешних' : 'Классификация комментариев'}
         </CardTitle>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-body-md text-muted-foreground">
           <span>{isExternalOnly ? 'Только внешние респонденты' : 'Все респонденты'}</span>
           {totalComments > 0 && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-caption-sm">
               💬 {totalComments} комментариев
             </Badge>
           )}
@@ -228,15 +228,15 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
         {/* Out of matrix */}
         {out_of_matrix_comments.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <div className="flex items-center gap-2 text-body-md font-semibold text-muted-foreground">
               <HelpCircle className="w-4 h-4" />
               Комментарии по навыкам вне матрицы
             </div>
             <div className="space-y-1.5">
               {out_of_matrix_comments.map(c => (
-                <div key={c.comment_id} className="text-sm p-3 rounded-lg border bg-card">
+                <div key={c.comment_id} className="text-body-md p-3 rounded-lg border bg-card">
                   <p>{c.comment_text}</p>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 mt-1.5 text-caption-sm text-muted-foreground">
                     <span>Навык: {c.source_skill_name}</span>
                     <span>·</span>
                     <span>Тема: {c.inferred_topic}</span>
@@ -250,15 +250,15 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
         {/* Gratitude */}
         {gratitude_comments.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <div className="flex items-center gap-2 text-body-md font-semibold text-muted-foreground">
               <Heart className="w-4 h-4" />
               Благодарности коллег
             </div>
             <div className="space-y-1.5">
               {gratitude_comments.map(c => (
-                <div key={c.comment_id} className="text-sm p-3 rounded-lg border bg-card">
+                <div key={c.comment_id} className="text-body-md p-3 rounded-lg border bg-card">
                   <p>{c.comment_text}</p>
-                  <span className="text-xs text-muted-foreground mt-1 block">
+                  <span className="text-caption-sm text-muted-foreground mt-1 block">
                     Навык: {c.source_skill_name}
                   </span>
                 </div>
@@ -270,15 +270,15 @@ export const JohariCommentsClassification: React.FC<JohariCommentsClassification
         {/* Problem comments */}
         {problem_comments.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-error">
+            <div className="flex items-center gap-2 text-body-md font-semibold text-destructive">
               <AlertTriangle className="w-4 h-4" />
               Проблемные комментарии
             </div>
             <div className="space-y-1.5">
               {problem_comments.map(c => (
-                <div key={c.comment_id} className="text-sm p-3 rounded-lg border border-error/20 bg-error/5">
+                <div key={c.comment_id} className="text-body-md p-3 rounded-lg border border-destructive/20 bg-destructive/5">
                   <p>{c.comment_text}</p>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 mt-1.5 text-caption-sm text-muted-foreground">
                     <span>Навык: {c.source_skill_name}</span>
                     <span>·</span>
                     <span>Причина: {c.reason}</span>

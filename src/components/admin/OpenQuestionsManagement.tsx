@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -136,7 +136,7 @@ export const OpenQuestionsManagement = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Открытые вопросы</h3>
+        <h3 className="text-body-lg font-medium">Открытые вопросы</h3>
         <Button onClick={() => { resetForm(); setIsDialogOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" />
           Добавить вопрос
@@ -174,7 +174,7 @@ export const OpenQuestionsManagement = () => {
                 checked={formData.is_active}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked === true })}
               />
-              <Label htmlFor="open_q_active" className="cursor-pointer text-sm">Активен</Label>
+              <Label htmlFor="open_q_active" className="cursor-pointer text-body-md">Активен</Label>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -182,7 +182,7 @@ export const OpenQuestionsManagement = () => {
                 checked={formData.is_required}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked === true })}
               />
-              <Label htmlFor="open_q_required" className="cursor-pointer text-sm">Обязательный</Label>
+              <Label htmlFor="open_q_required" className="cursor-pointer text-body-md">Обязательный</Label>
             </div>
             <div className="flex gap-2 justify-end">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Отмена</Button>

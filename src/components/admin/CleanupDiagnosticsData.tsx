@@ -5,7 +5,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Loader2, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Trash2, CheckCircle2, AlertCircle } from "@/components/icons";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DeleteResult {
@@ -116,11 +116,11 @@ export const CleanupDiagnosticsData = () => {
     <Card className="p-6 mt-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary mb-2 flex items-center gap-2">
+          <h2 className="text-heading-3 font-bold text-foreground mb-2 flex items-center gap-2">
             <Trash2 className="h-6 w-6" />
             Очистка импортированных данных
           </h2>
-          <p className="text-text-secondary">
+          <p className="text-muted-foreground">
             Полное удаление всех импортированных вопросов, ответов, навыков и категорий (необратимая операция)
           </p>
         </div>
@@ -165,7 +165,7 @@ export const CleanupDiagnosticsData = () => {
                   </p>
                   <div className="bg-muted rounded-lg p-4">
                     <p className="font-medium mb-2">Будут удалены данные из следующих таблиц:</p>
-                    <ul className="list-disc list-inside text-sm space-y-1">
+                    <ul className="list-disc list-inside text-body-md space-y-1">
                       {tables.map(table => (
                         <li key={table}>{table}</li>
                       ))}
@@ -188,20 +188,20 @@ export const CleanupDiagnosticsData = () => {
 
         {showResults && deleteResults.length > 0 && (
           <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
-            <h4 className="text-sm font-medium">Результаты удаления:</h4>
+            <h4 className="text-body-md font-medium">Результаты удаления:</h4>
             <div className="space-y-2">
               {deleteResults.map((result) => (
-                <div key={result.table} className="flex items-center gap-2 text-sm">
+                <div key={result.table} className="flex items-center gap-2 text-body-md">
                   {result.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                   ) : (
                     <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
                   )}
                   <div className="flex-1">
-                    <span className={result.success ? 'text-text-primary' : 'text-destructive'}>
+                    <span className={result.success ? 'text-foreground' : 'text-destructive'}>
                       {result.table}
                     </span>
-                    <span className="text-text-secondary ml-2">
+                    <span className="text-muted-foreground ml-2">
                       — {result.success ? `${result.count} записей удалено` : `Ошибка: ${result.error}`}
                     </span>
                   </div>
@@ -209,7 +209,7 @@ export const CleanupDiagnosticsData = () => {
               ))}
             </div>
             <div className="pt-3 border-t border-border">
-              <p className="text-sm font-medium">
+              <p className="text-body-md font-medium">
                 Всего удалено: {deleteResults.filter(r => r.success).reduce((sum, r) => sum + r.count, 0)} записей
               </p>
             </div>

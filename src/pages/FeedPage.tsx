@@ -1,7 +1,7 @@
 import React from 'react';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Rss } from 'lucide-react';
+import { Rss } from "@/components/icons";
 
 const FeedPage = () => {
   return (
@@ -9,21 +9,21 @@ const FeedPage = () => {
       <Breadcrumbs />
       
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Лента новостей</h1>
-        <p className="text-text-secondary mt-1">Актуальные новости и события компании</p>
+        <h1 className="text-heading-2 font-bold text-foreground">Лента новостей</h1>
+        <p className="text-muted-foreground mt-1">Актуальные новости и события компании</p>
       </div>
 
       <Card className="border-0 shadow-card">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-brand-purple/10 rounded-lg">
-              <Rss className="h-6 w-6 text-brand-purple" />
+            <div className="p-2 bg-accent/10 rounded-lg">
+              <Rss className="h-6 w-6 text-accent" />
             </div>
             <CardTitle>Новости</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-text-secondary">Раздел в разработке. Здесь будет лента новостей и обновлений компании.</p>
+          <p className="text-muted-foreground">Раздел в разработке. Здесь будет лента новостей и обновлений компании.</p>
         </CardContent>
       </Card>
     </div>

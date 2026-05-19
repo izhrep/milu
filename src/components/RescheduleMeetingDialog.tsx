@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { TimePicker } from '@/components/ui/time-picker';
 import { Label } from '@/components/ui/label';
-import { Loader2, CalendarClock } from 'lucide-react';
+import { Loader2, CalendarClock } from "@/components/icons";
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -116,7 +116,7 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[360px] p-5">
         <DialogHeader className="pb-1">
-          <DialogTitle className="text-base flex items-center gap-2">
+          <DialogTitle className="text-body-base flex items-center gap-2">
             <CalendarClock className="h-4 w-4 text-primary" />
             Перенести встречу
           </DialogTitle>
@@ -139,8 +139,8 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
           />
 
           <div className="flex items-center gap-3">
-            <Label className="text-sm text-muted-foreground shrink-0">
-              Время <span className="text-xs">({getTimezoneOffsetLabel(userTz)})</span>
+            <Label className="text-body-md text-muted-foreground shrink-0">
+              Время <span className="text-caption-sm">({getTimezoneOffsetLabel(userTz)})</span>
             </Label>
             <TimePicker
               value={selectedTime}
@@ -148,20 +148,20 @@ export const RescheduleMeetingDialog: React.FC<RescheduleMeetingDialogProps> = (
               minTime={selectedDate ? getMinTimeForDate(format(selectedDate, 'yyyy-MM-dd'), userTz) : null}
             />
             {summaryLabel && (
-              <span className="text-sm font-medium text-foreground truncate ml-auto">
+              <span className="text-body-md font-medium text-foreground truncate ml-auto">
                 {summaryLabel}
               </span>
             )}
           </div>
 
           {selectedDate && selectedTime && !isValid && (
-            <p className="text-xs text-destructive">
+            <p className="text-caption-sm text-destructive">
               Выбранное время уже прошло.
             </p>
           )}
 
           {serverError && (
-            <p className="text-xs text-destructive">
+            <p className="text-caption-sm text-destructive">
               {serverError}
             </p>
           )}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2, Info } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2, Info } from "@/components/icons";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -61,13 +61,13 @@ function ReportSection({ label, data }: { label: string; data: EntityReport }) {
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2 text-sm font-medium">
+      <div className="flex items-center gap-2 text-body-md font-medium">
         <span>{label}</span>
         <span className="text-muted-foreground">
           ({total} обработано)
         </span>
       </div>
-      <div className="flex gap-4 text-xs text-muted-foreground pl-2">
+      <div className="flex gap-4 text-caption-sm text-muted-foreground pl-2">
         {data.created > 0 && <span className="text-primary">+{data.created} создано</span>}
         {data.updated > 0 && <span className="text-accent-foreground">⟳ {data.updated} обновлено</span>}
         {data.reused > 0 && <span className="text-muted-foreground">↻ {data.reused} без изменений</span>}
@@ -75,7 +75,7 @@ function ReportSection({ label, data }: { label: string; data: EntityReport }) {
       {data.errors.length > 0 && (
         <div className="pl-2 space-y-0.5">
           {data.errors.map((err, i) => (
-            <div key={i} className="text-xs text-destructive">⚠ {err}</div>
+            <div key={i} className="text-caption-sm text-destructive">⚠ {err}</div>
           ))}
         </div>
       )}
@@ -205,8 +205,8 @@ export function ImportDiagnosticsData() {
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary mb-2">Импорт вопросов и ответов</h2>
-          <p className="text-text-secondary">
+          <h2 className="text-heading-3 font-bold text-foreground mb-2">Импорт вопросов и ответов</h2>
+          <p className="text-muted-foreground">
             Загрузите Excel-файл с вкладками "question" и "answer" для массового импорта данных.
             Повторный импорт обновит существующие записи, не создавая дублей.
           </p>
@@ -239,10 +239,10 @@ export function ImportDiagnosticsData() {
                 />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm text-text-secondary mb-2">
+                  <p className="text-body-md text-muted-foreground mb-2">
                     {file ? file.name : 'Нажмите для выбора файла или перетащите его сюда'}
                   </p>
-                  <p className="text-xs text-text-tertiary">Excel (.xlsx, .xls)</p>
+                  <p className="text-caption-sm text-muted-foreground/70">Excel (.xlsx, .xls)</p>
                 </label>
               </div>
 
@@ -324,7 +324,7 @@ export function ImportDiagnosticsData() {
                       </TableBody>
                     </Table>
                     {parsedData.questions.length > 10 && (
-                      <p className="text-xs text-text-tertiary mt-2 text-center">
+                      <p className="text-caption-sm text-muted-foreground/70 mt-2 text-center">
                         Показаны первые 10 из {parsedData.questions.length} записей
                       </p>
                     )}
@@ -354,7 +354,7 @@ export function ImportDiagnosticsData() {
                       </TableBody>
                     </Table>
                     {parsedData.answers.length > 10 && (
-                      <p className="text-xs text-text-tertiary mt-2 text-center">
+                      <p className="text-caption-sm text-muted-foreground/70 mt-2 text-center">
                         Показаны первые 10 из {parsedData.answers.length} записей
                       </p>
                     )}
@@ -394,9 +394,9 @@ export function ImportDiagnosticsData() {
           </DialogContent>
         </Dialog>
 
-        <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+        <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-body-md">
           <p className="font-medium">Формат файла:</p>
-          <ul className="list-disc list-inside space-y-1 text-text-secondary">
+          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
             <li>Файл должен содержать две вкладки: "question" и "answer"</li>
             <li>Вкладка "question": Тип, Категория, Подкатегория, Skill, Описание навыка, Текст вопроса, Порядок вопроса, Название группы ответов, Ограничение видимости вопроса</li>
             <li>Вкладка "answer": Тип, Название группы ответов, Описание группы ответов, Название ответа, Описание ответа, Уровень ответа, Порядок ответа</li>

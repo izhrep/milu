@@ -35,9 +35,9 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName, 
   return (
     <Card className="border-0 shadow-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between">
+        <CardTitle className="text-body-lg flex items-center justify-between">
           <span>Сотрудники</span>
-          <span className="text-sm font-normal text-text-secondary">{employees.length}</span>
+          <span className="text-body-md font-normal text-muted-foreground">{employees.length}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -62,9 +62,9 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName, 
                     className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/50'}`}
                     onClick={() => onSelect(e.id)}
                   >
-                    <TableCell className="pl-4 font-medium text-text-primary">{fullName}</TableCell>
-                    <TableCell className="text-text-secondary text-sm">{e.positions?.name || '—'}</TableCell>
-                    <TableCell className="text-sm" onClick={(ev) => ev.stopPropagation()}>
+                    <TableCell className="pl-4 font-medium text-foreground">{fullName}</TableCell>
+                    <TableCell className="text-muted-foreground text-body-md">{e.positions?.name || '—'}</TableCell>
+                    <TableCell className="text-body-md" onClick={(ev) => ev.stopPropagation()}>
                       {onProjectChange ? (
                         <ProjectSelect
                           value={e.currentProject || ''}
@@ -73,11 +73,11 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName, 
                           placeholder="—"
                         />
                       ) : (
-                        <span className="text-text-secondary">{e.currentProject || '—'}</span>
+                        <span className="text-muted-foreground">{e.currentProject || '—'}</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={`text-xs ${profileStatusColors[e.profileStatus]}`}>
+                      <Badge variant="outline" className={`text-caption-sm ${profileStatusColors[e.profileStatus]}`}>
                         {profileStatusLabels[e.profileStatus]}
                       </Badge>
                     </TableCell>
@@ -85,7 +85,7 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName, 
                       <Button
                         variant="link"
                         size="sm"
-                        className="p-0 h-auto text-xs"
+                        className="p-0 h-auto text-caption-sm"
                         onClick={(ev) => { ev.stopPropagation(); onSelect(e.id); }}
                       >
                         {actionLabel[e.profileStatus]}
@@ -96,7 +96,7 @@ const ProfileEmployeeList = ({ employees, selectedId, onSelect, getManagerName, 
               })}
               {employees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Нет сотрудников по выбранным фильтрам
                   </TableCell>
                 </TableRow>

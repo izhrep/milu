@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { COLORS } from '@/lib/colors';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle, Download, Calendar, Brain, FileSpreadsheet, History } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Download, Calendar, Brain, FileSpreadsheet, History } from "@/components/icons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadarChartResults } from '@/components/RadarChartResults';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -311,7 +312,7 @@ const AssessmentResultsPage = () => {
   // Show loading state while checking access or loading data
   if (!accessCheckComplete || accessDenied || loading || snapshotLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">
@@ -327,13 +328,13 @@ const AssessmentResultsPage = () => {
 
   // Маппинг групп респондентов на данные из overallResults
   const groupColors: Record<RespondentGroupType, string> = {
-    self: '#3A3FBC',           // Синий - Личный фидбек
-    manager_internal: '#F28C28', // Оранжевый - Лид (внутренний)
-    manager_external: '#9B59B6', // Фиолетовый - Лид (внешний)
-    peer_internal: '#2EAE80',    // Зелёный - Коллега (внутренний)
-    peer_external: '#E74C3C',    // Красный - Коллега (внешний)
-    customer_external: '#F1C40F', // Жёлтый - Заказчик (внешний)
-    all_except_self: '#8B5CF6'   // Фиолетовый - Все кроме фидбека сотрудника
+    self: COLORS.brandNavy,            // Синий - Личный фидбек
+    manager_internal: COLORS.accentOrange, // Оранжевый - Лид (внутренний)
+    manager_external: COLORS.chart3,    // Фиолетовый - Лид (внешний)
+    peer_internal: COLORS.success,      // Зелёный - Коллега (внутренний)
+    peer_external: COLORS.error,        // Красный - Коллега (внешний)
+    customer_external: COLORS.warning,  // Жёлтый - Заказчик (внешний)
+    all_except_self: COLORS.chart3     // Фиолетовый - Все кроме фидбека сотрудника
   };
 
   // Возвращает элемент с value: null при отсутствии данных (для фиксированных позиций строк)
@@ -494,7 +495,7 @@ const AssessmentResultsPage = () => {
   return (
     <div className="min-h-full print:p-0">
       {/* Sticky header */}
-      <div className="sticky top-0 z-20 bg-surface-secondary pt-2 pb-4 px-6 border-b border-border/50 shadow-sm print:static print:border-0 print:shadow-none">
+      <div className="sticky top-0 z-20 bg-muted pt-2 pb-4 px-6 border-b border-border/50 shadow-sm print:static print:border-0 print:shadow-none">
         <div className="max-w-7xl mx-auto">
           {/* Breadcrumbs + Stage info */}
           <div className="print:hidden mb-3 flex items-center justify-between">
@@ -511,7 +512,7 @@ const AssessmentResultsPage = () => {
                   value={selectedStageId || undefined}
                   onValueChange={(val) => setManualStageId(val)}
                 >
-                  <SelectTrigger className="w-[220px] h-8 text-sm">
+                  <SelectTrigger className="w-[220px] h-8 text-body-md">
                     <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                     <SelectValue placeholder="Выберите этап" />
                   </SelectTrigger>
@@ -529,9 +530,9 @@ const AssessmentResultsPage = () => {
           </div>
 
           {showCompletionMessage && (
-            <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 print:hidden mb-4">
-              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-              <AlertDescription className="text-green-800 dark:text-green-200 font-medium ml-2">
+            <Alert className="bg-success/10 dark:bg-success border-success/30 dark:border-success print:hidden mb-4">
+              <CheckCircle className="h-5 w-5 text-success dark:text-success/80" />
+              <AlertDescription className="text-success dark:text-success font-medium ml-2">
                 Оценка завершена. Результаты сохранены.
               </AlertDescription>
             </Alert>
@@ -539,7 +540,7 @@ const AssessmentResultsPage = () => {
 
           <div className="flex items-center justify-between print:hidden">
             <div>
-              <h1 className="text-3xl font-bold text-text-primary mb-2">{pageTitle}</h1>
+              <h1 className="text-heading-2 font-bold text-foreground mb-2">{pageTitle}</h1>
             </div>
             <div className="flex gap-2">
               {canViewJohari && (
@@ -550,7 +551,7 @@ const AssessmentResultsPage = () => {
                         <Button 
                           variant="outline" 
                           disabled
-                          className="print:hidden bg-gradient-to-r from-purple-500/50 to-violet-600/50 text-white border-0 cursor-not-allowed"
+                          className="print:hidden bg-gradient-to-r from-chart-3 to-chart-3 text-white border-0 cursor-not-allowed"
                         >
                           <Brain className="w-4 h-4 mr-2" />
                           Окно Джохари (AI)
@@ -600,11 +601,11 @@ const AssessmentResultsPage = () => {
           
           {/* Заголовок для печати */}
           <div className="hidden print:block mb-6">
-            <h1 className="text-2xl font-bold">{pageTitle}</h1>
-            <p className="text-sm text-muted-foreground">Сотрудник: {evaluatedUserName || getUserDisplayName()}</p>
-            <p className="text-sm text-muted-foreground">Дата: {new Date().toLocaleDateString('ru-RU')}</p>
+            <h1 className="text-heading-3 font-bold">{pageTitle}</h1>
+            <p className="text-body-md text-muted-foreground">Сотрудник: {evaluatedUserName || getUserDisplayName()}</p>
+            <p className="text-body-md text-muted-foreground">Дата: {new Date().toLocaleDateString('ru-RU')}</p>
             {selectedStageInfo && (
-              <p className="text-sm text-muted-foreground">Этап: {selectedStageInfo.period}</p>
+              <p className="text-body-md text-muted-foreground">Этап: {selectedStageInfo.period}</p>
             )}
           </div>
         </div>
@@ -648,8 +649,8 @@ const AssessmentResultsPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-            <p className="text-muted-foreground text-lg">Нет данных для отображения</p>
-            <p className="text-sm text-muted-foreground/70 text-center max-w-md">
+            <p className="text-muted-foreground text-body-lg">Нет данных для отображения</p>
+            <p className="text-body-md text-muted-foreground/70 text-center max-w-md">
               Данные появятся после того, как респонденты завершат оценку (нажмут «Завершить оценку»). 
               Пока оценка находится в процессе — результаты недоступны.
             </p>
@@ -669,7 +670,7 @@ const AssessmentResultsPage = () => {
       {hasDataForCurrentFilter && (overallResults || skillResults.length > 0 || qualityResults.length > 0) && (
         <Card className="p-4 print:hidden">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-muted-foreground">
+            <label className="text-body-md font-medium text-muted-foreground">
               Группа респондентов
             </label>
             <RespondentGroupFilter
@@ -712,7 +713,7 @@ const AssessmentResultsPage = () => {
 
                 return Object.entries(groupedSkills).map(([categoryName, skills]) => (
                   <div key={categoryName} className="space-y-4 border-l-4 border-primary/20 pl-4">
-                    <h3 className="text-lg font-semibold text-foreground">{categoryName}</h3>
+                    <h3 className="text-body-lg font-semibold text-foreground">{categoryName}</h3>
                     {skills.map(skill => {
                       const skillComments = enhancedSkillResults.find(
                         s => s.skill_id === skill.competency_id
@@ -800,7 +801,7 @@ const AssessmentResultsPage = () => {
 
                 return Object.entries(groupedQualities).map(([categoryName, qualities]) => (
                   <div key={categoryName} className="space-y-4 border-l-4 border-primary/20 pl-4">
-                    <h3 className="text-lg font-semibold text-foreground">{categoryName}</h3>
+                    <h3 className="text-body-lg font-semibold text-foreground">{categoryName}</h3>
                     {qualities.map(quality => {
                       const qualityComments = enhancedQualityResults.find(
                         q => q.quality_id === quality.competency_id
@@ -875,7 +876,7 @@ const AssessmentResultsPage = () => {
             <CardTitle>{getDetailedTitle()}</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center py-12">
-            <p className="text-muted-foreground text-lg">Нет данных для отображения</p>
+            <p className="text-muted-foreground text-body-lg">Нет данных для отображения</p>
           </CardContent>
         </Card>
       )}

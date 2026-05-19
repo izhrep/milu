@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, Calendar } from 'lucide-react';
+import { BookOpen, Calendar } from "@/components/icons";
 
 interface MockSkill {
   name: string;
@@ -33,7 +33,7 @@ const levelColor = (level: number, max: number) => {
 const SkillRow: React.FC<{ skill: MockSkill }> = ({ skill }) => (
   <div className="flex items-center gap-4 py-3 border-b border-border last:border-b-0">
     <div className="min-w-0 flex-1">
-      <p className="text-sm font-medium text-foreground">{skill.name}</p>
+      <p className="text-body-md font-medium text-foreground">{skill.name}</p>
       <div className="flex items-center gap-2 mt-1">
         <div className="flex gap-0.5">
           {Array.from({ length: skill.maxLevel }).map((_, i) => (
@@ -43,10 +43,10 @@ const SkillRow: React.FC<{ skill: MockSkill }> = ({ skill }) => (
             />
           ))}
         </div>
-        <span className="text-[10px] text-muted-foreground">{skill.level}/{skill.maxLevel}</span>
+        <span className="text-helpertext-xs text-muted-foreground">{skill.level}/{skill.maxLevel}</span>
       </div>
     </div>
-    <div className="flex items-center gap-1 text-[10px] text-muted-foreground flex-shrink-0">
+    <div className="flex items-center gap-1 text-helpertext-xs text-muted-foreground flex-shrink-0">
       <Calendar className="w-3 h-3" />
       {skill.lastAssessed}
     </div>
@@ -59,7 +59,7 @@ const EmployeeSkills: React.FC = () => {
   return (
     <div className="space-y-5 mt-4">
       <div className="bg-muted/30 border border-border rounded-lg px-4 py-3">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption-sm text-muted-foreground">
           Навыки сотрудника на основе результатов диагностик. Агрегация и детальный drill-down — в будущих итерациях.
         </p>
       </div>
@@ -69,11 +69,11 @@ const EmployeeSkills: React.FC = () => {
           const skills = MOCK_SKILLS.filter(s => s.category === cat);
           return (
             <div key={cat} className="bg-card border border-border rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+              <h3 className="text-body-md font-semibold text-foreground mb-1 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-primary" />
                 {cat}
               </h3>
-              <p className="text-[10px] text-muted-foreground mb-3">{skills.length} навыков</p>
+              <p className="text-helpertext-xs text-muted-foreground mb-3">{skills.length} навыков</p>
               {skills.map(s => (
                 <SkillRow key={s.name} skill={s} />
               ))}
@@ -85,7 +85,7 @@ const EmployeeSkills: React.FC = () => {
       {/* Empty state placeholder */}
       <div className="bg-card border border-dashed border-border rounded-lg p-8 text-center">
         <BookOpen className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">Дополнительные навыки будут добавлены после следующей диагностики</p>
+        <p className="text-body-md text-muted-foreground">Дополнительные навыки будут добавлены после следующей диагностики</p>
         <Skeleton className="h-3 w-48 mx-auto mt-3 rounded-full" />
       </div>
     </div>

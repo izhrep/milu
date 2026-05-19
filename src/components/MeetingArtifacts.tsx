@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Paperclip, Download, Trash2, Upload, FileText, Image, FileSpreadsheet, Presentation, Loader2 } from 'lucide-react';
+import { Paperclip, Download, Trash2, Upload, FileText, Image, FileSpreadsheet, Presentation, Loader2 } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMeetingArtifacts, MeetingArtifact } from '@/hooks/useMeetingArtifacts';
@@ -81,7 +81,7 @@ export const MeetingArtifacts: React.FC<MeetingArtifactsProps> = ({ meetingId, m
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
+          <CardTitle className="text-body-md flex items-center gap-2">
             <Paperclip className="h-4 w-4" />
             Материалы встречи
             <span className="text-muted-foreground font-normal">({artifacts.length}/10)</span>
@@ -119,7 +119,7 @@ export const MeetingArtifacts: React.FC<MeetingArtifactsProps> = ({ meetingId, m
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : artifacts.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-2">Нет прикреплённых файлов</p>
+          <p className="text-body-md text-muted-foreground text-center py-2">Нет прикреплённых файлов</p>
         ) : (
           <div className="space-y-2">
             {artifacts.map((artifact) => (
@@ -129,8 +129,8 @@ export const MeetingArtifacts: React.FC<MeetingArtifactsProps> = ({ meetingId, m
               >
                 {getFileIcon(artifact.mime_type, artifact.file_name)}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{artifact.file_name}</p>
-                  <p className="text-xs text-muted-foreground">{formatFileSize(artifact.file_size)}</p>
+                  <p className="text-body-md font-medium truncate">{artifact.file_name}</p>
+                  <p className="text-caption-sm text-muted-foreground">{formatFileSize(artifact.file_size)}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button

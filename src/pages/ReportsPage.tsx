@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Download, FileSpreadsheet } from "@/components/icons";
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -186,7 +186,7 @@ const ReportsPage = () => {
     <div className="container mx-auto p-6 space-y-6">
       <Breadcrumbs />
       <div>
-        <h1 className="text-3xl font-bold">Отчеты</h1>
+        <h1 className="text-heading-2 font-bold">Отчеты</h1>
         <p className="text-muted-foreground mt-2">
           Выгрузка результатов оценок в формате Excel
         </p>
@@ -212,7 +212,7 @@ const ReportsPage = () => {
               <Download className="mr-2 h-4 w-4" />
               {loading ? 'Формирование отчета...' : 'Выгрузить отчет по навыкам'}
             </Button>
-            <p className="text-sm text-muted-foreground mt-4">
+            <p className="text-body-md text-muted-foreground mt-4">
               Данные включают: категорию, навык, вопрос, оцениваемого сотрудника, 
               оценивающего сотрудника, ответ, балл и комментарий
             </p>
@@ -238,7 +238,7 @@ const ReportsPage = () => {
               <Download className="mr-2 h-4 w-4" />
               {loading ? 'Формирование отчета...' : 'Выгрузить отчет по качествам'}
             </Button>
-            <p className="text-sm text-muted-foreground mt-4">
+            <p className="text-body-md text-muted-foreground mt-4">
               Данные включают: качество, вопрос, оцениваемого сотрудника, 
               оценивающего сотрудника, ответ, балл и комментарий
             </p>

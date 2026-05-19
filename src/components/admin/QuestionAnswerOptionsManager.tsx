@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, AlertTriangle, Info } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertTriangle, Info } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -203,13 +203,13 @@ export const QuestionAnswerOptionsManager = ({
   const renderOptionRow = (option: AnswerOption, isOutOfRange = false) => (
     <TableRow 
       key={option.id} 
-      className={isOutOfRange ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}
+      className={isOutOfRange ? 'bg-warning/60 dark:bg-warning/20' : ''}
     >
       <TableCell className="font-semibold">
         <div className="flex items-center gap-2">
           {option.level_value}
           {isOutOfRange && (
-            <Badge variant="outline" className="text-xs px-1.5 py-0 text-amber-600 border-amber-300 whitespace-nowrap">
+            <Badge variant="outline" className="text-caption-sm px-1.5 py-0 text-warning border-warning/40 whitespace-nowrap">
               Вне диапазона
             </Badge>
           )}
@@ -222,7 +222,7 @@ export const QuestionAnswerOptionsManager = ({
       )}
       <TableCell>{option.order_index}</TableCell>
       <TableCell>{option.title}</TableCell>
-      <TableCell className="text-sm text-muted-foreground">
+      <TableCell className="text-body-md text-muted-foreground">
         {option.description || '—'}
       </TableCell>
       <TableCell>
@@ -242,14 +242,14 @@ export const QuestionAnswerOptionsManager = ({
     <div className="space-y-3 p-4 border rounded-lg bg-muted/5">
       <div>
         <h3 className="font-semibold mb-1">Варианты ответов</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body-md text-muted-foreground">
           Управление вариантами ответов для выбранной группы
         </p>
       </div>
 
       {/* Template context header */}
       {templateContext && (
-        <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded px-3 py-2 border border-border/50">
+        <div className="flex items-center gap-3 text-caption-sm text-muted-foreground bg-muted/40 rounded px-3 py-2 border border-border/50">
           <Info className="h-3.5 w-3.5 shrink-0" />
           <span>
             Шаблон: <span className="font-medium text-foreground">{templateContext.name} v{templateContext.version}</span>
@@ -261,11 +261,11 @@ export const QuestionAnswerOptionsManager = ({
 
       {/* Range analysis warnings */}
       {rangeAnalysis && (rangeAnalysis.hasGaps || rangeAnalysis.hasExtra) && (
-        <Alert className="border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-sm space-y-1">
+        <Alert className="border-warning/40 bg-warning/50 dark:bg-warning/20">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertDescription className="text-body-md space-y-1">
             {rangeAnalysis.hasExtra && (
-              <p className="text-amber-800 dark:text-amber-200">
+              <p className="text-warning dark:text-warning">
                 У вопроса больше вариантов ответа, чем заложено в шаблоне. Лишние уровни: <span className="font-medium">{rangeAnalysis.extraLevels.join(', ')}</span>
               </p>
             )}
@@ -280,7 +280,7 @@ export const QuestionAnswerOptionsManager = ({
 
       <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-3">
         <div>
-          <Label className="text-xs">Уровень *</Label>
+          <Label className="text-caption-sm">Уровень *</Label>
           <Input
             type="number"
             value={formData.level_value}
@@ -291,7 +291,7 @@ export const QuestionAnswerOptionsManager = ({
           />
         </div>
         <div>
-          <Label className="text-xs">Порядок *</Label>
+          <Label className="text-caption-sm">Порядок *</Label>
           <Input
             type="number"
             value={formData.order_index}
@@ -302,7 +302,7 @@ export const QuestionAnswerOptionsManager = ({
           />
         </div>
         <div className="col-span-4">
-          <Label className="text-xs">Название *</Label>
+          <Label className="text-caption-sm">Название *</Label>
           <Input
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -311,7 +311,7 @@ export const QuestionAnswerOptionsManager = ({
           />
         </div>
         <div className="col-span-4">
-          <Label className="text-xs">Описание</Label>
+          <Label className="text-caption-sm">Описание</Label>
           <Input
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}

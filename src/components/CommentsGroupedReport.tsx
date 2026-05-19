@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, User, Users, Shield, ChevronDown, ChevronUp, EyeOff, EyeOffIcon } from 'lucide-react';
+import { MessageSquare, User, Users, Shield, ChevronDown, ChevronUp, EyeOff, EyeOffIcon } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { COLORS } from '@/lib/colors';
 
 export interface CommentByEvaluator {
   evaluator_id: string;
@@ -82,13 +83,13 @@ export const CommentsGroupedReport: React.FC<CommentsGroupedReportProps> = ({
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
       case 'self':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
+        return 'bg-primary/20 text-primary border-primary/30';
       case 'supervisor':
-        return 'bg-green-100 text-green-700 border-green-200';
+        return 'bg-success/20 text-success border-success/30';
       case 'colleague':
-        return 'bg-purple-100 text-purple-700 border-purple-200';
+        return 'bg-chart-3/20 text-chart-3 border-chart-3/30';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -101,7 +102,7 @@ export const CommentsGroupedReport: React.FC<CommentsGroupedReportProps> = ({
           <div className={`p-2 rounded-lg ${getTypeBadgeColor(type)}`}>
             {getIcon(type)}
           </div>
-          <h5 className="font-semibold text-text-primary">{getTypeLabel(type)}</h5>
+          <h5 className="font-semibold text-foreground">{getTypeLabel(type)}</h5>
           <Badge variant="outline" className="ml-auto">
             {groupComments.length} {groupComments.length === 1 ? 'комментарий' : 'комментария'}
           </Badge>
@@ -118,11 +119,11 @@ export const CommentsGroupedReport: React.FC<CommentsGroupedReportProps> = ({
             const commentKey = `${comment.evaluator_id}-${originalIndex}`;
             
             return (
-              <Card key={commentKey} className="p-4 bg-surface-secondary border-l-4 relative group" style={{
-                borderLeftColor: type === 'self' ? '#3b82f6' : type === 'supervisor' ? '#10b981' : '#a855f7'
+              <Card key={commentKey} className="p-4 bg-muted border-l-4 relative group" style={{
+                borderLeftColor: type === 'self' ? COLORS.brandNavy : type === 'supervisor' ? COLORS.success : COLORS.chart3
               }}>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-text-secondary">
+                  <div className="flex items-center justify-between flex-wrap gap-2 text-caption-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       {showAuthors ? (
                         <span className="font-medium">{comment.evaluator_name}</span>
@@ -144,7 +145,7 @@ export const CommentsGroupedReport: React.FC<CommentsGroupedReportProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-6 px-2 text-caption-sm text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleHideComment(commentKey);
@@ -155,7 +156,7 @@ export const CommentsGroupedReport: React.FC<CommentsGroupedReportProps> = ({
                       </Button>
                     </div>
                   </div>
-                  <p className="text-sm text-text-primary leading-relaxed">
+                  <p className="text-body-md text-foreground leading-relaxed">
                     {comment.comment}
                   </p>
                 </div>
@@ -171,8 +172,8 @@ export const CommentsGroupedReport: React.FC<CommentsGroupedReportProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-brand-purple" />
-          <h4 className="text-lg font-semibold text-text-primary">Комментарии</h4>
+          <MessageSquare className="w-5 h-5 text-accent" />
+          <h4 className="text-body-lg font-semibold text-foreground">Комментарии</h4>
           <Badge variant="outline">{visibleComments.length}</Badge>
         </div>
         <Button

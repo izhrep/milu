@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { X } from 'lucide-react';
+import { X } from "@/components/icons";
+import { COLORS_LIGHT_HEX } from '@/lib/colors';
 
 interface MapDialogProps {
   isOpen: boolean;
@@ -57,7 +58,7 @@ const MapDialog: React.FC<MapDialogProps> = ({
       marker.current.remove();
     }
 
-    marker.current = new mapboxgl.Marker({ color: '#3B82F6' })
+    marker.current = new mapboxgl.Marker({ color: COLORS_LIGHT_HEX.brandNavy })
       .setLngLat([longitude, latitude])
       .setPopup(
         new mapboxgl.Popup({ offset: 25 })
@@ -88,10 +89,10 @@ const MapDialog: React.FC<MapDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-full h-[80vh] p-0">
         <DialogHeader className="p-6 pb-4">
-          <DialogTitle className="text-lg font-semibold">
+          <DialogTitle className="text-body-lg font-semibold">
             Местоположение: {storeName}
           </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
+          <DialogDescription className="text-body-md text-muted-foreground">
             Интерактивная карта с местоположением торговой точки
           </DialogDescription>
         </DialogHeader>

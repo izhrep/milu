@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, Plus, Edit3, Trash2, Clock, Target } from 'lucide-react';
+import { CheckSquare, Plus, Edit3, Trash2, Clock, Target } from "@/components/icons";
 import { useDevelopmentTasks } from '@/hooks/useDevelopmentTasks';
 import { useCompetencyProfile } from '@/hooks/useCompetencyProfile';
 import { useUsers } from '@/hooks/useUsers';
@@ -92,9 +92,9 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-700';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'completed': return 'bg-success/20 text-success';
+      case 'in_progress': return 'bg-warning/20 text-warning';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -107,60 +107,60 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
   };
 
   const renderTaskForm = () => (
-    <div className="bg-gray-50 rounded-lg p-4">
-      <h6 className="font-medium text-gray-900 mb-4">
+    <div className="bg-muted rounded-lg p-4">
+      <h6 className="font-medium text-foreground mb-4">
         {editingTask ? 'Редактировать задачу' : 'Добавить новую задачу'}
       </h6>
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-body-md font-medium text-foreground mb-1">
             Название задачи *
           </label>
           <input
             type="text"
             value={newTask.task_name}
             onChange={(e) => setNewTask({...newTask, task_name: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-chart-3 focus:border-transparent"
             placeholder="Например: Изучить основы Python"
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-body-md font-medium text-foreground mb-1">
             Цель задачи *
           </label>
           <textarea
             value={newTask.task_goal}
             onChange={(e) => setNewTask({...newTask, task_goal: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-chart-3 focus:border-transparent"
             rows={2}
             placeholder="Описание цели и ожидаемого результата"
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-body-md font-medium text-foreground mb-1">
             Как выполнить
           </label>
           <textarea
             value={newTask.how_to}
             onChange={(e) => setNewTask({...newTask, how_to: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-chart-3 focus:border-transparent"
             rows={2}
             placeholder="Конкретные шаги для выполнения"
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-body-md font-medium text-foreground mb-1">
             Измеримый результат
           </label>
           <input
             type="text"
             value={newTask.measurable_result}
             onChange={(e) => setNewTask({...newTask, measurable_result: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-chart-3 focus:border-transparent"
             placeholder="Как измерить выполнение задачи"
           />
         </div>
@@ -169,7 +169,7 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
       <div className="flex gap-2 mt-4">
         <button
           onClick={editingTask ? handleUpdateTask : handleAddTask}
-          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+          className="px-4 py-2 bg-chart-3 text-white text-body-md font-medium rounded-lg hover:bg-chart-3 transition-colors"
         >
           {editingTask ? 'Сохранить' : 'Добавить'}
         </button>
@@ -179,7 +179,7 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
             setEditingTask(null);
             setNewTask({ task_name: '', task_goal: '', how_to: '', measurable_result: '' });
           }}
-          className="px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-400 transition-colors"
+          className="px-4 py-2 bg-border text-foreground text-body-md font-medium rounded-lg hover:bg-muted transition-colors"
         >
           Отменить
         </button>
@@ -188,27 +188,27 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
   );
 
   const renderTask = (task: any, isCustom: boolean = false) => (
-    <div key={task.id} className="bg-white rounded-lg p-4 border border-gray-200">
+    <div key={task.id} className="bg-white rounded-lg p-4 border border-border">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <h6 className="font-medium text-gray-900">{task.task_name}</h6>
+            <h6 className="font-medium text-foreground">{task.task_name}</h6>
             {isCustom && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+              <span className="px-2 py-1 bg-primary/20 text-primary text-caption-sm rounded-full">
                 Пользовательская
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-sm mb-2">{task.task_goal}</p>
+          <p className="text-muted-foreground text-body-md mb-2">{task.task_goal}</p>
           
           {task.how_to && (
-            <p className="text-gray-500 text-sm mb-1">
+            <p className="text-muted-foreground text-body-md mb-1">
               <strong>Как выполнить:</strong> {task.how_to}
             </p>
           )}
           
           {task.measurable_result && (
-            <p className="text-gray-500 text-sm">
+            <p className="text-muted-foreground text-body-md">
               <strong>Результат:</strong> {task.measurable_result}
             </p>
           )}
@@ -219,19 +219,19 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
             <>
               <button
                 onClick={() => handleToggleTaskStatus(task.id)}
-                className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(task.status)}`}
+                className={`px-2 py-1 text-caption-sm rounded-full font-medium ${getStatusColor(task.status)}`}
               >
                 {getStatusText(task.status)}
               </button>
               <button
                 onClick={() => handleEditTask(task)}
-                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                className="p-1 text-muted-foreground/70 hover:text-primary transition-colors"
               >
                 <Edit3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleDeleteTask(task.id)}
-                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                className="p-1 text-muted-foreground/70 hover:text-destructive transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -246,8 +246,8 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
     return (
       <div className="space-y-6">
         <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка задач развития...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-chart-3 mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка задач развития...</p>
         </div>
       </div>
     );
@@ -261,22 +261,22 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
       {hasAutoGeneratedTasks ? (
         <>
           {tasks.skills.length > 0 && (
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
+            <div className="bg-white rounded-2xl p-6 border border-border">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">Развитие Hard Skills (GAP анализ)</h4>
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
+                <h4 className="text-body-lg font-semibold text-foreground">Развитие Hard Skills (GAP анализ)</h4>
+                <span className="px-3 py-1 bg-primary/20 text-primary text-body-md rounded-full">
                   Автогенерация
                 </span>
               </div>
               
               <div className="space-y-4">
                 {tasks.skills.map((skill) => (
-                  <div key={skill.id} className="border-l-4 border-blue-200 pl-4">
-                    <h5 className="font-semibold text-gray-900 mb-2">{skill.name}</h5>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                  <div key={skill.id} className="border-l-4 border-primary/30 pl-4">
+                    <h5 className="font-semibold text-foreground mb-2">{skill.name}</h5>
+                    <div className="flex items-center gap-4 text-body-md text-muted-foreground mb-3">
                       <span>Текущий: {skill.current_level}</span>
                       <span>Целевой: {skill.target_level}</span>
-                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded">
+                      <span className="px-2 py-1 bg-destructive/20 text-destructive rounded">
                         GAP: {(skill.target_level - skill.current_level).toFixed(1)}
                       </span>
                     </div>
@@ -293,22 +293,22 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
           )}
 
           {tasks.qualities.length > 0 && (
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
+            <div className="bg-white rounded-2xl p-6 border border-border">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">Развитие Soft Skills (GAP анализ)</h4>
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
+                <h4 className="text-body-lg font-semibold text-foreground">Развитие Soft Skills (GAP анализ)</h4>
+                <span className="px-3 py-1 bg-chart-3/20 text-chart-3 text-body-md rounded-full">
                   Автогенерация
                 </span>
               </div>
               
               <div className="space-y-4">
                 {tasks.qualities.map((quality) => (
-                  <div key={quality.id} className="border-l-4 border-purple-200 pl-4">
-                    <h5 className="font-semibold text-gray-900 mb-2">{quality.name}</h5>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                  <div key={quality.id} className="border-l-4 border-chart-3/30 pl-4">
+                    <h5 className="font-semibold text-foreground mb-2">{quality.name}</h5>
+                    <div className="flex items-center gap-4 text-body-md text-muted-foreground mb-3">
                       <span>Текущий: {quality.current_level}</span>
                       <span>Целевой: {quality.target_level}</span>
-                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded">
+                      <span className="px-2 py-1 bg-destructive/20 text-destructive rounded">
                         GAP: {(quality.target_level - quality.current_level).toFixed(1)}
                       </span>
                     </div>
@@ -325,12 +325,12 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
           )}
         </>
       ) : (
-        <div className="bg-white rounded-2xl p-8 text-center border border-gray-200">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Target className="w-8 h-8 text-gray-400" />
+        <div className="bg-white rounded-2xl p-8 text-center border border-border">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-muted-foreground/70" />
           </div>
-          <h4 className="text-lg font-semibold text-gray-900 mb-2">Нет автоматических задач развития</h4>
-          <p className="text-gray-600 mb-6">
+          <h4 className="text-body-lg font-semibold text-foreground mb-2">Нет автоматических задач развития</h4>
+          <p className="text-muted-foreground mb-6">
             Задачи появятся после выбора карьерного трека и прохождения оценок. 
             Пройдите оценки Hard Skills и Soft Skills, чтобы получить персонализированные рекомендации.
           </p>
@@ -338,7 +338,7 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
           {onNavigateToSurveys && (
             <button
               onClick={onNavigateToSurveys}
-              className="px-6 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-6 py-2 bg-chart-3 text-white font-medium rounded-lg hover:bg-chart-3 transition-colors"
             >
               Пройти оценки
             </button>
@@ -347,12 +347,12 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
       )}
 
       {/* Пользовательские задачи */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200">
+      <div className="bg-white rounded-2xl p-6 border border-border">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-semibold text-gray-900">Мои задачи развития</h4>
+          <h4 className="text-body-lg font-semibold text-foreground">Мои задачи развития</h4>
           <button
             onClick={() => setIsAddingTask(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-chart-3 text-white text-body-md font-medium rounded-lg hover:bg-chart-3 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Добавить задачу
@@ -367,10 +367,10 @@ export const DevelopmentTasksManager: React.FC<DevelopmentTasksManagerProps> = (
           </div>
         ) : !isAddingTask && !editingTask && (
           <div className="text-center py-8">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckSquare className="w-6 h-6 text-gray-400" />
+            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+              <CheckSquare className="w-6 h-6 text-muted-foreground/70" />
             </div>
-            <p className="text-gray-600 text-sm">
+            <p className="text-muted-foreground text-body-md">
               Здесь будут отображаться ваши персональные задачи развития
             </p>
           </div>

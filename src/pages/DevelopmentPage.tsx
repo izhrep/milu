@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { User, Target, CheckSquare, TrendingUp, Users } from 'lucide-react';
+import { User, Target, CheckSquare, TrendingUp, Users } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { CareerTrackDetails } from '@/components/CareerTrackDetails';
 import { TasksManager } from '@/components/TasksManager';
@@ -32,10 +32,10 @@ const DevelopmentPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">
             {!currentUser ? 'Загрузка пользователя...' : 
              profileLoading ? 'Загрузка профиля компетенций...' : 
              'Загрузка карьерных треков...'}
@@ -64,8 +64,8 @@ const DevelopmentPage = () => {
       
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Мое развитие</h1>
-        <p className="text-text-secondary mt-1">Управление карьерным треком и задачами развития</p>
+        <h1 className="text-heading-2 font-bold text-foreground">Мое развитие</h1>
+        <p className="text-muted-foreground mt-1">Управление карьерным треком и задачами развития</p>
       </div>
 
       {/* Development Sub-tabs */}
@@ -112,8 +112,8 @@ const DevelopmentPage = () => {
         {activeTab === 'recommendations' && (
           <div className="space-y-6">
             <div className="mb-6">
-              <h4 className="text-lg font-semibold text-text-primary mb-2">Рекомендуемые карьерные треки</h4>
-              <p className="text-text-secondary">
+              <h4 className="text-body-lg font-semibold text-foreground mb-2">Рекомендуемые карьерные треки</h4>
+              <p className="text-muted-foreground">
                 Выберите карьерный трек, соответствующий вашим целям и навыкам. 
                 Каждый трек содержит детальную информацию о шагах развития, требованиях и вашем текущем прогрессе.
               </p>

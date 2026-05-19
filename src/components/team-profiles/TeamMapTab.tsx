@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, User, Briefcase, AlertCircle, TrendingUp, Heart, ExternalLink } from 'lucide-react';
+import { Search, User, Briefcase, AlertCircle, TrendingUp, Heart, ExternalLink } from "@/components/icons";
 import {
   ManagementProfile,
   computeProfileStatus,
@@ -92,10 +92,10 @@ const NodeCard: React.FC<{
           <User className="w-3.5 h-3.5 text-primary" />
         </div>
       </div>
-      <p className="text-xs font-semibold text-foreground truncate leading-tight">{node.name}</p>
-      <p className="text-[10px] text-muted-foreground truncate mb-1.5">{node.position}</p>
+      <p className="text-caption-sm font-semibold text-foreground truncate leading-tight">{node.name}</p>
+      <p className="text-helpertext-xs text-muted-foreground truncate mb-1.5">{node.position}</p>
       <Badge className={`${statusColor} text-[9px] px-1.5 py-0 mb-1.5`}>{statusLabel}</Badge>
-      <div className="space-y-0.5 text-[10px] text-muted-foreground">
+      <div className="space-y-0.5 text-helpertext-xs text-muted-foreground">
         <div className="flex items-center justify-center gap-1">
           <Briefcase className="w-2.5 h-2.5 flex-shrink-0" />
           <span className="truncate">{project || 'Не указано'}</span>
@@ -141,25 +141,25 @@ const TeamMapTab: React.FC<TeamMapTabProps> = ({ onSelectEmployee }) => {
   return (
     <div className="space-y-4 mt-4">
       <div>
-        <h2 className="text-xl font-semibold text-foreground">Карта команды</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <h2 className="text-heading-4 font-semibold text-foreground">Карта команды</h2>
+        <p className="text-body-md text-muted-foreground mt-0.5">
           Нажмите на сотрудника, чтобы открыть его карточку
         </p>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 p-2.5 bg-muted/30 rounded-lg border border-border text-sm">
+      <div className="flex flex-wrap items-center gap-3 p-2.5 bg-muted/30 rounded-lg border border-border text-body-md">
         <div className="relative w-48">
           <Search className="absolute left-2 top-2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Поиск по имени..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="pl-7 h-8 text-xs"
+            className="pl-7 h-8 text-caption-sm"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40 h-8 text-xs">
+          <SelectTrigger className="w-40 h-8 text-caption-sm">
             <SelectValue placeholder="Статус профиля" />
           </SelectTrigger>
           <SelectContent>
@@ -219,7 +219,7 @@ const TeamMapTab: React.FC<TeamMapTabProps> = ({ onSelectEmployee }) => {
         </div>
       </div>
 
-      <p className="text-[10px] text-muted-foreground/60 text-center italic">
+      <p className="text-helpertext-xs text-muted-foreground/60 text-center italic">
         Skeleton · данные дерева моковые
       </p>
     </div>

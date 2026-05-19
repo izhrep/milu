@@ -294,14 +294,14 @@ export const AssessmentResultsDialog: React.FC<AssessmentResultsDialogProps> = (
             />
             
             {categoryAverages.length > 0 && (
-              <div className="bg-surface rounded-lg border border-border p-6">
-                <h3 className="text-lg font-semibold text-text-primary mb-4">Сводная результатов по категориям Hard Skills</h3>
+              <div className="bg-card rounded-lg border border-border p-6">
+                <h3 className="text-body-lg font-semibold text-foreground mb-4">Сводная результатов по категориям Hard Skills</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoryAverages.map((item) => (
-                    <div key={item.category} className="p-4 bg-surface-secondary rounded-lg border border-border">
-                      <div className="text-sm text-text-secondary mb-1">{item.category}</div>
-                      <div className="text-2xl font-bold text-primary">{item.average.toFixed(1)}</div>
-                      <div className="text-xs text-text-tertiary mt-1">Среднее значение</div>
+                    <div key={item.category} className="p-4 bg-muted rounded-lg border border-border">
+                      <div className="text-body-md text-muted-foreground mb-1">{item.category}</div>
+                      <div className="text-heading-3 font-bold text-primary">{item.average.toFixed(1)}</div>
+                      <div className="text-caption-sm text-muted-foreground/70 mt-1">Среднее значение</div>
                     </div>
                   ))}
                 </div>

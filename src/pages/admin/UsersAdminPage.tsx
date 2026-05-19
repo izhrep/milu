@@ -1,6 +1,6 @@
 import { ReferenceTableLayout } from '@/components/admin/ReferenceTableLayout';
 import UsersManagementTable from '@/components/security/UsersManagementTable';
-import { Users } from 'lucide-react';
+import { Users } from "@/components/icons";
 
 export default function UsersAdminPage() {
   return (

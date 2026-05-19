@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown } from "@/components/icons";
 import { toast } from 'sonner';
 import {
   ManagementProfile,
@@ -67,55 +67,55 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
     // Read-only view
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-body-md">
           <div>
-            <span className="text-text-secondary">Текущий проект</span>
-            <p className="font-medium text-text-primary">{form.currentProject || 'Не указан'}</p>
+            <span className="text-muted-foreground">Текущий проект</span>
+            <p className="font-medium text-foreground">{form.currentProject || 'Не указан'}</p>
           </div>
           <div>
-            <span className="text-text-secondary">Текущая роль</span>
-            <p className="font-medium text-text-primary">{form.currentRole || '—'}</p>
+            <span className="text-muted-foreground">Текущая роль</span>
+            <p className="font-medium text-foreground">{form.currentRole || '—'}</p>
           </div>
           <div>
-            <span className="text-text-secondary">Зарплата</span>
-            <p className="font-medium text-text-primary">
+            <span className="text-muted-foreground">Зарплата</span>
+            <p className="font-medium text-foreground">
               {form.salaryExact || '—'}
             </p>
           </div>
           <div>
-            <span className="text-text-secondary">Дата актуальности</span>
-            <p className="font-medium text-text-primary">{form.relevanceDate || '—'}</p>
+            <span className="text-muted-foreground">Дата актуальности</span>
+            <p className="font-medium text-foreground">{form.relevanceDate || '—'}</p>
           </div>
         </div>
         {form.lastChangeType && (
           <>
             <Separator />
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-body-md">
               <div>
-                <span className="text-text-secondary">Что изменилось</span>
-                <p className="font-medium text-text-primary">{changeTypeLabels[form.lastChangeType as ChangeType] || form.lastChangeType}</p>
+                <span className="text-muted-foreground">Что изменилось</span>
+                <p className="font-medium text-foreground">{changeTypeLabels[form.lastChangeType as ChangeType] || form.lastChangeType}</p>
               </div>
               <div>
-                <span className="text-text-secondary">Когда</span>
-                <p className="font-medium text-text-primary">{form.lastChangeDate || '—'}</p>
+                <span className="text-muted-foreground">Когда</span>
+                <p className="font-medium text-foreground">{form.lastChangeDate || '—'}</p>
               </div>
               {form.lastChangeReason && (
                 <div className="col-span-2">
-                  <span className="text-text-secondary">Почему</span>
-                  <p className="font-medium text-text-primary">{form.lastChangeReason}</p>
+                  <span className="text-muted-foreground">Почему</span>
+                  <p className="font-medium text-foreground">{form.lastChangeReason}</p>
                 </div>
               )}
             </div>
           </>
         )}
         <Separator />
-        <div className="text-sm space-y-1">
+        <div className="text-body-md space-y-1">
           {form.wantsProjectChange && <p>✓ Хочет сменить проект</p>}
           {form.satisfiedWithProject && <p>✓ Удовлетворен текущим проектом</p>}
           {form.satisfiedWithSalary && <p>✓ Удовлетворен текущей зарплатой</p>}
           {form.readyForOvertime && <p>✓ Готов к переработкам</p>}
           {form.readyForLeadership && <p>✓ Готов к лидерской роли</p>}
-          {form.signalsComment && <p className="text-text-secondary mt-2">{form.signalsComment}</p>}
+          {form.signalsComment && <p className="text-muted-foreground mt-2">{form.signalsComment}</p>}
         </div>
         <Button variant="outline" onClick={onStartEdit}>Редактировать</Button>
       </div>
@@ -128,7 +128,7 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
     <div className="space-y-6">
       {/* Block 1: Что сейчас */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">Что сейчас</h3>
+        <h3 className="text-body-md font-semibold text-foreground uppercase tracking-wide">Что сейчас</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Текущий проект *</Label>
@@ -175,7 +175,7 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
 
       {/* Block 2: Последнее известное изменение */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">Последнее известное изменение</h3>
+        <h3 className="text-body-md font-semibold text-foreground uppercase tracking-wide">Последнее известное изменение</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Что изменилось</Label>
@@ -218,15 +218,15 @@ const ProfileForm = ({ initial, onSave, onSaveAndNext, onCancel, isEditing, onSt
             className="flex items-center justify-between w-full group text-left"
           >
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">Сигналы</h3>
+              <h3 className="text-body-md font-semibold text-foreground uppercase tracking-wide">Сигналы</h3>
               {!signalsOpen && summary && (
-                <span className="text-xs text-text-secondary font-normal normal-case">
+                <span className="text-caption-sm text-muted-foreground font-normal normal-case">
                   ({summary})
                 </span>
               )}
             </div>
             <ChevronDown
-              className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${signalsOpen ? 'rotate-180' : ''}`}
+              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${signalsOpen ? 'rotate-180' : ''}`}
             />
           </button>
         </CollapsibleTrigger>

@@ -38,12 +38,13 @@ import MyAssignmentsPage from "./pages/MyAssignmentsPage";
 import ManagerReportsPage from "./pages/ManagerReportsPage";
 import ManagerComparisonPage from "./pages/ManagerComparisonPage";
 import HRAnalyticsPage from "./pages/HRAnalyticsPage";
+import KitPage from "./pages/KitPage";
 import { DiagnosticMonitoringPage } from "./pages/DiagnosticMonitoringPage";
 import ReportsPage from "./pages/ReportsPage";
 import MeetingsMonitoringPage from "./pages/MeetingsMonitoringPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient();
@@ -55,7 +56,7 @@ const AppHeader = () => {
   if (state !== 'collapsed') return null;
   
   return (
-    <header className="h-12 flex items-center border-b border-border bg-surface px-4 sticky top-0 z-20">
+    <header className="h-12 flex items-center border-b border-border bg-card px-4 sticky top-0 z-20">
       <Button
         variant="ghost"
         size="icon"
@@ -86,7 +87,7 @@ const App = () => (
                       <AppSidebar />
                       <div className="flex-1 flex flex-col min-h-0">
                         <AppHeader />
-                        <main className="flex-1 min-h-0 overflow-auto bg-surface-secondary">
+                        <main className="flex-1 min-h-0 overflow-auto bg-muted app-main-bg">
                           <Routes>
                             <Route path="/" element={<Index />} />
                             <Route path="/profile" element={<ProfilePage />} />
@@ -122,6 +123,7 @@ const App = () => (
                             <Route path="/hr-analytics" element={<HRAnalyticsPage />} />
                             <Route path="/diagnostic-monitoring" element={<DiagnosticMonitoringPage />} />
                             <Route path="/security" element={<SecurityManagementPage />} />
+                            <Route path="/kit" element={<KitPage />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </main>

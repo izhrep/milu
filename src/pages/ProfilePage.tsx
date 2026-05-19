@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Mail, Calendar, MapPin, Building2, Briefcase, 
   Phone, Users, Globe
-} from 'lucide-react';
+} from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getGroupedTimezoneOptions, getFallbackOption } from '@/lib/timezoneOptions';
 
 interface UserProfile {
   phone?: string;
@@ -109,23 +110,9 @@ const ProfilePage = () => {
       });
   }, [targetUserId, isOwnProfile]);
 
-  const COMMON_TIMEZONES: { value: string; label: string }[] = [
-    { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
-    { value: 'Europe/Moscow', label: 'Москва (UTC+3)' },
-    { value: 'Europe/Samara', label: 'Самара (UTC+4)' },
-    { value: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)' },
-    { value: 'Asia/Omsk', label: 'Омск (UTC+6)' },
-    { value: 'Asia/Krasnoyarsk', label: 'Красноярск (UTC+7)' },
-    { value: 'Asia/Irkutsk', label: 'Иркутск (UTC+8)' },
-    { value: 'Asia/Yakutsk', label: 'Якутск (UTC+9)' },
-    { value: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)' },
-    { value: 'Asia/Magadan', label: 'Магадан (UTC+11)' },
-    { value: 'Asia/Kamchatka', label: 'Камчатка (UTC+12)' },
-    { value: 'Europe/Minsk', label: 'Минск (UTC+3)' },
-    { value: 'Europe/Kiev', label: 'Киев (UTC+2)' },
-    { value: 'Asia/Almaty', label: 'Алматы (UTC+6)' },
-    { value: 'Asia/Tashkent', label: 'Ташкент (UTC+5)' },
-  ];
+  // Timezone options from centralized module
+  const timezoneGroups = useMemo(() => getGroupedTimezoneOptions(), []);
+  const fallbackOption = useMemo(() => getFallbackOption(userTimezone), [userTimezone]);
 
   const handleTimezoneChange = async (tz: string) => {
     setUserTimezone(tz);
@@ -154,10 +141,10 @@ const ProfilePage = () => {
 
   if (!authUser || loading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка профиля...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка профиля...</p>
         </div>
       </div>
     );
@@ -166,9 +153,9 @@ const ProfilePage = () => {
   // Block limited roles from viewing other users' profiles
   if (isLimitedRole && isViewingOtherProfile) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="text-text-secondary">У вас нет доступа к этому профилю</p>
+          <p className="text-muted-foreground">У вас нет доступа к этому профилю</p>
         </div>
       </div>
     );
@@ -176,9 +163,9 @@ const ProfilePage = () => {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="text-text-secondary">Пользователь не найден</p>
+          <p className="text-muted-foreground">Пользователь не найден</p>
         </div>
       </div>
     );
@@ -201,14 +188,14 @@ const ProfilePage = () => {
         <CardContent className="p-8">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             <Avatar className="w-24 h-24 shadow-lg">
-              <AvatarFallback className="bg-gradient-purple text-white text-2xl">
+              <AvatarFallback className="bg-gradient-purple text-white text-heading-3">
                 {initials || '?'}
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-text-primary">
+                <h1 className="text-heading-2 font-bold text-foreground">
                   {currentUser.last_name} {currentUser.first_name} {currentUser.middle_name}
                 </h1>
                 <Badge variant={currentUser.status ? "default" : "secondary"}>
@@ -216,12 +203,12 @@ const ProfilePage = () => {
                 </Badge>
               </div>
               
-              <p className="text-lg text-text-secondary mb-3">
+              <p className="text-body-lg text-muted-foreground mb-3">
                 {currentUser.positions?.name || 'Должность не указана'}
               </p>
               
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-brand-purple/10 text-brand-purple border-brand-purple/20">
+                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20">
                   {currentUser.role_name || 'Сотрудник'}
                 </Badge>
                 {companyName && (
@@ -230,7 +217,7 @@ const ProfilePage = () => {
                   </Badge>
                 )}
                 {currentUser.departments?.name && (
-                  <Badge variant="outline" className="bg-brand-orange/10 text-brand-orange border-brand-orange/20">
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                     {currentUser.departments.name}
                   </Badge>
                 )}
@@ -246,53 +233,53 @@ const ProfilePage = () => {
         <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5 text-brand-purple" />
+              <Mail className="w-5 h-5 text-accent" />
               Контактная информация
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-brand-purple/10 rounded-lg mt-1">
-                <Mail className="w-4 h-4 text-brand-purple" />
+              <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                <Mail className="w-4 h-4 text-accent" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-text-secondary">Email</p>
-                <p className="font-medium text-text-primary break-all">{currentUser.email}</p>
+                <p className="text-body-md text-muted-foreground">Email</p>
+                <p className="font-medium text-foreground break-all">{currentUser.email}</p>
               </div>
             </div>
             
             {userProfile?.phone && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-purple/10 rounded-lg mt-1">
-                  <Phone className="w-4 h-4 text-brand-purple" />
+                <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                  <Phone className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">Телефон</p>
-                  <p className="font-medium text-text-primary">{userProfile.phone}</p>
+                  <p className="text-body-md text-muted-foreground">Телефон</p>
+                  <p className="font-medium text-foreground">{userProfile.phone}</p>
                 </div>
               </div>
             )}
             
             {userProfile?.work_address && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-purple/10 rounded-lg mt-1">
-                  <MapPin className="w-4 h-4 text-brand-purple" />
+                <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                  <MapPin className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">Рабочий адрес</p>
-                  <p className="font-medium text-text-primary">{userProfile.work_address}</p>
+                  <p className="text-body-md text-muted-foreground">Рабочий адрес</p>
+                  <p className="font-medium text-foreground">{userProfile.work_address}</p>
                 </div>
               </div>
             )}
 
             {userProfile?.store_number && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-purple/10 rounded-lg mt-1">
-                  <Building2 className="w-4 h-4 text-brand-purple" />
+                <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                  <Building2 className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">Номер магазина</p>
-                  <p className="font-medium text-text-primary">{userProfile.store_number}</p>
+                  <p className="text-body-md text-muted-foreground">Номер магазина</p>
+                  <p className="font-medium text-foreground">{userProfile.store_number}</p>
                 </div>
               </div>
             )}
@@ -303,30 +290,30 @@ const ProfilePage = () => {
         <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-brand-orange" />
+              <Briefcase className="w-5 h-5 text-primary" />
               Рабочая информация
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {showEmployeeNumber && (
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
-                <MapPin className="w-4 h-4 text-brand-orange" />
+              <div className="p-2 bg-primary/10 rounded-lg mt-1">
+                <MapPin className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-text-secondary">Табельный номер</p>
-                <p className="font-medium text-text-primary">{currentUser.employee_number}</p>
+                <p className="text-body-md text-muted-foreground">Табельный номер</p>
+                <p className="font-medium text-foreground">{currentUser.employee_number}</p>
               </div>
             </div>
             )}
             
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
-                <Briefcase className="w-4 h-4 text-brand-orange" />
+              <div className="p-2 bg-primary/10 rounded-lg mt-1">
+                <Briefcase className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-text-secondary">Должность</p>
-                <p className="font-medium text-text-primary">
+                <p className="text-body-md text-muted-foreground">Должность</p>
+                <p className="font-medium text-foreground">
                   {currentUser.positions?.name || 'Не указано'}
                 </p>
               </div>
@@ -334,12 +321,12 @@ const ProfilePage = () => {
             
             {showDepartment && (
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
-                <Building2 className="w-4 h-4 text-brand-orange" />
+              <div className="p-2 bg-primary/10 rounded-lg mt-1">
+                <Building2 className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-text-secondary">Подразделение</p>
-                <p className="font-medium text-text-primary">
+                <p className="text-body-md text-muted-foreground">Подразделение</p>
+                <p className="font-medium text-foreground">
                   {currentUser.departments?.name || 'Не указано'}
                 </p>
               </div>
@@ -347,12 +334,12 @@ const ProfilePage = () => {
             )}
             
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
-                <Calendar className="w-4 h-4 text-brand-orange" />
+              <div className="p-2 bg-primary/10 rounded-lg mt-1">
+                <Calendar className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-text-secondary">Дата начала работы</p>
-                <p className="font-medium text-text-primary">
+                <p className="text-body-md text-muted-foreground">Дата начала работы</p>
+                <p className="font-medium text-foreground">
                   {currentUser.start_date ? 
                     new Date(currentUser.start_date).toLocaleDateString('ru-RU') : 
                     'Не указано'
@@ -363,14 +350,14 @@ const ProfilePage = () => {
             
             {manager && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
-                  <Users className="w-4 h-4 text-brand-orange" />
+                <div className="p-2 bg-primary/10 rounded-lg mt-1">
+                  <Users className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">Руководитель</p>
+                  <p className="text-body-md text-muted-foreground">Руководитель</p>
                   <Button
                     variant="link"
-                    className="h-auto p-0 font-medium text-brand-purple hover:text-brand-purple/80"
+                    className="h-auto p-0 font-medium text-accent hover:text-accent/80"
                     onClick={() => navigate(`/profile?user=${manager.id}`)}
                   >
                     {manager.last_name} {manager.first_name} {manager.middle_name}
@@ -381,14 +368,14 @@ const ProfilePage = () => {
 
             {hrBP && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-orange/10 rounded-lg mt-1">
-                  <Users className="w-4 h-4 text-brand-orange" />
+                <div className="p-2 bg-primary/10 rounded-lg mt-1">
+                  <Users className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">HR BP</p>
+                  <p className="text-body-md text-muted-foreground">HR BP</p>
                   <Button
                     variant="link"
-                    className="h-auto p-0 font-medium text-brand-purple hover:text-brand-purple/80"
+                    className="h-auto p-0 font-medium text-accent hover:text-accent/80"
                     onClick={() => navigate(`/profile?user=${hrBP.id}`)}
                   >
                     {hrBP.last_name} {hrBP.first_name} {hrBP.middle_name}
@@ -405,19 +392,19 @@ const ProfilePage = () => {
         <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5 text-brand-teal" />
+              <User className="w-5 h-5 text-accent" />
               Личная информация
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {userProfile?.birth_date && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-teal/10 rounded-lg mt-1">
-                  <Calendar className="w-4 h-4 text-brand-teal" />
+                <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                  <Calendar className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">Дата рождения</p>
-                  <p className="font-medium text-text-primary">
+                  <p className="text-body-md text-muted-foreground">Дата рождения</p>
+                  <p className="font-medium text-foreground">
                     {new Date(userProfile.birth_date).toLocaleDateString('ru-RU')}
                   </p>
                 </div>
@@ -426,24 +413,24 @@ const ProfilePage = () => {
 
             {userProfile?.bio && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-teal/10 rounded-lg mt-1">
-                  <User className="w-4 h-4 text-brand-teal" />
+                <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                  <User className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">О себе</p>
-                  <p className="font-medium text-text-primary">{userProfile.bio}</p>
+                  <p className="text-body-md text-muted-foreground">О себе</p>
+                  <p className="font-medium text-foreground">{userProfile.bio}</p>
                 </div>
               </div>
             )}
 
             {userProfile?.emergency_contact_name && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-brand-teal/10 rounded-lg mt-1">
-                  <Phone className="w-4 h-4 text-brand-teal" />
+                <div className="p-2 bg-accent/10 rounded-lg mt-1">
+                  <Phone className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-text-secondary">Контакт для экстренной связи</p>
-                  <p className="font-medium text-text-primary">
+                  <p className="text-body-md text-muted-foreground">Контакт для экстренной связи</p>
+                  <p className="font-medium text-foreground">
                     {userProfile.emergency_contact_name}
                     {userProfile.emergency_contact_phone && ` - ${userProfile.emergency_contact_phone}`}
                   </p>
@@ -470,17 +457,29 @@ const ProfilePage = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите часовой пояс" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {COMMON_TIMEZONES.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                  <SelectContent position="popper" className="max-h-[60vh]">
+                    {fallbackOption && (
+                      <SelectItem key={fallbackOption.value} value={fallbackOption.value}>
+                        {fallbackOption.label}
+                      </SelectItem>
+                    )}
+                    {timezoneGroups.map((group) => (
+                      <React.Fragment key={group.region}>
+                        <div className="px-2 py-1.5 text-caption-sm font-semibold text-muted-foreground">
+                          {group.label}
+                        </div>
+                        {group.options.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               {timezoneSaving && (
-                <span className="text-sm text-text-secondary">Сохранение...</span>
+                <span className="text-body-md text-muted-foreground">Сохранение...</span>
               )}
-              <p className="text-sm text-text-secondary">
+              <p className="text-body-md text-muted-foreground">
                 Используется для уведомлений о встречах
               </p>
             </div>

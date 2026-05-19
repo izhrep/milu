@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft } from "@/components/icons";
 import { usePermission } from '@/hooks/usePermission';
 
 const userSchema = z.object({
@@ -99,7 +99,7 @@ export default function CreateUserPage() {
           Назад
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Добавить пользователя</h1>
+          <h1 className="text-heading-3 font-bold text-foreground">Добавить пользователя</h1>
         </div>
       </div>
 
@@ -109,7 +109,7 @@ export default function CreateUserPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="last_name" className="text-sm">
+                  <Label htmlFor="last_name" className="text-body-md">
                     Фамилия <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -120,12 +120,12 @@ export default function CreateUserPage() {
                     className="h-9"
                   />
                   {errors.last_name && (
-                    <p className="text-xs text-destructive">{errors.last_name.message}</p>
+                    <p className="text-caption-sm text-destructive">{errors.last_name.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="first_name" className="text-sm">
+                  <Label htmlFor="first_name" className="text-body-md">
                     Имя <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -136,14 +136,14 @@ export default function CreateUserPage() {
                     className="h-9"
                   />
                   {errors.first_name && (
-                    <p className="text-xs text-destructive">{errors.first_name.message}</p>
+                    <p className="text-caption-sm text-destructive">{errors.first_name.message}</p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="email" className="text-sm">
+                  <Label htmlFor="email" className="text-body-md">
                     Email <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -155,12 +155,12 @@ export default function CreateUserPage() {
                     className="h-9"
                   />
                   {errors.email && (
-                    <p className="text-xs text-destructive">{errors.email.message}</p>
+                    <p className="text-caption-sm text-destructive">{errors.email.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="employee_number" className="text-sm">
+                  <Label htmlFor="employee_number" className="text-body-md">
                     Табельный номер <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -171,7 +171,7 @@ export default function CreateUserPage() {
                     className="h-9"
                   />
                   {errors.employee_number && (
-                    <p className="text-xs text-destructive">{errors.employee_number.message}</p>
+                    <p className="text-caption-sm text-destructive">{errors.employee_number.message}</p>
                   )}
                 </div>
               </div>

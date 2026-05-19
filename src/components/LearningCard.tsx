@@ -27,13 +27,13 @@ const LearningCard: React.FC<LearningCardProps> = ({
   isCompleted,
   completionDate,
   currentStage,
-  backgroundColor = "bg-gradient-to-br from-purple-600 to-blue-600"
+  backgroundColor = "bg-gradient-to-br from-chart-3 to-primary"
 }) => {
   const cardClasses = isCompleted 
-    ? "border flex min-w-60 flex-col overflow-hidden items-stretch justify-center flex-1 shrink basis-[0%] px-6 py-4 rounded-[20px] border-[rgba(241,96,0,1)] border-solid max-md:px-5"
-    : `items-stretch shadow-[0_3.5px_25.5px_0_rgba(0,0,0,0.10)] flex min-w-60 flex-col overflow-hidden justify-center flex-1 shrink basis-[0%] px-6 py-4 rounded-[20px] max-md:px-5 ${backgroundColor}`;
+    ? "border flex min-w-60 flex-col overflow-hidden items-stretch justify-center flex-1 shrink basis-[0%] px-6 py-4 rounded-[20px] border-warning border-solid max-md:px-5"
+    : `items-stretch shadow-card flex min-w-60 flex-col overflow-hidden justify-center flex-1 shrink basis-[0%] px-6 py-4 rounded-[20px] max-md:px-5 ${backgroundColor}`;
 
-  const textColor = isCompleted ? "text-[#202020]" : "text-white";
+  const textColor = isCompleted ? "text-foreground" : "text-white";
 
   return (
     <article className={cardClasses}>
@@ -42,7 +42,7 @@ const LearningCard: React.FC<LearningCardProps> = ({
           <div className="w-full">
             <div className="w-full">
               <div className={`w-full ${textColor} font-semibold`}>
-                <div className="flex w-full gap-[40px_100px] text-xs whitespace-nowrap leading-none justify-between">
+                <div className="flex w-full gap-[40px_100px] text-caption-sm whitespace-nowrap leading-none justify-between">
                   <div className={`${textColor} opacity-70`}>
                     {type}
                   </div>
@@ -52,11 +52,11 @@ const LearningCard: React.FC<LearningCardProps> = ({
                     </div>
                   </div>
                 </div>
-                <h3 className={`${textColor} text-2xl leading-[26px] tracking-[-0.48px] mt-1`}>
+                <h3 className={`${textColor} text-heading-3 leading-[26px] tracking-[-0.48px] mt-1`}>
                   {title}
                 </h3>
               </div>
-              <div className="w-full text-xs font-normal leading-none mt-2">
+              <div className="w-full text-caption-sm font-normal leading-none mt-2">
                 <div className="flex w-full gap-[5px]">
                   <span className={`${textColor} opacity-50`}>
                     {isCompleted ? "Дата завершения:" : "Сроки:"}
@@ -89,10 +89,10 @@ const LearningCard: React.FC<LearningCardProps> = ({
         </div>
         {progress && (
           <div className={`flex w-full gap-2.5 ${textColor} ${isCompleted ? 'mt-8' : 'mt-4'}`}>
-            <div className={`${isCompleted ? 'text-center text-2xl font-bold leading-none bg-clip-text' : `${textColor} text-center text-2xl font-bold leading-none`}`}>
+            <div className={`${isCompleted ? 'text-center text-heading-3 font-bold leading-none bg-clip-text' : `${textColor} text-center text-heading-3 font-bold leading-none`}`}>
               {progress}
             </div>
-            <div className={`${isCompleted ? `${textColor} text-xs font-medium leading-[22px] opacity-70 w-[146px]` : `${textColor} text-xs font-medium leading-[22px] w-[146px]`}`}>
+            <div className={`${isCompleted ? `${textColor} text-caption-sm font-medium leading-[22px] opacity-70 w-[146px]` : `${textColor} text-caption-sm font-medium leading-[22px] w-[146px]`}`}>
               {progressText}
             </div>
           </div>

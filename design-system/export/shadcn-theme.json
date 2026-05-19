@@ -1,0 +1,50 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "milu",
+  "type": "registry:theme",
+  "cssVars": {
+    "light": {
+      "background": "0 0% 100%",
+      "foreground": "222 47% 11%",
+      "card": "0 0% 100%",
+      "card-foreground": "0 0% 15%",
+      "popover": "0 0% 100%",
+      "popover-foreground": "0 0% 15%",
+      "primary": "263 75% 49%",
+      "primary-foreground": "0 0% 100%",
+      "secondary": "72 100% 84%",
+      "secondary-foreground": "63 14% 34%",
+      "muted": "60 20% 98%",
+      "muted-foreground": "66 9% 46%",
+      "accent": "262 83% 91%",
+      "accent-foreground": "263 75% 49%",
+      "destructive": "207 84% 60%",
+      "destructive-foreground": "0 0% 100%",
+      "border": "70 13% 91%",
+      "input": "70 13% 91%",
+      "ring": "245 92% 50%",
+      "radius": "0.75rem"
+    },
+    "dark": {
+      "background": "240 0% 2%",
+      "foreground": "120 0% 90%",
+      "card": "0 0% 0%",
+      "card-foreground": "120 0% 90%",
+      "popover": "0 0% 15%",
+      "popover-foreground": "120 0% 90%",
+      "primary": "72 96% 46%",
+      "primary-foreground": "0 0% 0%",
+      "secondary": "263 75% 49%",
+      "secondary-foreground": "120 0% 90%",
+      "muted": "0 0% 12%",
+      "muted-foreground": "180 0% 64%",
+      "accent": "72 100% 20%",
+      "accent-foreground": "0 0% 100%",
+      "destructive": "207 84% 60%",
+      "destructive-foreground": "0 0% 100%",
+      "border": "240 4% 16%",
+      "input": "0 0% 25%",
+      "ring": "245 92% 50%"
+    }
+  }
+}

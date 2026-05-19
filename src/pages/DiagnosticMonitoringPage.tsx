@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, ClipboardCheck, TrendingUp, Calendar, Download, Settings, FileSpreadsheet } from 'lucide-react';
+import { Users, ClipboardCheck, TrendingUp, Calendar, Download, Settings, FileSpreadsheet } from "@/components/icons";
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { ParticipantExpandableRow } from '@/components/ParticipantExpandableRow';
 import { supabase } from '@/integrations/supabase/client';
@@ -340,8 +340,8 @@ export const DiagnosticMonitoringPage = () => {
       <Breadcrumbs />
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Мониторинг диагностики</h1>
-          <p className="text-text-secondary mt-2">Отслеживание прогресса этапов и участников</p>
+          <h1 className="text-heading-2 font-bold text-foreground">Мониторинг диагностики</h1>
+          <p className="text-muted-foreground mt-2">Отслеживание прогресса этапов и участников</p>
         </div>
         <div className="flex gap-2">
           {isAdminOrHR && (
@@ -362,7 +362,7 @@ export const DiagnosticMonitoringPage = () => {
       {/* Stage Filter */}
       <div className="flex items-center gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-muted-foreground">Этап диагностики</label>
+          <label className="text-body-md font-medium text-muted-foreground">Этап диагностики</label>
           <Select value={selectedStageId || ''} onValueChange={setSelectedStageId}>
             <SelectTrigger className="w-[300px]">
               <SelectValue placeholder="Выберите этап" />
@@ -384,12 +384,12 @@ export const DiagnosticMonitoringPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Выбранный этап</CardTitle>
+              <CardTitle className="text-body-md font-medium">Выбранный этап</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{selectedStage.period}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-heading-3 font-bold">{selectedStage.period}</div>
+              <p className="text-caption-sm text-muted-foreground mt-1">
                 {new Date(selectedStage.start_date).toLocaleDateString()} - {new Date(selectedStage.end_date).toLocaleDateString()}
               </p>
             </CardContent>
@@ -397,33 +397,33 @@ export const DiagnosticMonitoringPage = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Участников</CardTitle>
+              <CardTitle className="text-body-md font-medium">Участников</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalParticipants}</div>
-              <p className="text-xs text-muted-foreground mt-1">Всего участников</p>
+              <div className="text-heading-3 font-bold">{totalParticipants}</div>
+              <p className="text-caption-sm text-muted-foreground mt-1">Всего участников</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Завершено</CardTitle>
+              <CardTitle className="text-body-md font-medium">Завершено</CardTitle>
               <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{completedAll} / {totalParticipants}</div>
-              <p className="text-xs text-muted-foreground mt-1">Личный фидбек + фидбек руководителя</p>
+              <div className="text-heading-3 font-bold">{completedAll} / {totalParticipants}</div>
+              <p className="text-caption-sm text-muted-foreground mt-1">Личный фидбек + фидбек руководителя</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Прогресс</CardTitle>
+              <CardTitle className="text-body-md font-medium">Прогресс</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{actualCompletionRate}%</div>
+              <div className="text-heading-3 font-bold">{actualCompletionRate}%</div>
               <Progress value={actualCompletionRate} className="mt-2" />
             </CardContent>
           </Card>

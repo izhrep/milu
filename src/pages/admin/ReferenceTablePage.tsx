@@ -4,7 +4,7 @@ import { ReferenceTableView } from '@/components/admin/ReferenceTableView';
 import { 
   Users, Briefcase, Building2, Trophy, BookOpen, Target, 
   MapPin, Package, Zap, FileText, GraduationCap, Factory, Award
-} from 'lucide-react';
+} from "@/components/icons";
 import { usePermission } from '@/hooks/usePermission';
 
 import { CareerTracksManager } from '@/components/admin/CareerTracksManager';
@@ -59,7 +59,7 @@ export default function ReferenceTablePage() {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center py-12">
-          <h1 className="text-2xl font-bold text-destructive">Таблица не найдена</h1>
+          <h1 className="text-heading-3 font-bold text-destructive">Таблица не найдена</h1>
           <p className="text-muted-foreground mt-2">Запрошенная таблица не существует</p>
         </div>
       </div>

@@ -106,8 +106,8 @@ export const profileStatusLabels: Record<ProfileStatus, string> = {
 
 export const profileStatusColors: Record<ProfileStatus, string> = {
   not_filled: 'bg-destructive/10 text-destructive',
-  partially_filled: 'bg-yellow-100 text-yellow-800',
-  filled: 'bg-green-100 text-green-800',
+  partially_filled: 'bg-warning/20 text-warning',
+  filled: 'bg-success/20 text-success',
 };
 
 export const changeTypeLabels: Record<ChangeType, string> = {

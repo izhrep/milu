@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Calendar } from 'lucide-react';
+import { Calendar } from "@/components/icons";
 
 export interface StageOption {
   id: string;
@@ -96,7 +96,7 @@ export const StageFilter: React.FC<StageFilterProps> = ({
               <span className="inline-flex max-w-full items-center gap-2">
                 <span className="truncate">{stage.period}</span>
                 {stage.is_active && (
-                  <span className="shrink-0 text-xs text-primary font-medium">(активный)</span>
+                  <span className="shrink-0 text-caption-sm text-primary font-medium">(активный)</span>
                 )}
               </span>
             </SelectItem>

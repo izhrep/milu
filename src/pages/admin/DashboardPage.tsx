@@ -7,7 +7,7 @@ import {
   MapPin, Package, Zap, FileText, Settings, GraduationCap,
   Calendar, Shield, Search, TrendingUp, MessageSquare, ListChecks,
   FolderTree, ClipboardList, Star, Tags, Factory, Award, Pin, PinOff
-} from 'lucide-react';
+} from "@/components/icons";
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { usePermission } from '@/hooks/usePermission';
@@ -129,7 +129,7 @@ const AdminDashboard = () => {
                   }
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
+              <TooltipContent side="top" className="text-caption-sm">
                 {isPinned ? 'Открепить' : 'Закрепить наверху'}
               </TooltipContent>
             </Tooltip>
@@ -151,7 +151,7 @@ const AdminDashboard = () => {
       <Breadcrumbs />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Панель администратора</h1>
+          <h1 className="text-heading-2 font-bold">Панель администратора</h1>
           <p className="text-muted-foreground mt-2">
             Управление справочниками и настройками системы
           </p>
@@ -171,7 +171,7 @@ const AdminDashboard = () => {
       {/* Pinned section */}
       {pinnedSections.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
+          <h2 className="text-heading-4 font-semibold flex items-center gap-2">
             <Pin className="h-5 w-5 text-primary" />
             Закреплённые
           </h2>
@@ -183,7 +183,7 @@ const AdminDashboard = () => {
 
       {Object.entries(groupedSections).map(([category, categorySections]) => (
         <div key={category} className="space-y-4">
-          <h2 className="text-xl font-semibold">{category}</h2>
+          <h2 className="text-heading-4 font-semibold">{category}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categorySections.map(renderCard)}
           </div>

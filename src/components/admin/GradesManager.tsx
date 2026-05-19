@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash, Eye, X, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash, Eye, X, Copy } from "@/components/icons";
 import { GradeDetailsDialog } from '@/components/GradeDetailsDialog';
 import { GradeSkillsQualitiesView } from '@/components/admin/GradeSkillsQualitiesView';
 
@@ -166,7 +166,7 @@ export const GradesManager = () => {
       <Card>
         <CardContent className="pt-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Всего грейдов: {grades?.length || 0}</h3>
+            <h3 className="text-body-lg font-semibold">Всего грейдов: {grades?.length || 0}</h3>
             <Button onClick={() => setEditDialog({ open: true })}>
               <Plus className="h-4 w-4 mr-2" />
               Добавить грейд
@@ -498,7 +498,7 @@ const GradeEditDialog = ({ open, onClose, data, positions, positionCategories, c
           {/* Skills Section */}
           <div className="space-y-3 pt-4 border-t">
             <div className="flex justify-between items-center">
-              <Label className="text-base font-semibold">
+              <Label className="text-body-base font-semibold">
                 Hard Skills
               </Label>
               <Button type="button" size="sm" onClick={addSkill}>
@@ -508,7 +508,7 @@ const GradeEditDialog = ({ open, onClose, data, positions, positionCategories, c
             </div>
             
             {skills.length === 0 && (
-              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+              <div className="text-body-md text-muted-foreground bg-muted/50 p-3 rounded">
                 Hard Skills не добавлены.
               </div>
             )}
@@ -557,7 +557,7 @@ const GradeEditDialog = ({ open, onClose, data, positions, positionCategories, c
           {/* Qualities Section */}
           <div className="space-y-3 pt-4 border-t">
             <div className="flex justify-between items-center">
-              <Label className="text-base font-semibold">
+              <Label className="text-body-base font-semibold">
                 Soft Skills
               </Label>
               <Button type="button" size="sm" onClick={addQuality}>
@@ -567,7 +567,7 @@ const GradeEditDialog = ({ open, onClose, data, positions, positionCategories, c
             </div>
             
             {qualities.length === 0 && (
-              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+              <div className="text-body-md text-muted-foreground bg-muted/50 p-3 rounded">
                 Soft Skills не добавлены.
               </div>
             )}

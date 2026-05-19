@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, User, Shield, Users, EyeOff, EyeOffIcon } from 'lucide-react';
+import { MessageSquare, User, Shield, Users, EyeOff, EyeOffIcon } from "@/components/icons";
 import { CommentByEvaluator } from '@/hooks/useSkillSurveyResultsEnhanced';
 
 interface CompetencyCommentsProps {
@@ -39,11 +39,11 @@ export const CompetencyComments: React.FC<CompetencyCommentsProps> = ({ comments
   const getIcon = (type: 'self' | 'supervisor' | 'colleague') => {
     switch (type) {
       case 'self':
-        return <User className="w-4 h-4 text-blue-600" />;
+        return <User className="w-4 h-4 text-primary" />;
       case 'supervisor':
-        return <Shield className="w-4 h-4 text-green-600" />;
+        return <Shield className="w-4 h-4 text-success" />;
       case 'colleague':
-        return <Users className="w-4 h-4 text-purple-600" />;
+        return <Users className="w-4 h-4 text-chart-3" />;
     }
   };
 
@@ -61,17 +61,17 @@ export const CompetencyComments: React.FC<CompetencyCommentsProps> = ({ comments
   const getTypeBgColor = (type: 'self' | 'supervisor' | 'colleague') => {
     switch (type) {
       case 'self':
-        return 'bg-blue-50 border-l-blue-500';
+        return 'bg-primary/10 border-l-brand-navy';
       case 'supervisor':
-        return 'bg-green-50 border-l-green-500';
+        return 'bg-success/10 border-l-green-500';
       case 'colleague':
-        return 'bg-purple-50 border-l-purple-500';
+        return 'bg-chart-3/10 border-l-chart-3';
     }
   };
 
   return (
     <div className="mt-4 space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
+      <div className="flex items-center gap-2 text-body-md font-medium text-foreground">
         <MessageSquare className="w-4 h-4" />
         <span>Комментарии к "{competencyName}"</span>
       </div>
@@ -92,7 +92,7 @@ export const CompetencyComments: React.FC<CompetencyCommentsProps> = ({ comments
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2 text-xs font-medium text-text-secondary flex-wrap">
+                  <div className="flex items-center gap-2 text-caption-sm font-medium text-muted-foreground flex-wrap">
                     {getIcon(comment.evaluator_type)}
                     <span>{getTypeLabel(comment.evaluator_type)}</span>
                     <span className="mx-1">•</span>
@@ -106,7 +106,7 @@ export const CompetencyComments: React.FC<CompetencyCommentsProps> = ({ comments
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-tertiary">
+                    <span className="text-caption-sm text-muted-foreground/70">
                       {new Date(comment.created_at).toLocaleDateString('ru-RU', {
                         day: '2-digit',
                         month: 'short',
@@ -116,7 +116,7 @@ export const CompetencyComments: React.FC<CompetencyCommentsProps> = ({ comments
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-6 px-2 text-caption-sm text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleHideComment(commentKey);
@@ -127,7 +127,7 @@ export const CompetencyComments: React.FC<CompetencyCommentsProps> = ({ comments
                     </Button>
                   </div>
                 </div>
-                <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                <p className="text-body-md text-foreground leading-relaxed whitespace-pre-wrap">
                   {comment.comment}
                 </p>
               </div>

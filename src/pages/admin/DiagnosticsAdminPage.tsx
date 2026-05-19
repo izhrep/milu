@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, Star, HelpCircle, Layers, FolderTree, Folder, Upload, Settings2 } from 'lucide-react';
+import { BookOpen, Star, HelpCircle, Layers, FolderTree, Folder, Upload, Settings2 } from "@/components/icons";
 import { SkillsManagement } from '@/components/admin/SkillsManagement';
 import { QualitiesManagement } from '@/components/admin/QualitiesManagement';
 import { SurveyQuestionsManagement } from '@/components/admin/SurveyQuestionsManagement';
@@ -41,8 +41,8 @@ export default function DiagnosticsAdminPage() {
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <Breadcrumbs />
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Справочники диагностики</h1>
-          <p className="text-text-secondary mt-2">
+          <h1 className="text-heading-2 font-bold text-foreground">Справочники диагностики</h1>
+          <p className="text-muted-foreground mt-2">
             Управление навыками, качествами и вопросами для оценки сотрудников
           </p>
         </div>

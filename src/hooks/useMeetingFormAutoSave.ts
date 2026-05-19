@@ -165,9 +165,28 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
     clearTimeout(dateResetTimer.current);
   }, [meetingId]);
 
-  // Cleanup timers on unmount
+  // Pending date value waiting to be flushed (used to force-send on unmount)
+  const pendingDateValue = useRef<string | null>(null);
+
+  // Cleanup timers on unmount — flush pending date BEFORE clearing the timer
+  // so that closing the form within the debounce window doesn't lose the change.
+  // The mutation lives in React Query (rescheduleSilentAsync) and survives unmount.
   useEffect(() => {
     return () => {
+      // Flush date: if a debounce timer is pending, fire the RPC synchronously
+      // (fire-and-forget — React Query mutation is detached from this component lifecycle).
+      if (pendingDateValue.current && pendingDateValue.current !== lastSavedDate.current) {
+        const value = pendingDateValue.current;
+        const targetDate = new Date(value);
+        if (!isNaN(targetDate.getTime()) && targetDate > new Date()) {
+          callbacks.rescheduleSilentAsync({
+            p_meeting_id: meetingId,
+            p_new_date: value,
+          }).catch((err) => {
+            console.error('Flush pending date on unmount failed:', err);
+          });
+        }
+      }
       clearTimeout(safeTimer.current);
       clearTimeout(mgrTimer.current);
       clearTimeout(dateTimer.current);
@@ -175,6 +194,7 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
       clearTimeout(mgrResetTimer.current);
       clearTimeout(dateResetTimer.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Safe fields channel (1.5s) ---
@@ -244,29 +264,36 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
     }, 1500);
   }, [meetingId, userId, enabled, callbacks]);
 
-  // --- Date channel (3s) ---
+  // --- Date channel (immediate, no debounce) ---
+  // Date/time is an explicit user choice (TimePicker/Calendar), not free text typing,
+  // so debounce isn't needed. Saving immediately prevents data loss when the form
+  // is closed (Esc, click outside, ×) right after a change.
   const debounceDateField = useCallback((meetingDateUtcIso: string) => {
     if (!enabled || !meetingDateUtcIso) return;
 
+    // Persist draft + remember pending value for unmount-flush safety net
     saveDraft('date', meetingId, meetingDateUtcIso, userId);
+    pendingDateValue.current = meetingDateUtcIso;
 
+    // Clear any leftover timer (legacy code path) — we no longer schedule a new one
     clearTimeout(dateTimer.current);
-    dateTimer.current = setTimeout(async () => {
-      if (dateSaving.current) return;
-      if (meetingDateUtcIso === lastSavedDate.current) return;
 
-      const targetDate = new Date(meetingDateUtcIso);
-      if (isNaN(targetDate.getTime()) || targetDate <= new Date()) {
-        console.warn('Autosave date skipped: date is in the past or invalid', meetingDateUtcIso);
-        return;
-      }
+    if (dateSaving.current) return;
+    if (meetingDateUtcIso === lastSavedDate.current) return;
 
-      // Capture current generation before async work
-      const gen = dateGeneration.current;
+    const targetDate = new Date(meetingDateUtcIso);
+    if (isNaN(targetDate.getTime()) || targetDate <= new Date()) {
+      console.warn('Autosave date skipped: date is in the past or invalid', meetingDateUtcIso);
+      return;
+    }
 
-      dateSaving.current = true;
-      clearTimeout(dateResetTimer.current);
-      setDateStatus('saving');
+    // Capture current generation before async work
+    const gen = dateGeneration.current;
+
+    dateSaving.current = true;
+    clearTimeout(dateResetTimer.current);
+    setDateStatus('saving');
+    (async () => {
       try {
         await callbacks.rescheduleSilentAsync({
           p_meeting_id: meetingId,
@@ -281,6 +308,10 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
         }
 
         lastSavedDate.current = meetingDateUtcIso;
+        // Clear pending only if it still matches what we just saved
+        if (pendingDateValue.current === meetingDateUtcIso) {
+          pendingDateValue.current = null;
+        }
         clearDraftIfUnchanged('date', meetingId, meetingDateUtcIso, userId);
         setDateStatus('saved');
         dateResetTimer.current = setTimeout(() => setDateStatus(s => s === 'saved' ? 'idle' : s), 3000);
@@ -295,13 +326,16 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
         const code = parseRpcErrorCode(err?.message || '');
         if (code === 'CONFLICT' || code === 'PAST_DATE') {
           clearDraftKey('date', meetingId, userId);
+          if (pendingDateValue.current === meetingDateUtcIso) {
+            pendingDateValue.current = null;
+          }
         }
 
         setDateStatus('error');
       } finally {
         dateSaving.current = false;
       }
-    }, 3000);
+    })();
   }, [meetingId, userId, enabled, callbacks]);
 
   // --- Initialize last-saved refs from server data ---
@@ -367,6 +401,22 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
     clearDraftKey('summary', meetingId, userId);
   }, [meetingId, userId]);
 
+  const saveSafeDraft = useCallback((fields: SafeFields) => {
+    saveDraft('safe', meetingId, fields, userId);
+  }, [meetingId, userId]);
+
+  const saveMgrDraft = useCallback((fields: MgrFields) => {
+    saveDraft('mgr', meetingId, fields, userId);
+  }, [meetingId, userId]);
+
+  const saveDateDraft = useCallback((meetingDateUtcIso: string) => {
+    if (meetingDateUtcIso) {
+      saveDraft('date', meetingId, meetingDateUtcIso, userId);
+      return;
+    }
+    clearDraftKey('date', meetingId, userId);
+  }, [meetingId, userId]);
+
   // --- Aggregated status ---
   const aggregatedStatus = useMemo((): SaveStatus => {
     if (safeStatus === 'saving' || mgrStatus === 'saving' || dateStatus === 'saving') return 'saving';
@@ -393,6 +443,8 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
   const cancelPendingDate = useCallback(() => {
     clearTimeout(dateTimer.current);
     dateGeneration.current += 1;
+    // Dialog reschedule supersedes any pending inline change — drop it
+    pendingDateValue.current = null;
     // Don't clear draft here — if the dialog RPC fails, the draft should survive
   }, []);
 
@@ -412,6 +464,9 @@ export function useMeetingFormAutoSave({ meetingId, userId, callbacks, enabled }
     initializeFromServer,
     recoverDrafts,
     clearAllDrafts,
+    saveSafeDraft,
+    saveMgrDraft,
+    saveDateDraft,
     saveSummaryDraft,
     clearSummaryDraft,
     aggregatedStatus,

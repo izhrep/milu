@@ -79,10 +79,10 @@ export const CategoryAggregation = ({
       result.push({
         label: categoryName,
         value: average,
-        color: getScoreColor(average, hardMaxScore) === 'text-red-600' ? 'hsl(var(--destructive))' :
-               getScoreColor(average, hardMaxScore) === 'text-orange-600' ? 'hsl(24, 90%, 50%)' :
-               getScoreColor(average, hardMaxScore) === 'text-yellow-600' ? 'hsl(45, 90%, 50%)' :
-               getScoreColor(average, hardMaxScore) === 'text-green-600' ? 'hsl(142, 70%, 45%)' :
+        color: getScoreColor(average, hardMaxScore) === 'text-destructive' ? 'hsl(var(--destructive))' :
+               getScoreColor(average, hardMaxScore) === 'text-warning' ? 'hsl(24, 90%, 50%)' :
+               getScoreColor(average, hardMaxScore) === 'text-warning' ? 'hsl(45, 90%, 50%)' :
+               getScoreColor(average, hardMaxScore) === 'text-success' ? 'hsl(142, 70%, 45%)' :
                'hsl(var(--primary))',
       });
     });
@@ -129,10 +129,10 @@ export const CategoryAggregation = ({
     return [{
       label: 'Soft Skills (все качества)',
       value: average,
-      color: getScoreColor(average, softMaxScore) === 'text-red-600' ? 'hsl(var(--destructive))' :
-             getScoreColor(average, softMaxScore) === 'text-orange-600' ? 'hsl(24, 90%, 50%)' :
-             getScoreColor(average, softMaxScore) === 'text-yellow-600' ? 'hsl(45, 90%, 50%)' :
-             getScoreColor(average, softMaxScore) === 'text-green-600' ? 'hsl(142, 70%, 45%)' :
+      color: getScoreColor(average, softMaxScore) === 'text-destructive' ? 'hsl(var(--destructive))' :
+             getScoreColor(average, softMaxScore) === 'text-warning' ? 'hsl(24, 90%, 50%)' :
+             getScoreColor(average, softMaxScore) === 'text-warning' ? 'hsl(45, 90%, 50%)' :
+             getScoreColor(average, softMaxScore) === 'text-success' ? 'hsl(142, 70%, 45%)' :
              'hsl(var(--primary))',
     }];
   };
@@ -156,7 +156,7 @@ export const CategoryAggregation = ({
           {/* Категории навыков */}
           {skillCategoryData.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold my-3 text-foreground">
+              <h3 className="text-body-md font-semibold my-3 text-foreground">
                 Hard Skills по категориям
               </h3>
               <HorizontalBarChart
@@ -169,7 +169,7 @@ export const CategoryAggregation = ({
           {/* Агрегация качеств */}
           {qualityAggregateData && qualityAggregateData.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold my-3 text-foreground">
+              <h3 className="text-body-md font-semibold my-3 text-foreground">
                 Soft Skills (общая оценка)
               </h3>
               <HorizontalBarChart
@@ -180,7 +180,7 @@ export const CategoryAggregation = ({
           )}
           
           {skillCategoryData.length === 0 && (!qualityAggregateData || qualityAggregateData.length === 0) && (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-body-md text-muted-foreground text-center py-4">
               Нет данных для отображения агрегации
             </p>
           )}

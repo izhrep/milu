@@ -2,7 +2,7 @@ import {
   Home, User, BookOpen, Trophy, TrendingUp, MapPin, Calendar, Target, 
   Shield, Users, BarChart3, CheckSquare, ClipboardList, Settings, Key,
   Briefcase, Building2, GraduationCap, FileBarChart
-} from 'lucide-react';
+} from "@/components/icons";
 
 // Группировка ресурсов по разделам меню приложения
 export const permissionGroups = [

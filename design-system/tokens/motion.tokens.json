@@ -1,0 +1,28 @@
+{
+  "motion": {
+    "duration": {
+      "fast":   {"value":"150ms"},
+      "base":   {"value":"300ms"},
+      "slow":   {"value":"500ms"},
+      "progress":{"value":"600ms"}
+    },
+    "easing": {
+      "standard":  {"value":"cubic-bezier(0.4, 0, 0.2, 1)"},
+      "decelerate":{"value":"cubic-bezier(0, 0, 0.2, 1)"},
+      "accelerate":{"value":"cubic-bezier(0.4, 0, 1, 1)"}
+    },
+    "keyframes": {
+      "stage-enter":   "opacity 0→1, translateX 20→0, scale 0.95→1 / 500ms standard",
+      "stage-exit":    "opacity 1→0, translateX 0→-20, scale 1→0.95 / 300ms standard",
+      "slide-in-up":   "opacity 0→1, translateY 20→0 / 400ms standard",
+      "fade-in":       "opacity 0→1 / 300ms ease-out",
+      "accordion-down":"height 0→content / 200ms ease-out",
+      "accordion-up":  "height content→0 / 200ms ease-out"
+    },
+    "semantic": {
+      "hover":      "{motion.duration.fast} {motion.easing.standard}",
+      "transition": "{motion.duration.base} {motion.easing.standard}",
+      "stage":      "{motion.duration.slow} {motion.easing.standard}"
+    }
+  }
+}

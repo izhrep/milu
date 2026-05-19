@@ -3,7 +3,7 @@ import { TaskList } from '@/components/TaskList';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight } from "@/components/icons";
 import { useNavigate } from 'react-router-dom';
 import { usePermission } from '@/hooks/usePermission';
 
@@ -19,7 +19,7 @@ const Index = () => {
       {/* Welcome section */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">
+          <h1 className="text-heading-2 font-bold text-foreground">
             Добро пожаловать, {user?.full_name || 'Пользователь'}!
           </h1>
         </div>
@@ -34,12 +34,12 @@ const Index = () => {
           {user && (
             <Card className="border-0 shadow-card">
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold">Мои задачи</CardTitle>
+                <CardTitle className="text-body-lg font-semibold">Мои задачи</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate('/tasks')}
-                  className="text-brand-purple hover:text-brand-purple/80"
+                  className="text-accent hover:text-accent/80"
                 >
                   Все задачи <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from "@/components/icons";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CompetencyDetailedResult } from '@/hooks/useCorrectAssessmentResults';
 
@@ -77,12 +77,12 @@ export const GapsAnalysisBlock: React.FC<GapsAnalysisBlockProps> = ({
             <CheckCircle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
           )}
           <div>
-            <p className="text-sm font-medium">
+            <p className="text-body-md font-medium">
               {hasGaps
                 ? 'Есть компетенции, требующие внимания'
                 : 'Критичных разрывов не обнаружено'}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-caption-sm text-muted-foreground mt-0.5">
               {hasGaps
                 ? `Найдены оценки ≤ ${THRESHOLD} среди внешних респондентов`
                 : 'Все оценки внешних респондентов выше бенчмарка'}
@@ -93,11 +93,11 @@ export const GapsAnalysisBlock: React.FC<GapsAnalysisBlockProps> = ({
         {/* Competency table — only when gaps exist */}
         {hasGaps && (
           <div>
-            <h4 className="text-sm font-semibold mb-2">
+            <h4 className="text-body-md font-semibold mb-2">
               Компетенции ниже бенчмарка (внешние респонденты)
             </h4>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-body-md">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2 pr-4 font-medium text-muted-foreground">

@@ -31,12 +31,12 @@ export const HardSkillsScaleCard: React.FC<HardSkillsScaleCardProps> = ({
     <div className="border border-border rounded-lg p-3 bg-card">
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Включить Hard-навыки в опросник</Label>
+          <Label className="text-body-md font-medium">Включить Hard-навыки в опросник</Label>
           <Switch checked={enabled} onCheckedChange={onEnabledChange} />
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <Label className="text-xs text-muted-foreground">Минимум (Hard)</Label>
+            <Label className="text-caption-sm text-muted-foreground">Минимум (Hard)</Label>
             <Input
               type="number" min={0} value={min}
               onChange={e => onMinChange(+e.target.value)}
@@ -44,7 +44,7 @@ export const HardSkillsScaleCard: React.FC<HardSkillsScaleCardProps> = ({
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Максимум (Hard)</Label>
+            <Label className="text-caption-sm text-muted-foreground">Максимум (Hard)</Label>
             <Input
               type="number" min={0} value={max}
               onChange={e => onMaxChange(+e.target.value)}
@@ -53,10 +53,10 @@ export const HardSkillsScaleCard: React.FC<HardSkillsScaleCardProps> = ({
           </div>
         </div>
         {enabled && rangeError && (
-          <p className="text-xs text-destructive">{rangeError}</p>
+          <p className="text-caption-sm text-destructive">{rangeError}</p>
         )}
         <div className="flex items-center justify-between pt-1">
-          <Label className="text-sm">Реверс шкалы Hard</Label>
+          <Label className="text-body-md">Реверс шкалы Hard</Label>
           <Switch checked={reversed} onCheckedChange={onReversedChange} disabled={!enabled} />
         </div>
         {enabled && reversed && max > min && (

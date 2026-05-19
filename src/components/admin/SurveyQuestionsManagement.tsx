@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit2, Trash2, GripVertical, Info } from 'lucide-react';
+import { Plus, Edit2, Trash2, GripVertical, Info } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -272,7 +272,7 @@ export const SurveyQuestionsManagement = () => {
     <div className="space-y-6">
       {/* Template selector + context header */}
       <div className="flex items-center gap-3">
-        <Label className="text-sm text-muted-foreground whitespace-nowrap">Шаблон:</Label>
+        <Label className="text-body-md text-muted-foreground whitespace-nowrap">Шаблон:</Label>
         <Select
           value={templateContext?.id ?? ''}
           onValueChange={(id) => selectTemplate(id)}
@@ -313,7 +313,7 @@ export const SurveyQuestionsManagement = () => {
         return (
           <Alert className="border-primary/30 bg-primary/5">
             <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-            <AlertDescription className="text-sm ml-2">
+            <AlertDescription className="text-body-md ml-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span>Действующий шаблон опросника: <strong>{templateContext.name}</strong> v{templateContext.version}</span>
                 {templateContext.hard_skills_enabled ? (
@@ -323,7 +323,7 @@ export const SurveyQuestionsManagement = () => {
                 )}
                 <span className="text-muted-foreground">Шкала Soft: {summary.softScaleLabel}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-caption-sm text-muted-foreground mt-1">
                 Все изменения вопросов и вариантов ответа сейчас проверяются относительно этого шаблона.
               </p>
             </AlertDescription>
@@ -332,7 +332,7 @@ export const SurveyQuestionsManagement = () => {
       })() : (
         <Alert className="border-border bg-muted/40">
           <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-          <AlertDescription className="text-sm text-muted-foreground ml-2">
+          <AlertDescription className="text-body-md text-muted-foreground ml-2">
             Шаблон опросника не выбран. Проверка диапазонов и правил отключена.
           </AlertDescription>
         </Alert>
@@ -482,7 +482,7 @@ export const SurveyQuestionsManagement = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-caption-sm text-muted-foreground mt-1">
                   Определяет набор вариантов ответов для этого вопроса
                 </p>
               </div>
@@ -530,7 +530,7 @@ export const SurveyQuestionsManagement = () => {
                         <SelectItem value="peer">Оценка коллегой</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-caption-sm text-muted-foreground mt-1">
                       Вопрос будет виден только выбранному типу респондента
                     </p>
                   </div>
@@ -545,17 +545,17 @@ export const SurveyQuestionsManagement = () => {
                     checked={formData.comment_required_override === true || (formData.comment_required_override === null && answerCategories?.find(c => c.id === formData.answer_category_id)?.comment_required === true)}
                     onCheckedChange={(checked) => setFormData({ ...formData, comment_required_override: checked === true })}
                   />
-                  <Label htmlFor="comment_required_override" className="cursor-pointer text-sm">
+                  <Label htmlFor="comment_required_override" className="cursor-pointer text-body-md">
                     Обязательный комментарий
                   </Label>
                   {formData.comment_required_override === null && (
-                    <span className="text-xs text-muted-foreground">(наследуется от группы)</span>
+                    <span className="text-caption-sm text-muted-foreground">(наследуется от группы)</span>
                   )}
                 </div>
                 {formData.comment_required_override !== null && (
                   <button
                     type="button"
-                    className="text-xs text-primary hover:underline"
+                    className="text-caption-sm text-primary hover:underline"
                     onClick={() => setFormData({ ...formData, comment_required_override: null })}
                   >
                     Сбросить (наследовать от группы)
@@ -699,11 +699,11 @@ export const SurveyQuestionsManagement = () => {
                     )}
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">
+                        <span className="text-body-md">
                           {question.answer_category_name || '—'}
                         </span>
                         {hasMixedOverrides && (
-                          <Badge variant="outline" className="text-xs px-1 py-0">
+                          <Badge variant="outline" className="text-caption-sm px-1 py-0">
                             Частично настроено
                           </Badge>
                         )}
@@ -711,13 +711,13 @@ export const SurveyQuestionsManagement = () => {
                     </TableCell>
                     <TableCell>
                       {question.visibility_restriction_enabled ? (
-                        <span className="text-sm">
+                        <span className="text-body-md">
                           {question.visibility_restriction_type === 'self' && 'Самооценка'}
                           {question.visibility_restriction_type === 'manager' && 'Руководитель'}
                           {question.visibility_restriction_type === 'peer' && 'Коллега'}
                         </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Все</span>
+                        <span className="text-body-md text-muted-foreground">Все</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -730,7 +730,7 @@ export const SurveyQuestionsManagement = () => {
                             }}
                             className="h-3.5 w-3.5"
                           />
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-caption-sm text-muted-foreground">
                             {answerCat.comment_required ? 'Да' : 'Нет'}
                           </span>
                         </div>

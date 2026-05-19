@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Search, Users, ClipboardList } from 'lucide-react';
+import { Search, Users, ClipboardList } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
 import { useTeamProfiles } from '@/hooks/useTeamProfiles';
@@ -124,8 +124,8 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
   if (loading) {
     return (
       <div className="animate-pulse">
-        <div className="h-8 bg-surface-secondary rounded w-1/4 mb-4"></div>
-        <div className="h-4 bg-surface-secondary rounded w-1/3"></div>
+        <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
+        <div className="h-4 bg-muted rounded w-1/3"></div>
       </div>
     );
   }
@@ -134,34 +134,34 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-text-primary">Профили команды</h2>
-        <p className="text-text-secondary mt-1">Заполнение и актуализация управленческих профилей сотрудников</p>
+        <h2 className="text-heading-3 font-bold text-foreground">Профили команды</h2>
+        <p className="text-muted-foreground mt-1">Заполнение и актуализация управленческих профилей сотрудников</p>
       </div>
 
       {/* Summary counters */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-0 shadow-card">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-text-secondary">Всего сотрудников</p>
-            <p className="text-2xl font-bold text-text-primary mt-1">{counts.total}</p>
+            <p className="text-caption-sm font-medium text-muted-foreground">Всего сотрудников</p>
+            <p className="text-heading-3 font-bold text-foreground mt-1">{counts.total}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-card">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-text-secondary">Не заполнены</p>
-            <p className="text-2xl font-bold text-destructive mt-1">{counts.not_filled}</p>
+            <p className="text-caption-sm font-medium text-muted-foreground">Не заполнены</p>
+            <p className="text-heading-3 font-bold text-destructive mt-1">{counts.not_filled}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-card">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-text-secondary">Частично заполнены</p>
-            <p className="text-2xl font-bold text-accent-foreground mt-1">{counts.partially_filled}</p>
+            <p className="text-caption-sm font-medium text-muted-foreground">Частично заполнены</p>
+            <p className="text-heading-3 font-bold text-accent-foreground mt-1">{counts.partially_filled}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-card">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-text-secondary">Заполнены</p>
-            <p className="text-2xl font-bold text-primary mt-1">{counts.filled}</p>
+            <p className="text-caption-sm font-medium text-muted-foreground">Заполнены</p>
+            <p className="text-heading-3 font-bold text-primary mt-1">{counts.filled}</p>
           </CardContent>
         </Card>
       </div>
@@ -170,21 +170,21 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
       <div className="rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
           <div className="space-y-1">
-            <Label className="text-xs text-text-secondary">Поиск по ФИО</Label>
+            <Label className="text-caption-sm text-muted-foreground">Поиск по ФИО</Label>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-text-tertiary" />
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
               <Input
                 placeholder="Введите имя..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 h-9 text-sm"
+                className="pl-8 h-9 text-body-md"
               />
             </div>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-text-secondary">Руководитель</Label>
+            <Label className="text-caption-sm text-muted-foreground">Руководитель</Label>
             <Select value={managerFilter} onValueChange={setManagerFilter}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Все" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-body-md"><SelectValue placeholder="Все" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все</SelectItem>
                 {managers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
@@ -192,9 +192,9 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-text-secondary">Должность</Label>
+            <Label className="text-caption-sm text-muted-foreground">Должность</Label>
             <Select value={positionFilter} onValueChange={setPositionFilter}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Все" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-body-md"><SelectValue placeholder="Все" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все должности</SelectItem>
                 {positions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -202,9 +202,9 @@ const TeamProfilesTab = ({ selectedUserId, onSelectUser }: Props) => {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-text-secondary">Статус профиля</Label>
+            <Label className="text-caption-sm text-muted-foreground">Статус профиля</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Все" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-body-md"><SelectValue placeholder="Все" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все статусы</SelectItem>
                 <SelectItem value="not_filled">Не заполнен</SelectItem>

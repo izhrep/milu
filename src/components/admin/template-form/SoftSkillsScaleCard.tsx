@@ -27,22 +27,22 @@ export const SoftSkillsScaleCard: React.FC<SoftSkillsScaleCardProps> = ({
   return (
     <div className="border border-border rounded-lg p-3 bg-card">
       <div className="space-y-2.5">
-        <h4 className="text-sm font-medium text-foreground">Soft-навыки</h4>
+        <h4 className="text-body-md font-medium text-foreground">Soft-навыки</h4>
         <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <Label className="text-xs text-muted-foreground">Минимум (Soft)</Label>
+            <Label className="text-caption-sm text-muted-foreground">Минимум (Soft)</Label>
             <Input type="number" min={0} value={min} onChange={e => onMinChange(+e.target.value)} className="mt-1 h-9" />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Максимум (Soft)</Label>
+            <Label className="text-caption-sm text-muted-foreground">Максимум (Soft)</Label>
             <Input type="number" min={0} value={max} onChange={e => onMaxChange(+e.target.value)} className="mt-1 h-9" />
           </div>
         </div>
         {rangeError && (
-          <p className="text-xs text-destructive">{rangeError}</p>
+          <p className="text-caption-sm text-destructive">{rangeError}</p>
         )}
         <div className="flex items-center justify-between pt-1">
-          <Label className="text-sm">Реверс шкалы Soft</Label>
+          <Label className="text-body-md">Реверс шкалы Soft</Label>
           <Switch checked={reversed} onCheckedChange={onReversedChange} />
         </div>
         {reversed && max > min && (

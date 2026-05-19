@@ -101,7 +101,7 @@ export const GradeDetailsDialog = ({ open, onOpenChange, gradeId, gradeName }: G
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg">{item.hard_skills?.name}</CardTitle>
+                          <CardTitle className="text-body-lg">{item.hard_skills?.name}</CardTitle>
                           {item.hard_skills?.description && (
                             <CardDescription className="mt-1">{item.hard_skills.description}</CardDescription>
                           )}
@@ -129,7 +129,7 @@ export const GradeDetailsDialog = ({ open, onOpenChange, gradeId, gradeName }: G
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg">{item.soft_skills?.name}</CardTitle>
+                          <CardTitle className="text-body-lg">{item.soft_skills?.name}</CardTitle>
                           {item.soft_skills?.description && (
                             <CardDescription className="mt-1">{item.soft_skills.description}</CardDescription>
                           )}

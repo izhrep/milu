@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLogger } from '@/lib/adminLogger';
 import { toast } from 'sonner';
-import { Loader2, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, Trash2, CheckCircle2 } from "@/components/icons";
 
 interface DeleteResult {
   table: string;
@@ -164,7 +164,7 @@ export const DataCleanupWidget = () => {
                     Вы уверены, что хотите удалить все данные из системы? 
                     Это действие нельзя отменить. Будут удалены данные из следующих таблиц:
                   </p>
-                  <ul className="list-disc list-inside text-sm">
+                  <ul className="list-disc list-inside text-body-md">
                     {tables.map(table => (
                       <li key={table}>{table}</li>
                     ))}
@@ -186,12 +186,12 @@ export const DataCleanupWidget = () => {
 
         {showResults && deleteResults.length > 0 && (
           <div className="space-y-2 mt-4">
-            <h4 className="text-sm font-medium">Результаты удаления:</h4>
+            <h4 className="text-body-md font-medium">Результаты удаления:</h4>
             <div className="space-y-1">
               {deleteResults.map((result) => (
-                <div key={result.table} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`h-4 w-4 ${result.success ? 'text-green-500' : 'text-red-500'}`} />
-                  <span className={result.success ? 'text-text-primary' : 'text-red-500'}>
+                <div key={result.table} className="flex items-center gap-2 text-body-md">
+                  <CheckCircle2 className={`h-4 w-4 ${result.success ? 'text-success' : 'text-destructive'}`} />
+                  <span className={result.success ? 'text-foreground' : 'text-destructive'}>
                     ✅ {result.table} — {result.count}
                   </span>
                 </div>

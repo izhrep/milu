@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Check, X, Clock } from 'lucide-react';
+import { Loader2, Check, X, Clock } from "@/components/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { decryptUserData } from '@/lib/userDataDecryption';
 
@@ -198,12 +198,12 @@ export const RespondentsListDialog = ({
                         {respondent.evaluator_name}
                       </div>
                       {respondent.evaluator_position && (
-                        <div className="text-sm text-muted-foreground mt-1">
+                        <div className="text-body-md text-muted-foreground mt-1">
                           {respondent.evaluator_position}
                         </div>
                       )}
                       {respondent.approved_at && (
-                        <div className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                        <div className="text-caption-sm text-muted-foreground mt-2 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           Согласовано: {formatDate(respondent.approved_at)}
                         </div>
@@ -237,21 +237,21 @@ export const RespondentsListDialog = ({
                 expiredRespondents.map(respondent => (
                   <div
                     key={respondent.id}
-                    className="flex items-start justify-between p-4 rounded-lg border bg-card border-orange-200"
+                    className="flex items-start justify-between p-4 rounded-lg border bg-card border-warning/30"
                   >
                     <div className="flex-1">
                       <div className="font-medium text-foreground">
                         {respondent.evaluator_name}
                       </div>
                       {respondent.evaluator_position && (
-                        <div className="text-sm text-muted-foreground mt-1">
+                        <div className="text-body-md text-muted-foreground mt-1">
                           {respondent.evaluator_position}
                         </div>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="gap-1 border-orange-500 text-orange-600">
+                      <Badge variant="outline" className="gap-1 border-warning text-warning">
                         <Clock className="h-3 w-3" />
                         Просрочено
                       </Badge>
@@ -277,17 +277,17 @@ export const RespondentsListDialog = ({
                         {respondent.evaluator_name}
                       </div>
                       {respondent.evaluator_position && (
-                        <div className="text-sm text-muted-foreground mt-1">
+                        <div className="text-body-md text-muted-foreground mt-1">
                           {respondent.evaluator_position}
                         </div>
                       )}
                       {respondent.rejection_reason && (
-                        <div className="text-sm text-destructive mt-2 p-2 bg-destructive/10 rounded">
+                        <div className="text-body-md text-destructive mt-2 p-2 bg-destructive/10 rounded">
                           <span className="font-medium">Причина отклонения:</span> {respondent.rejection_reason}
                         </div>
                       )}
                       {respondent.rejected_at && (
-                        <div className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                        <div className="text-caption-sm text-muted-foreground mt-2 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           Отклонено: {formatDate(respondent.rejected_at)}
                         </div>

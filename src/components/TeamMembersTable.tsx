@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, TrendingUp, Eye, ArrowRight, Users } from 'lucide-react';
+import { Calendar, TrendingUp, Eye, ArrowRight, Users } from "@/components/icons";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -304,12 +304,12 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => navigate(`/profile?user=${member.id}`)}
-                        className="font-medium text-brand-purple hover:underline text-left"
+                        className="font-medium text-accent hover:underline text-left"
                       >
                         {fullName}
                       </button>
                       {!isDirectManager && indirectManagerName && (
-                        <Badge variant="outline" className="text-xs font-normal whitespace-nowrap">
+                        <Badge variant="outline" className="text-caption-sm font-normal whitespace-nowrap">
                           через {indirectManagerName}
                         </Badge>
                       )}
@@ -339,7 +339,7 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
                       {respondentsStatus.status}
                     </Button>
                     ) : (
-                      <span className="text-text-tertiary text-sm">—</span>
+                      <span className="text-muted-foreground/70 text-body-md">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -360,14 +360,14 @@ export const TeamMembersTable: React.FC<TeamMembersTableProps> = ({ members, cur
                     {avgSkills !== null ? (
                       <Badge variant="outline">{avgSkills}</Badge>
                     ) : (
-                      <span className="text-text-tertiary text-sm">-</span>
+                      <span className="text-muted-foreground/70 text-body-md">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
                     {avgQualities !== null ? (
                       <Badge variant="outline">{avgQualities}</Badge>
                     ) : (
-                      <span className="text-text-tertiary text-sm">-</span>
+                      <span className="text-muted-foreground/70 text-body-md">-</span>
                     )}
                   </TableCell>
                   <TableCell>

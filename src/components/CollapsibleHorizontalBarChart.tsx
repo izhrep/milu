@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 
 export interface BarChartDataItem {
@@ -33,11 +33,11 @@ export const CollapsibleHorizontalBarChart: React.FC<CollapsibleHorizontalBarCha
       <Card>
         {title && (
           <CardHeader>
-            <CardTitle className="text-base">{title}</CardTitle>
+            <CardTitle className="text-body-base">{title}</CardTitle>
           </CardHeader>
         )}
         <CardContent>
-          <p className="text-sm text-muted-foreground">Нет данных для отображения</p>
+          <p className="text-body-md text-muted-foreground">Нет данных для отображения</p>
         </CardContent>
       </Card>
     );
@@ -50,9 +50,9 @@ export const CollapsibleHorizontalBarChart: React.FC<CollapsibleHorizontalBarCha
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between cursor-pointer group">
               <div className="flex-1">
-                <CardTitle className="text-base font-semibold text-foreground/90">{title}</CardTitle>
+                <CardTitle className="text-body-base font-semibold text-foreground/90">{title}</CardTitle>
                 {subtitle && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+                  <p className="text-caption-sm text-muted-foreground mt-0.5">{subtitle}</p>
                 )}
               </div>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 group-hover:bg-muted">
@@ -73,7 +73,7 @@ export const CollapsibleHorizontalBarChart: React.FC<CollapsibleHorizontalBarCha
               <div className="w-[180px] shrink-0"></div>
               <div className="flex-1 flex justify-between px-1">
                 {Array.from({ length: maxValue + 1 }, (_, i) => (
-                  <span key={i} className="text-xs text-muted-foreground">{i}</span>
+                  <span key={i} className="text-caption-sm text-muted-foreground">{i}</span>
                 ))}
               </div>
               <div className="w-[65px] shrink-0"></div>
@@ -84,12 +84,12 @@ export const CollapsibleHorizontalBarChart: React.FC<CollapsibleHorizontalBarCha
               return (
                 <div key={index} className="flex items-center gap-4">
                   <div 
-                    className={`w-[180px] shrink-0 text-sm font-medium truncate ${hasValue ? 'text-foreground/80' : 'text-muted-foreground/60'}`} 
+                    className={`w-[180px] shrink-0 text-body-md font-medium truncate ${hasValue ? 'text-foreground/80' : 'text-muted-foreground/60'}`} 
                     title={item.label}
                   >
                     {item.label}
                     {hasValue && item.count !== undefined && item.count > 0 && (
-                      <span className="ml-1 text-xs text-muted-foreground">({item.count})</span>
+                      <span className="ml-1 text-caption-sm text-muted-foreground">({item.count})</span>
                     )}
                   </div>
                   <div className="flex-1 flex items-center">
@@ -128,13 +128,13 @@ export const CollapsibleHorizontalBarChart: React.FC<CollapsibleHorizontalBarCha
                       {/* Текст "Нет ответа" для пустых значений */}
                       {!hasValue && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-xs text-muted-foreground/50">Нет ответа</span>
+                          <span className="text-caption-sm text-muted-foreground/50">Нет ответа</span>
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="w-[65px] shrink-0 text-right">
-                    <span className={`text-sm font-semibold tabular-nums ${hasValue ? 'text-foreground/90' : 'text-muted-foreground/50'}`}>
+                    <span className={`text-body-md font-semibold tabular-nums ${hasValue ? 'text-foreground/90' : 'text-muted-foreground/50'}`}>
                       {hasValue ? item.value.toFixed(2) : '—'}
                     </span>
                   </div>

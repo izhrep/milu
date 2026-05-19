@@ -1,4 +1,4 @@
-import { Key, History, Shield, ArrowLeft } from 'lucide-react';
+import { Key, History, Shield, ArrowLeft } from "@/components/icons";
 import { useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -32,14 +32,14 @@ export const SecuritySidebar = ({ activeSection, onSectionSelect }: SecuritySide
         <div className="p-4 border-b">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="h-5 w-5 text-primary" />
-            <h2 className={`font-semibold ${state === 'collapsed' ? 'hidden' : 'text-lg'}`}>
+            <h2 className={`font-semibold ${state === 'collapsed' ? 'hidden' : 'text-body-lg'}`}>
               Безопасность
             </h2>
           </div>
           {state !== 'collapsed' && (
             <button
               onClick={() => navigate('/')}
-              className="mt-2 w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-accent rounded-lg transition-colors"
+              className="mt-2 w-full flex items-center gap-2 px-3 py-2 text-body-md text-muted-foreground hover:text-primary hover:bg-accent rounded-lg transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               Вернуться в портал

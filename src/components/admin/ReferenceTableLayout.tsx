@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from "@/components/icons";
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
@@ -34,7 +34,7 @@ export const ReferenceTableLayout = ({
           <div className="flex items-center gap-3 mt-2">
             {icon && <div className="text-primary">{icon}</div>}
             <div>
-              <h1 className="text-3xl font-bold">{title}</h1>
+              <h1 className="text-heading-2 font-bold">{title}</h1>
               {description && (
                 <p className="text-muted-foreground mt-1">{description}</p>
               )}

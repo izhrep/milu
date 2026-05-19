@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from "@/components/icons";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -158,7 +158,7 @@ export const CreateAnswerCategoryDialog = ({
                 checked={formData.comment_required}
                 onCheckedChange={(checked) => setFormData({ ...formData, comment_required: checked === true })}
               />
-              <Label htmlFor="comment_required" className="cursor-pointer text-sm">
+              <Label htmlFor="comment_required" className="cursor-pointer text-body-md">
                 Обязательный комментарий
               </Label>
             </div>
@@ -166,7 +166,7 @@ export const CreateAnswerCategoryDialog = ({
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-base">Варианты ответов</Label>
+              <Label className="text-body-base">Варианты ответов</Label>
               <Button type="button" size="sm" onClick={addOption}>
                 <Plus className="w-4 h-4 mr-2" />
                 Добавить вариант
@@ -177,7 +177,7 @@ export const CreateAnswerCategoryDialog = ({
               {options.map((option, index) => (
                 <div key={index} className="p-4 border rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Вариант {index + 1}</span>
+                    <span className="text-body-md font-medium">Вариант {index + 1}</span>
                     {options.length > 1 && (
                       <Button
                         type="button"
@@ -192,7 +192,7 @@ export const CreateAnswerCategoryDialog = ({
 
                     <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                      <Label className="text-xs">Уровень ({questionType === 'hard' ? '0-4' : '0-5'}) *</Label>
+                                      <Label className="text-caption-sm">Уровень ({questionType === 'hard' ? '0-4' : '0-5'}) *</Label>
                                       <Input
                                         type="number"
                                         value={option.level_value}
@@ -203,7 +203,7 @@ export const CreateAnswerCategoryDialog = ({
                                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Порядок *</Label>
+                      <Label className="text-caption-sm">Порядок *</Label>
                       <Input
                         type="number"
                         value={option.order_index}
@@ -215,7 +215,7 @@ export const CreateAnswerCategoryDialog = ({
                   </div>
 
                   <div>
-                    <Label className="text-xs">Название *</Label>
+                    <Label className="text-caption-sm">Название *</Label>
                     <Input
                       value={option.title}
                       onChange={(e) => updateOption(index, 'title', e.target.value)}
@@ -225,7 +225,7 @@ export const CreateAnswerCategoryDialog = ({
                   </div>
 
                   <div>
-                    <Label className="text-xs">Описание</Label>
+                    <Label className="text-caption-sm">Описание</Label>
                     <Textarea
                       value={option.description}
                       onChange={(e) => updateOption(index, 'description', e.target.value)}

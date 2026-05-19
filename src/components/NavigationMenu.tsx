@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Rss, User, TrendingUp, GraduationCap, Users, Settings, LogOut, UserCog } from 'lucide-react';
+import { Rss, User, TrendingUp, GraduationCap, Users, Settings, LogOut, UserCog } from "@/components/icons";
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
@@ -89,15 +89,15 @@ const NavigationMenu = () => {
       {/* User Profile Section */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-chart-3 to-chart-3 flex items-center justify-center flex-shrink-0">
             <User className="w-5 h-5 text-white" />
           </div>
           <div className={cn(
             "transition-all duration-300 overflow-hidden",
             isExpanded ? "opacity-100 w-auto" : "opacity-0 w-0"
           )}>
-            <p className="font-semibold text-sm truncate">{displayName}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.role}</p>
+            <p className="font-semibold text-body-md truncate">{displayName}</p>
+            <p className="text-caption-sm text-muted-foreground truncate">{user?.role}</p>
           </div>
         </div>
         
@@ -112,7 +112,7 @@ const NavigationMenu = () => {
           onClick={() => navigate('/profile')}
         >
           <UserCog className="h-4 w-4" />
-          <span className="text-xs">Настройка профиля</span>
+          <span className="text-caption-sm">Настройка профиля</span>
         </Button>
       </div>
 
@@ -151,7 +151,7 @@ const NavigationMenu = () => {
         <Button
           variant="ghost"
           className={cn(
-            "w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-300",
+            "w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-300",
             isExpanded ? "px-4" : "px-3"
           )}
           onClick={handleLogout}

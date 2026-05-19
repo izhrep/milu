@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle } from "@/components/icons";
 
 /**
  * Страница успешного завершения оценки.
@@ -21,14 +21,14 @@ const AssessmentCompletedPage = () => {
         <CardContent className="p-8 text-center space-y-6">
           <div className="space-y-4">
             <div className="flex items-center justify-center">
-              <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-4">
-                <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
+              <div className="rounded-full bg-success/20 dark:bg-success/30 p-4">
+                <CheckCircle className="h-12 w-12 text-success dark:text-success/80" />
               </div>
             </div>
-            <h1 className="text-2xl font-semibold text-foreground">
+            <h1 className="text-heading-3 font-semibold text-foreground">
               Благодарим за предоставленную обратную связь
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body-md text-muted-foreground">
               Ваши ответы успешно сохранены и будут учтены в результатах диагностики.
             </p>
           </div>

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export interface SummaryComment {
   id: string;
@@ -87,7 +88,10 @@ export const useMeetingSummaryThread = (meetingId: string) => {
         .eq('id', commentId);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      toast('Сообщение удалено');
+    },
   });
 
   return {

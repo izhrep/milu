@@ -5,7 +5,7 @@ import { ManagerComparisonTable } from '@/components/ManagerComparisonTable';
 import Sidebar from '@/components/Sidebar';
 import RightPanel from '@/components/RightPanel';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "@/components/icons";
 
 export default function ManagerComparisonPage() {
   const { user } = useAuth();
@@ -49,7 +49,7 @@ export default function ManagerComparisonPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="container mx-auto p-6 max-w-7xl">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold">Сравнение подчинённых</h1>
+            <h1 className="text-heading-2 font-bold">Сравнение подчинённых</h1>
             <p className="text-muted-foreground mt-2">
               Анализ результатов диагностики по ключевым компетенциям
             </p>

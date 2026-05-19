@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, MessageSquare } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -1357,8 +1357,8 @@ if (loading || questionsLoading) {
             </div>
           </div>
           <div className="space-y-2">
-            <p className="text-lg font-semibold text-foreground">Загрузка формы обратной связи…</p>
-            <p className="text-sm text-muted-foreground">Подготавливаем вопросы для вас</p>
+            <p className="text-body-lg font-semibold text-foreground">Загрузка формы обратной связи…</p>
+            <p className="text-body-md text-muted-foreground">Подготавливаем вопросы для вас</p>
           </div>
         </div>
       </div>
@@ -1373,8 +1373,8 @@ if (loading || questionsLoading) {
             <AlertCircle className="h-8 w-8 text-destructive" />
           </div>
           <div className="space-y-2">
-            <p className="text-lg font-semibold text-foreground">Ошибка загрузки вопросов</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body-lg font-semibold text-foreground">Ошибка загрузки вопросов</p>
+            <p className="text-body-md text-muted-foreground">
               {questionsLoadError}. Обратитесь к администратору.
             </p>
           </div>
@@ -1395,8 +1395,8 @@ if (loading || questionsLoading) {
             <AlertCircle className="h-8 w-8 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <p className="text-lg font-semibold text-foreground">Вопросы для оценки не найдены</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body-lg font-semibold text-foreground">Вопросы для оценки не найдены</p>
+            <p className="text-body-md text-muted-foreground">
               Возможные причины: у оцениваемого сотрудника не указан грейд, для грейда не настроены компетенции, 
               или нет вопросов, доступных для вашего типа оценки. Обратитесь к администратору.
             </p>
@@ -1455,8 +1455,8 @@ if (loading || questionsLoading) {
           <Card className="mb-6 border-none shadow-lg bg-gradient-to-br from-card to-card/80 backdrop-blur">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-foreground">Прогресс прохождения</span>
-                <span className="text-sm font-bold text-primary">
+                <span className="text-body-md font-semibold text-foreground">Прогресс прохождения</span>
+                <span className="text-body-md font-bold text-primary">
                   {answeredCount} / {questions.length} вопросов
                 </span>
               </div>
@@ -1464,7 +1464,7 @@ if (loading || questionsLoading) {
                 <Progress value={progress} className="h-3" />
               </div>
               {answeredCount === questions.length && (
-                <div className="mt-3 text-sm text-green-600 dark:text-green-400 font-medium flex items-center gap-2">
+                <div className="mt-3 text-body-md text-success dark:text-success/80 font-medium flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
                   Все вопросы отвечены
                 </div>
@@ -1479,12 +1479,12 @@ if (loading || questionsLoading) {
               
               <CardHeader className="space-y-3 pb-4">
                 <div className="inline-flex items-center">
-                  <span className="px-4 py-2 rounded-full text-sm font-bold tracking-wide shadow-lg bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-amber-700 dark:text-amber-300 border-2 border-amber-400/40">
+                  <span className="px-4 py-2 rounded-full text-body-md font-bold tracking-wide shadow-lg bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-warning dark:text-warning/70 border-2 border-warning/40">
                     <MessageSquare className="h-4 w-4 inline mr-2" />
                     Открытые вопросы
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body-md text-muted-foreground">
                   Пожалуйста, ответьте на дополнительные вопросы в свободной форме.
                 </p>
               </CardHeader>
@@ -1492,7 +1492,7 @@ if (loading || questionsLoading) {
               <CardContent className="space-y-8">
                 {openQuestions.map((oq, idx) => (
                   <div key={oq.id} className="space-y-3">
-                    <Label className="text-base font-semibold text-foreground">
+                    <Label className="text-body-base font-semibold text-foreground">
                       {idx + 1}. {oq.question_text}
                       {oq.is_required && <span className="text-destructive ml-1">*</span>}
                     </Label>
@@ -1502,7 +1502,7 @@ if (loading || questionsLoading) {
                       placeholder="Введите ваш ответ..."
                       className="min-h-[120px] resize-y"
                     />
-                    <div className="text-xs text-muted-foreground text-right">
+                    <div className="text-caption-sm text-muted-foreground text-right">
                       {(openAnswers[oq.id] || '').length} символов
                     </div>
                   </div>
@@ -1558,10 +1558,10 @@ if (loading || questionsLoading) {
           <Card className="mb-6 border-none shadow-lg bg-gradient-to-br from-primary/5 to-primary/10 backdrop-blur">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-primary">
+                <span className="text-body-md font-bold text-primary">
                   Диагностика
                 </span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-body-md text-muted-foreground">
                   до {new Date(diagnosticPeriod.end_date).toLocaleDateString('ru-RU')}
                 </span>
               </div>
@@ -1573,8 +1573,8 @@ if (loading || questionsLoading) {
         <Card className="mb-6 border-none shadow-lg bg-gradient-to-br from-card to-card/80 backdrop-blur">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-foreground">Прогресс прохождения</span>
-              <span className="text-sm font-bold text-primary">
+              <span className="text-body-md font-semibold text-foreground">Прогресс прохождения</span>
+              <span className="text-body-md font-bold text-primary">
                 {answeredCount} / {questions.length}
               </span>
             </div>
@@ -1583,7 +1583,7 @@ if (loading || questionsLoading) {
               <div className="absolute top-0 left-0 h-3 rounded-full bg-gradient-to-r from-primary/20 to-primary/5 w-full pointer-events-none" />
             </div>
             {answeredCount === questions.length && (
-              <div className="mt-3 text-sm text-green-600 dark:text-green-400 font-medium flex items-center gap-2">
+              <div className="mt-3 text-body-md text-success dark:text-success/80 font-medium flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
                 Все вопросы отвечены
               </div>
@@ -1608,13 +1608,13 @@ if (loading || questionsLoading) {
                   }}
                   onClick={() => goToQuestion(idx)}
                   className={`
-                    relative flex-shrink-0 px-3 py-2 rounded-lg text-sm font-semibold 
+                    relative flex-shrink-0 px-3 py-2 rounded-lg text-body-md font-semibold 
                     transition-all duration-300 border min-w-[48px]
                     transform hover:scale-105
                     ${isCurrent 
                       ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-primary shadow-lg scale-105' 
                       : (isAnswered || isSkipped)
-                      ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 text-green-700 dark:text-green-300 border-green-400/50 dark:border-green-600/50'
+                      ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 text-success dark:text-success/70 border-success/50 dark:border-success/50'
                       : 'bg-muted/30 hover:bg-muted/50 border-muted/40 text-muted-foreground hover:text-foreground'
                     }
                   `}
@@ -1624,8 +1624,8 @@ if (loading || questionsLoading) {
                       <CheckCircle className="h-3.5 w-3.5 animate-in fade-in zoom-in duration-300" />
                     )}
                     {isSkipped && !isCurrent && (
-                      <div className="h-3.5 w-3.5 rounded-full border-2 border-green-500 dark:border-green-400 flex items-center justify-center animate-in fade-in zoom-in duration-300">
-                        <span className="text-[10px] font-bold leading-none">–</span>
+                      <div className="h-3.5 w-3.5 rounded-full border-2 border-success dark:border-success/40 flex items-center justify-center animate-in fade-in zoom-in duration-300">
+                        <span className="text-helpertext-xs font-bold leading-none">–</span>
                       </div>
                     )}
                     <span className="font-bold">{idx + 1}</span>
@@ -1650,10 +1650,10 @@ if (loading || questionsLoading) {
                   setShowOpenQuestions(true);
                 }}
                 className={`
-                  relative flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold 
+                  relative flex-shrink-0 px-4 py-2 rounded-lg text-body-md font-semibold 
                   transition-all duration-300 border
                   transform hover:scale-105
-                  bg-gradient-to-br from-amber-500/20 to-amber-600/10 text-amber-700 dark:text-amber-300 border-amber-400/50 dark:border-amber-600/50
+                  bg-gradient-to-br from-amber-500/20 to-amber-600/10 text-warning dark:text-warning/70 border-warning/50 dark:border-warning/50
                   hover:shadow-md
                 `}
               >
@@ -1681,11 +1681,11 @@ if (loading || questionsLoading) {
                     {/* Category path badge */}
                     <div className="inline-flex items-center">
                       <span className={`
-                        px-4 py-2 rounded-full text-sm font-bold tracking-wide
+                        px-4 py-2 rounded-full text-body-md font-bold tracking-wide
                         shadow-lg transform transition-transform hover:scale-105
                         ${currentQuestion.type === 'quality' 
-                          ? 'bg-gradient-to-r from-purple-500/20 to-purple-600/10 text-purple-700 dark:text-purple-300 border-2 border-purple-400/40' 
-                          : 'bg-gradient-to-r from-blue-500/20 to-blue-600/10 text-blue-700 dark:text-blue-300 border-2 border-blue-400/40'
+                          ? 'bg-gradient-to-r from-chart-3 to-accent/10 text-chart-3 dark:text-chart-3/70 border-2 border-chart-3/40' 
+                          : 'bg-gradient-to-r from-primary to-primary text-primary dark:text-primary/70 border-2 border-primary/40'
                         }
                       `}>
                         {currentQuestion.categoryName}
@@ -1694,11 +1694,11 @@ if (loading || questionsLoading) {
                     
                     {/* Competency name */}
                     <div className="space-y-2">
-                      <h3 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+                      <h3 className="text-heading-3 font-bold bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
                         {currentQuestion.type === 'skill' ? currentQuestion.skillName : currentQuestion.qualityName}
                       </h3>
                       {currentQuestion.competencyDescription && (
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="text-body-md text-muted-foreground leading-relaxed">
                           {currentQuestion.competencyDescription}
                         </p>
                       )}
@@ -1706,18 +1706,18 @@ if (loading || questionsLoading) {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
-                    <span className="text-xs text-muted-foreground font-medium px-3 py-1 bg-muted/50 rounded-full">
+                    <span className="text-caption-sm text-muted-foreground font-medium px-3 py-1 bg-muted/50 rounded-full">
                       Вопрос {currentQuestionIndex + 1} из {questions.length}
                     </span>
                     <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground px-2.5 py-1 bg-muted/60 rounded-md">
+                  <span className="text-caption-sm font-semibold text-muted-foreground px-2.5 py-1 bg-muted/60 rounded-md">
                     {currentQuestion.type === 'quality' ? 'Soft-навык' : 'Hard-навык'}
                   </span>
                 </div>
-                <CardTitle className="text-lg leading-snug text-foreground">
+                <CardTitle className="text-body-lg leading-snug text-foreground">
                   {currentQuestion.questionText}
                 </CardTitle>
               </CardHeader>
@@ -1753,13 +1753,13 @@ if (loading || questionsLoading) {
                           htmlFor={option.id}
                           className="flex-1 cursor-pointer pointer-events-none"
                         >
-                          <div className={`font-semibold text-base transition-colors ${
+                          <div className={`font-semibold text-body-base transition-colors ${
                             isSelected ? 'text-primary' : 'text-foreground group-hover:text-foreground'
                           }`}>
                             {option.title}
                           </div>
                           {option.description && (
-                            <div className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                            <div className="text-body-md text-muted-foreground mt-1.5 leading-relaxed">
                               {option.description}
                             </div>
                           )}
@@ -1784,8 +1784,8 @@ if (loading || questionsLoading) {
                       w-full flex items-center justify-center gap-2 py-4 px-5 rounded-xl 
                       border-2 border-dashed transition-all duration-300
                       ${isCurrentSkipped
-                        ? 'bg-amber-500/10 border-amber-400 text-amber-700 dark:text-amber-300'
-                        : 'border-muted/40 text-muted-foreground hover:border-amber-400/50 hover:bg-amber-500/5 hover:text-amber-600 dark:hover:text-amber-400'
+                        ? 'bg-warning/10 border-warning/40 text-warning dark:text-warning/70'
+                        : 'border-muted/40 text-muted-foreground hover:border-warning/50 hover:bg-warning/5 hover:text-warning dark:hover:text-warning/80'
                       }
                     `}
                   >

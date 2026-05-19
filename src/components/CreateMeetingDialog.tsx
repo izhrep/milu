@@ -7,7 +7,7 @@ import { TimePicker } from '@/components/ui/time-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, Search } from 'lucide-react';
+import { CalendarIcon, Search } from "@/components/icons";
 import { format, parse } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useSubordinateTree } from '@/hooks/useSubordinateTree';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "@/components/icons";
 import { validateMeetingCreation, getFieldError, type MeetingValidationError } from '@/lib/meetingValidation';
 import { useLiveNow } from '@/hooks/useLiveNow';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -364,7 +364,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               Дата и время встречи *
-              <span className="text-xs font-normal text-muted-foreground">
+              <span className="text-caption-sm font-normal text-muted-foreground">
                 ({getTimezoneOffsetLabel(getEffectiveTimezone(user?.timezone))})
               </span>
             </Label>
@@ -407,13 +407,13 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
               />
             </div>
             {(dateError || timeError) && (
-              <p className="text-xs text-destructive">{dateError || timeError}</p>
+              <p className="text-caption-sm text-destructive">{dateError || timeError}</p>
             )}
           </div>
 
           {/* === Non-manager, non-HR: employee creates meeting with own manager === */}
           {!isManager && !isHrOrAdmin && !needsManualManagerSelect && (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-body-md text-muted-foreground">
               Встреча будет создана с вашим руководителем
               {managerData ? (
                 <span className="font-medium text-foreground"> — {formatUserName(managerData)}</span>
@@ -423,7 +423,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
 
           {needsManualManagerSelect && (
             <div className="space-y-2">
-              <div className="text-sm text-muted-foreground mb-2">
+              <div className="text-body-md text-muted-foreground mb-2">
                 У вас не назначен руководитель. Выберите руководителя для встречи:
               </div>
               <Label>Руководитель</Label>
@@ -467,13 +467,13 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                       </div>
                     </div>
                     {employeeOptions.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">Не найдено</div>
+                      <div className="px-3 py-2 text-body-md text-muted-foreground">Не найдено</div>
                     ) : (
                       employeeOptions.map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {formatUserName(emp)}
                           {!emp.direct && (
-                            <span className="ml-1 text-xs text-muted-foreground">(непрямой)</span>
+                            <span className="ml-1 text-caption-sm text-muted-foreground">(непрямой)</span>
                           )}
                         </SelectItem>
                       ))
@@ -486,7 +486,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                 <div className="space-y-2">
                   <Label>Руководитель</Label>
                   {managerSelectorDisabled ? (
-                    <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-sm">
+                    <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-body-md">
                       {managerOptions[0] ? formatUserName(managerOptions[0]) : '—'}
                     </div>
                   ) : (
@@ -533,7 +533,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
                       </div>
                     </div>
                     {filteredHrEmployees.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">Не найдено</div>
+                      <div className="px-3 py-2 text-body-md text-muted-foreground">Не найдено</div>
                     ) : (
                       filteredHrEmployees.map(u => (
                         <SelectItem key={u.id} value={u.id}>
@@ -548,7 +548,7 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
               {selectedEmployee && (
                 <div className="space-y-2">
                   <Label>Руководитель</Label>
-                  <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-sm">
+                  <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-body-md">
                     {hrSelectedManagerName || '—'}
                   </div>
                 </div>
@@ -556,12 +556,12 @@ export const CreateMeetingDialog: React.FC<CreateMeetingDialogProps> = ({
             </>
           )}
           {meetingLimitReached && (
-            <p className="text-xs text-destructive">
+            <p className="text-caption-sm text-destructive">
               Нельзя создать новую встречу: у сотрудника уже есть 2 незавершённые встречи. Сначала зафиксируйте итоги одной из них.
             </p>
           )}
           {participantsError && (
-            <p className="text-xs text-destructive">{participantsError}</p>
+            <p className="text-caption-sm text-destructive">{participantsError}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-2">

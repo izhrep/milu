@@ -56,6 +56,13 @@ export type Database = {
             foreignKeyName: "access_denied_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_denied_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -205,7 +212,21 @@ export type Database = {
             foreignKeyName: "audit_log_admin_id_fkey"
             columns: ["admin_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -569,6 +590,13 @@ export type Database = {
             foreignKeyName: "development_plan_tasks_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_plan_tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -616,7 +644,21 @@ export type Database = {
             foreignKeyName: "development_plans_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -758,6 +800,13 @@ export type Database = {
             foreignKeyName: "diagnostic_config_templates_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_config_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -795,6 +844,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "diagnostic_result_snapshots_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "diagnostic_result_snapshots_evaluated_user_id_fkey"
             columns: ["evaluated_user_id"]
@@ -846,6 +902,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "diagnostic_snapshot_jobs_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "diagnostic_snapshot_jobs_evaluated_user_id_fkey"
             columns: ["evaluated_user_id"]
@@ -949,6 +1012,13 @@ export type Database = {
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "diagnostic_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_stage_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -1070,6 +1140,13 @@ export type Database = {
             columns: ["diagnostic_id"]
             isOneToOne: false
             referencedRelation: "diagnostic_result_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_user_snapshots_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -1685,6 +1762,13 @@ export type Database = {
             foreignKeyName: "hard_skill_results_evaluating_user_id_fkey"
             columns: ["evaluating_user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_results_evaluating_user_id_fkey"
+            columns: ["evaluating_user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1693,6 +1777,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "hard_skill_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_skill_results_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -1902,6 +1993,13 @@ export type Database = {
             foreignKeyName: "johari_ai_snapshots_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "johari_ai_snapshots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1909,7 +2007,21 @@ export type Database = {
             foreignKeyName: "johari_ai_snapshots_evaluated_user_id_fkey"
             columns: ["evaluated_user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "johari_ai_snapshots_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "johari_ai_snapshots_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -2035,6 +2147,13 @@ export type Database = {
             foreignKeyName: "meeting_decisions_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_decisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2131,6 +2250,13 @@ export type Database = {
             foreignKeyName: "meeting_notifications_recipient_id_fkey"
             columns: ["recipient_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2162,6 +2288,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "meeting_private_notes_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meeting_private_notes_manager_id_fkey"
             columns: ["manager_id"]
@@ -2215,6 +2348,55 @@ export type Database = {
             foreignKeyName: "meeting_reschedules_rescheduled_by_fkey"
             columns: ["rescheduled_by"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_reschedules_rescheduled_by_fkey"
+            columns: ["rescheduled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_settings: {
+        Row: {
+          created_at: string
+          default_timezone: string
+          id: string
+          regularity_threshold_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          default_timezone?: string
+          id?: string
+          regularity_threshold_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          default_timezone?: string
+          id?: string
+          regularity_threshold_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2251,6 +2433,13 @@ export type Database = {
             foreignKeyName: "meeting_stage_participants_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_stage_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2279,6 +2468,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "meeting_stages_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meeting_stages_created_by_fkey"
             columns: ["created_by"]
@@ -2404,6 +2600,13 @@ export type Database = {
             foreignKeyName: "meeting_summary_comments_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_summary_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2438,6 +2641,13 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "one_on_one_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_summary_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -2482,6 +2692,7 @@ export type Database = {
           summary_saved_at: string | null
           summary_saved_by: string | null
           summary_version: number
+          timezone: string
           updated_at: string
         }
         Insert: {
@@ -2516,6 +2727,7 @@ export type Database = {
           summary_saved_at?: string | null
           summary_saved_by?: string | null
           summary_version?: number
+          timezone?: string
           updated_at?: string
         }
         Update: {
@@ -2550,6 +2762,7 @@ export type Database = {
           summary_saved_at?: string | null
           summary_saved_by?: string | null
           summary_version?: number
+          timezone?: string
           updated_at?: string
         }
         Relationships: [
@@ -2557,7 +2770,21 @@ export type Database = {
             foreignKeyName: "one_on_one_meetings_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_meetings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_meetings_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -2572,6 +2799,13 @@ export type Database = {
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "meeting_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_meetings_summary_saved_by_fkey"
+            columns: ["summary_saved_by"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -2642,7 +2876,21 @@ export type Database = {
             foreignKeyName: "open_question_results_evaluated_user_id_fkey"
             columns: ["evaluated_user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_question_results_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_question_results_evaluating_user_id_fkey"
+            columns: ["evaluating_user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -3250,7 +3498,21 @@ export type Database = {
             foreignKeyName: "soft_skill_results_evaluated_user_id_fkey"
             columns: ["evaluated_user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_results_evaluated_user_id_fkey"
+            columns: ["evaluated_user_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "soft_skill_results_evaluating_user_id_fkey"
+            columns: ["evaluating_user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -3536,6 +3798,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_360_assignments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "survey_360_assignments_approved_by_fkey"
             columns: ["approved_by"]
@@ -3838,6 +4107,13 @@ export type Database = {
             foreignKeyName: "user_assessment_results_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_assessment_results_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -3887,6 +4163,13 @@ export type Database = {
             columns: ["current_step_id"]
             isOneToOne: false
             referencedRelation: "career_track_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_user_career_progress_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -3957,6 +4240,13 @@ export type Database = {
             foreignKeyName: "user_career_ratings_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_career_ratings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -3985,6 +4275,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_effective_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_effective_permissions_user_id_fkey"
             columns: ["user_id"]
@@ -4104,6 +4401,13 @@ export type Database = {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -4184,6 +4488,13 @@ export type Database = {
             columns: ["trade_point_id"]
             isOneToOne: false
             referencedRelation: "trade_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_user_trade_points_user_id"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "bitrix_bot_health_view"
             referencedColumns: ["id"]
           },
           {
@@ -4290,6 +4601,13 @@ export type Database = {
             foreignKeyName: "users_hr_bp_id_fkey"
             columns: ["hr_bp_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_hr_bp_id_fkey"
+            columns: ["hr_bp_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -4304,6 +4622,13 @@ export type Database = {
             foreignKeyName: "users_supervisor_id_fkey"
             columns: ["manager_id"]
             isOneToOne: false
+            referencedRelation: "bitrix_bot_health_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_supervisor_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -4311,7 +4636,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      bitrix_bot_health_view: {
+        Row: {
+          bitrix_bot_enabled: boolean | null
+          bitrix_bot_status: string | null
+          bitrix_user_id: string | null
+          bot_health: string | null
+          email: string | null
+          id: string | null
+          sent_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_cleanup_all_data: { Args: never; Returns: Json }
@@ -4594,6 +4930,13 @@ export type Database = {
             Args: { _permission_name: string; _user_id: string }
             Returns: boolean
           }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       invoke_process_reminders: { Args: never; Returns: undefined }
       is_diagnostic_stage_participant: {
         Args: { _stage_id: string; _user_id: string }

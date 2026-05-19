@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Search } from 'lucide-react';
+import { Users, Search } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
 import { useNavigate } from 'react-router-dom';
@@ -124,8 +124,8 @@ const TeamDashboardTab = () => {
   if (loading || subtreeLoading) {
     return (
       <div className="animate-pulse">
-        <div className="h-8 bg-surface-secondary rounded w-1/4 mb-4"></div>
-        <div className="h-4 bg-surface-secondary rounded w-1/3"></div>
+        <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
+        <div className="h-4 bg-muted rounded w-1/3"></div>
       </div>
     );
   }
@@ -138,9 +138,9 @@ const TeamDashboardTab = () => {
       <Card className="border-0 shadow-card">
         <CardContent className="pt-6">
           <div className="text-center py-8">
-            <Users className="h-12 w-12 text-text-tertiary mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-text-primary mb-2">Доступ ограничен</h3>
-            <p className="text-text-secondary">
+            <Users className="h-12 w-12 text-muted-foreground/70 mx-auto mb-3" />
+            <h3 className="text-body-lg font-medium text-foreground mb-2">Доступ ограничен</h3>
+            <p className="text-muted-foreground">
               Этот раздел доступен только руководителям с подчинёнными, HR BP и администраторам
             </p>
             <Button variant="outline" className="mt-4" onClick={() => navigate('/')}>
@@ -157,7 +157,7 @@ const TeamDashboardTab = () => {
       {/* Filters */}
       <Card className="border-0 shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg">Фильтры</CardTitle>
+          <CardTitle className="text-body-lg">Фильтры</CardTitle>
         </CardHeader>
         <CardContent>
           <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdminOrHrbp ? 'lg:grid-cols-3 2xl:grid-cols-6' : 'lg:grid-cols-5'} gap-4 items-end`}>
@@ -181,7 +181,7 @@ const TeamDashboardTab = () => {
             <div className="space-y-2">
               <Label htmlFor="search-name">Поиск по ФИО</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   id="search-name"
                   placeholder="Введите имя..."
@@ -251,50 +251,50 @@ const TeamDashboardTab = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">
+            <CardTitle className="text-body-md font-medium text-muted-foreground">
               {showAllUsersMode ? 'Всего сотрудников' : 'Всего подчинённых'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-text-primary">{displayedMembers.length}</div>
+            <div className="text-heading-2 font-bold text-foreground">{displayedMembers.length}</div>
           </CardContent>
         </Card>
         {!showAllUsersMode && (
           <>
             <Card className="border-0 shadow-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Прямые</CardTitle>
+                <CardTitle className="text-body-md font-medium text-muted-foreground">Прямые</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-text-primary">{directCount}</div>
+                <div className="text-heading-2 font-bold text-foreground">{directCount}</div>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Непрямые</CardTitle>
+                <CardTitle className="text-body-md font-medium text-muted-foreground">Непрямые</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-text-primary">{indirectCount}</div>
+                <div className="text-heading-2 font-bold text-foreground">{indirectCount}</div>
               </CardContent>
             </Card>
           </>
         )}
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Должностей</CardTitle>
+            <CardTitle className="text-body-md font-medium text-muted-foreground">Должностей</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-text-primary">
+            <div className="text-heading-2 font-bold text-foreground">
               {new Set(displayedMembers.map(m => m.position_id).filter(Boolean)).size}
             </div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Всего результатов 360</CardTitle>
+            <CardTitle className="text-body-md font-medium text-muted-foreground">Всего результатов 360</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-text-primary">
+            <div className="text-heading-2 font-bold text-foreground">
               {usersWithAssessmentData.size}
             </div>
           </CardContent>
@@ -332,7 +332,7 @@ const TeamDashboardTab = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     {group.managerName}
-                    <span className="text-sm font-normal text-text-secondary">({filteredGroupMembers.length})</span>
+                    <span className="text-body-md font-normal text-muted-foreground">({filteredGroupMembers.length})</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -351,8 +351,8 @@ const TeamDashboardTab = () => {
       ) : (
         <Card className="border-0 shadow-card">
           <CardContent className="pt-6 text-center">
-            <Users className="h-12 w-12 text-text-tertiary mx-auto mb-3" />
-            <p className="text-text-secondary">У вас пока нет подчинённых</p>
+            <Users className="h-12 w-12 text-muted-foreground/70 mx-auto mb-3" />
+            <p className="text-muted-foreground">У вас пока нет подчинённых</p>
           </CardContent>
         </Card>
       )}

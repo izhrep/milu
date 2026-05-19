@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Plus, Search } from 'lucide-react';
+import { Loader2, Plus, Search } from "@/components/icons";
 import { usePermission } from '@/hooks/usePermission';
 
 interface User {
@@ -122,8 +122,8 @@ export default function UsersListPage() {
       
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Список пользователей</h1>
-          <p className="text-text-secondary mt-1">Управление пользователями системы</p>
+          <h1 className="text-heading-2 font-bold text-foreground">Список пользователей</h1>
+          <p className="text-muted-foreground mt-1">Управление пользователями системы</p>
         </div>
         <Button onClick={() => navigate('/users/create')}>
           <Plus className="mr-2 h-4 w-4" />
@@ -133,7 +133,7 @@ export default function UsersListPage() {
 
       <div className="mb-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Поиск по имени, email или табельному номеру..."
             value={searchQuery}
@@ -148,7 +148,7 @@ export default function UsersListPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="bg-surface-primary rounded-lg border border-border shadow-sm">
+        <div className="bg-card-primary rounded-lg border border-border shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -182,7 +182,7 @@ export default function UsersListPage() {
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     {searchQuery ? 'Ничего не найдено' : 'Список пользователей пуст'}
                   </TableCell>
                 </TableRow>
@@ -192,7 +192,7 @@ export default function UsersListPage() {
                     <TableCell className="font-medium">{user.employee_number}</TableCell>
                     <TableCell>{user.first_name}</TableCell>
                     <TableCell>{user.last_name}</TableCell>
-                    <TableCell className="text-text-secondary">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
                       <Badge variant={user.status ? 'default' : 'secondary'}>
                         {user.status ? 'Активен' : 'Неактивен'}
@@ -207,7 +207,7 @@ export default function UsersListPage() {
       )}
 
       {!loading && filteredUsers.length > 0 && (
-        <p className="text-sm text-text-secondary mt-4">
+        <p className="text-body-md text-muted-foreground mt-4">
           Показано пользователей: {filteredUsers.length} из {users.length}
         </p>
       )}

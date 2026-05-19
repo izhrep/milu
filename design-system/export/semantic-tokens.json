@@ -1,0 +1,444 @@
+{
+  "color": {
+    "semantic": {
+      "background": {
+        "value": "{color.primitive.white}",
+        "$dark": "hsl(240 0% 2%)"
+      },
+      "background.secondary": {
+        "value": "{color.primitive.slate.100}"
+      },
+      "background.tertiary": {
+        "value": "{color.primitive.brown.50}"
+      },
+      "surface": {
+        "value": "{color.primitive.white}"
+      },
+      "surface.secondary": {
+        "value": "{color.primitive.slate.100}"
+      },
+      "foreground.primary": {
+        "value": "hsl(222 47% 11%)",
+        "$dark": "hsl(120 0% 90%)"
+      },
+      "foreground.secondary": {
+        "value": "hsl(215 16% 47%)"
+      },
+      "foreground.tertiary": {
+        "value": "hsl(215 20% 65%)"
+      },
+      "foreground.inverse": {
+        "value": "hsl(0 0% 100%)"
+      },
+      "foreground.accent": {
+        "value": "hsl(180 70% 40%)"
+      },
+      "border": {
+        "value": "hsl(70 13% 91%)",
+        "$dark": "hsl(240 4% 16%)"
+      },
+      "border.2": {
+        "value": "{color.primitive.slate.100}"
+      },
+      "ring": {
+        "value": "hsl(245 92% 50%)"
+      },
+      "brand.navy": {
+        "value": "{color.primitive.navy.700}"
+      },
+      "brand.navy.light": {
+        "value": "hsl(222 60% 35%)"
+      },
+      "brand.navy.dark": {
+        "value": "{color.primitive.navy.900}"
+      },
+      "brand.teal": {
+        "value": "{color.primitive.teal.500}"
+      },
+      "brand.primary": {
+        "value": "{color.primitive.navy.700}"
+      },
+      "brand.accent": {
+        "value": "{color.primitive.teal.500}"
+      },
+      "accent.orange": {
+        "value": "{color.primitive.egg.400}",
+        "use": "tasks, deadlines, active career goals"
+      },
+      "status.success": {
+        "value": "hsl(160 84% 39%)"
+      },
+      "status.warning": {
+        "value": "hsl(38 92% 50%)"
+      },
+      "status.error": {
+        "value": "hsl(0 72% 51%)"
+      },
+      "status.info": {
+        "value": "{color.primitive.slate.200}"
+      },
+      "interactive.bg": {
+        "value": "hsl(222 47% 11% / 0.04)"
+      },
+      "interactive.bg.hover": {
+        "value": "hsl(222 47% 11% / 0.08)"
+      },
+      "interactive.bg.active": {
+        "value": "hsl(222 47% 11% / 0.12)"
+      }
+    }
+  },
+  "typography": {
+    "family": {
+      "display": {
+        "value": "'Plus Jakarta Sans', system-ui, sans-serif",
+        "$dark": "'Rubik', system-ui, sans-serif"
+      },
+      "text": {
+        "value": "'SF Pro', system-ui, sans-serif",
+        "$dark": "'Plus Jakarta Sans', system-ui, sans-serif"
+      }
+    },
+    "weight": {
+      "light": {
+        "value": 300
+      },
+      "normal": {
+        "value": 400
+      },
+      "medium": {
+        "value": 500
+      },
+      "semibold": {
+        "value": 600
+      },
+      "bold": {
+        "value": 700
+      }
+    },
+    "scale": {
+      "display": {
+        "mobile": "50px/54px",
+        "tablet": "60px/64px",
+        "desktop": "72px/72px",
+        "weight": 600,
+        "family": "display"
+      },
+      "heading-1": {
+        "mobile": "42px/44px",
+        "tablet": "48px/54px",
+        "desktop": "60px/72px",
+        "weight": 600,
+        "family": "display"
+      },
+      "heading-2": {
+        "mobile": "36px/40px",
+        "tablet": "40px/40px",
+        "desktop": "48px/54px",
+        "weight": 600,
+        "family": "display"
+      },
+      "heading-3": {
+        "mobile": "28px/30px",
+        "tablet": "32px/36px",
+        "desktop": "32px/40px",
+        "weight": 600,
+        "family": "display"
+      },
+      "heading-4": {
+        "mobile": "20px/28px",
+        "tablet": "24px/28px",
+        "desktop": "24px/30px",
+        "weight": 600,
+        "family": "display"
+      },
+      "body-lg": {
+        "mobile": "18px/24px",
+        "tablet": "18px/20px",
+        "desktop": "20px/28px",
+        "weight": 400,
+        "family": "text"
+      },
+      "body-base": {
+        "mobile": "14px/24px",
+        "tablet": "16px/20px",
+        "desktop": "18px/24px",
+        "weight": 400,
+        "family": "text"
+      },
+      "body-md": {
+        "mobile": "14px/20px",
+        "tablet": "14px/20px",
+        "desktop": "16px/20px",
+        "weight": 400,
+        "family": "text"
+      },
+      "caption-sm": {
+        "mobile": "14px/16px",
+        "tablet": "12px/16px",
+        "desktop": "14px/20px",
+        "weight": 400,
+        "family": "text"
+      },
+      "helpertext-xs": {
+        "mobile": "10px/14px",
+        "tablet": "10px/16px",
+        "desktop": "12px/16px",
+        "weight": 400,
+        "family": "text"
+      }
+    }
+  },
+  "spacing": {
+    "scale": {
+      "xs": {
+        "value": "0.25rem",
+        "px": 4
+      },
+      "sm": {
+        "value": "0.5rem",
+        "px": 8
+      },
+      "md": {
+        "value": "0.75rem",
+        "px": 12
+      },
+      "lg": {
+        "value": "1rem",
+        "px": 16
+      },
+      "xl": {
+        "value": "1.5rem",
+        "px": 24
+      },
+      "2xl": {
+        "value": "2rem",
+        "px": 32
+      },
+      "3xl": {
+        "value": "3rem",
+        "px": 48
+      }
+    },
+    "semantic": {
+      "field.gap": "{spacing.sm}",
+      "form.gap": "{spacing.lg}",
+      "card.padding": "{spacing.xl}",
+      "section.gap.sm": "{spacing.xl}",
+      "section.gap.md": "{spacing.2xl}",
+      "section.gap.lg": "{spacing.3xl}",
+      "page.padding": "{spacing.xl}",
+      "stack.gap": "{spacing.md}"
+    }
+  },
+  "radius": {
+    "none": {
+      "value": "0"
+    },
+    "xs": {
+      "value": "0.25rem",
+      "px": 4
+    },
+    "sm": {
+      "value": "0.5rem",
+      "px": 8
+    },
+    "md": {
+      "value": "0.75rem",
+      "px": 12
+    },
+    "lg": {
+      "value": "1rem",
+      "px": 16
+    },
+    "xl": {
+      "value": "1.25rem",
+      "px": 20
+    },
+    "2xl": {
+      "value": "1.5rem",
+      "px": 24
+    },
+    "full": {
+      "value": "9999px"
+    },
+    "semantic": {
+      "button": "{radius.md}",
+      "input": "{radius.md}",
+      "card": "{radius.lg}",
+      "dialog": "{radius.xl}",
+      "badge": "{radius.full}",
+      "avatar": "{radius.full}"
+    }
+  },
+  "shadow": {
+    "2xs": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.09)"
+    },
+    "xs": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.09)"
+    },
+    "sm": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 1px 2px -19px hsl(0 0% 10% / 0.18)"
+    },
+    "card": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 1px 2px -19px hsl(0 0% 10% / 0.18)"
+    },
+    "md": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 2px 4px -19px hsl(0 0% 10% / 0.18)"
+    },
+    "lg": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 4px 6px -19px hsl(0 0% 10% / 0.18)"
+    },
+    "xl": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.18), 0px 8px 10px -19px hsl(0 0% 10% / 0.18)"
+    },
+    "2xl": {
+      "value": "0px 4px 6px -18px hsl(0 0% 10% / 0.45)"
+    },
+    "semantic": {
+      "card.rest": "{shadow.card}",
+      "card.hover": "{shadow.lg}",
+      "dropdown": "{shadow.md}",
+      "dialog": "{shadow.xl}",
+      "popover": "{shadow.md}"
+    }
+  },
+  "motion": {
+    "duration": {
+      "fast": {
+        "value": "150ms"
+      },
+      "base": {
+        "value": "300ms"
+      },
+      "slow": {
+        "value": "500ms"
+      },
+      "progress": {
+        "value": "600ms"
+      }
+    },
+    "easing": {
+      "standard": {
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)"
+      },
+      "decelerate": {
+        "value": "cubic-bezier(0, 0, 0.2, 1)"
+      },
+      "accelerate": {
+        "value": "cubic-bezier(0.4, 0, 1, 1)"
+      }
+    },
+    "keyframes": {
+      "stage-enter": "opacity 0\u21921, translateX 20\u21920, scale 0.95\u21921 / 500ms standard",
+      "stage-exit": "opacity 1\u21920, translateX 0\u2192-20, scale 1\u21920.95 / 300ms standard",
+      "slide-in-up": "opacity 0\u21921, translateY 20\u21920 / 400ms standard",
+      "fade-in": "opacity 0\u21921 / 300ms ease-out",
+      "accordion-down": "height 0\u2192content / 200ms ease-out",
+      "accordion-up": "height content\u21920 / 200ms ease-out"
+    },
+    "semantic": {
+      "hover": "{motion.duration.fast} {motion.easing.standard}",
+      "transition": "{motion.duration.base} {motion.easing.standard}",
+      "stage": "{motion.duration.slow} {motion.easing.standard}"
+    }
+  },
+  "border": {
+    "width": {
+      "1": {
+        "value": "1px"
+      },
+      "2": {
+        "value": "2px"
+      },
+      "6": {
+        "value": "6px"
+      },
+      "8": {
+        "value": "8px"
+      }
+    },
+    "semantic": {
+      "default": {
+        "width": "{border.width.1}",
+        "color": "{color.semantic.border}"
+      },
+      "emphasis": {
+        "width": "{border.width.2}",
+        "color": "{color.semantic.foreground.primary}"
+      },
+      "focus": {
+        "width": "{border.width.2}",
+        "color": "{color.semantic.ring}"
+      },
+      "field": {
+        "width": "{border.width.1}",
+        "color": "hsl(215 20% 68%)"
+      }
+    }
+  },
+  "opacity": {
+    "0": {
+      "value": 0
+    },
+    "10": {
+      "value": 0.1
+    },
+    "15": {
+      "value": 0.15,
+      "use": "sidebar hover surface tint"
+    },
+    "20": {
+      "value": 0.2
+    },
+    "40": {
+      "value": 0.4
+    },
+    "50": {
+      "value": 0.5,
+      "use": "disabled state"
+    },
+    "60": {
+      "value": 0.6
+    },
+    "80": {
+      "value": 0.8
+    },
+    "90": {
+      "value": 0.9
+    },
+    "100": {
+      "value": 1
+    }
+  },
+  "z": {
+    "base": {
+      "value": 0
+    },
+    "raised": {
+      "value": 10
+    },
+    "sticky": {
+      "value": 20
+    },
+    "dropdown": {
+      "value": 30
+    },
+    "overlay": {
+      "value": 40
+    },
+    "modal": {
+      "value": 50
+    },
+    "popover": {
+      "value": 60
+    },
+    "toast": {
+      "value": 70
+    },
+    "tooltip": {
+      "value": 80
+    }
+  }
+}

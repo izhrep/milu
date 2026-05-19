@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Search, Download, Power, History, Edit, UserPlus, Trash2, Eye, Upload, ChevronRight } from 'lucide-react';
+import { Search, Download, Power, History, Edit, UserPlus, Trash2, Eye, Upload, ChevronRight } from "@/components/icons";
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getGroupedTimezoneOptions, getFallbackOption } from '@/lib/timezoneOptions';
 
 interface UserRow {
   id: string;
@@ -74,7 +75,8 @@ const UsersManagementTable = () => {
     manager_id: '' as string,
     position_id: '' as string,
     department_id: '' as string,
-    grade_id: '' as string
+    grade_id: '' as string,
+    timezone: '' as string
   });
   const [editUser, setEditUser] = useState<any>(null);
   const [managersList, setManagersList] = useState<Array<{id: string; full_name: string; department_id: string | null}>>([]);
@@ -583,7 +585,8 @@ const UsersManagementTable = () => {
           department_id: editUser.department_id || null,
           status: editUser.status,
           bitrix_user_id: editUser.bitrix_user_id || null,
-          bitrix_bot_enabled: editUser.bitrix_bot_enabled || false
+          bitrix_bot_enabled: editUser.bitrix_bot_enabled || false,
+          ...(editUser.timezone !== undefined ? { timezone: editUser.timezone || null, timezone_manual: !!editUser.timezone } : {}),
         }
       });
 
@@ -645,16 +648,17 @@ const UsersManagementTable = () => {
       // Send plain (unencrypted) data to edge function
       // Edge function will handle encryption internally
       const createPayload = {
-        email: newUser.email, // Plain email - edge function will encrypt
+        email: newUser.email,
         password: newUser.password,
-        first_name: newUser.first_name, // Plain text - edge function will encrypt
-        last_name: newUser.last_name, // Plain text - edge function will encrypt
+        first_name: newUser.first_name,
+        last_name: newUser.last_name,
         middle_name: newUser.middle_name || '',
         role: newUser.role,
         manager_id: newUser.manager_id || null,
         position_id: newUser.position_id || null,
         department_id: newUser.department_id || null,
-        grade_id: newUser.grade_id || null
+        grade_id: newUser.grade_id || null,
+        ...(newUser.timezone ? { timezone: newUser.timezone, timezone_manual: true } : {}),
       };
       
       console.log('Sending plain data to create-user edge function (will be encrypted server-side)');
@@ -708,7 +712,8 @@ const UsersManagementTable = () => {
         manager_id: '', 
         position_id: '', 
         department_id: '',
-        grade_id: ''
+        grade_id: '',
+        timezone: ''
       });
       
       // Refresh user list
@@ -891,10 +896,10 @@ const UsersManagementTable = () => {
                         checked={user.status}
                         onCheckedChange={(checked) => handleStatusToggle(user.id, checked)}
                       />
-                      <span className="text-sm">{user.status ? 'Активен' : 'Деактивирован'}</span>
+                      <span className="text-body-md">{user.status ? 'Активен' : 'Деактивирован'}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{user.bitrix_user_id || '-'}</TableCell>
+                  <TableCell className="text-body-md">{user.bitrix_user_id || '-'}</TableCell>
                   <TableCell>
                     <Switch
                       checked={user.bitrix_bot_enabled || false}
@@ -919,7 +924,7 @@ const UsersManagementTable = () => {
                     <div className="flex items-center gap-2">
                       {format(new Date(user.updated_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
                       {isRecentlyUpdated(user.updated_at) && (
-                        <Badge variant="secondary" className="text-xs">Недавно</Badge>
+                        <Badge variant="secondary" className="text-caption-sm">Недавно</Badge>
                       )}
                     </div>
                   </TableCell>
@@ -1008,7 +1013,7 @@ const UsersManagementTable = () => {
                 <p>
                   Будут удалены все данные пользователя <span className="font-semibold">{deleteDialog.userEmail}</span>:
                 </p>
-                <ul className="list-disc list-inside text-sm space-y-1 pl-4">
+                <ul className="list-disc list-inside text-body-md space-y-1 pl-4">
                   <li>Учетная запись в системе авторизации</li>
                   <li>Профиль и личные данные</li>
                   <li>История оценок и опросов</li>
@@ -1087,7 +1092,7 @@ const UsersManagementTable = () => {
                 value={newUser.password}
                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">По умолчанию: test123</p>
+              <p className="text-caption-sm text-muted-foreground">По умолчанию: test123</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Роль</Label>
@@ -1201,6 +1206,29 @@ const UsersManagementTable = () => {
                 </Select>
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Часовой пояс</Label>
+              <Select
+                value={newUser.timezone || 'none'}
+                onValueChange={(value) => setNewUser({ ...newUser, timezone: value === 'none' ? '' : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="По умолчанию — Москва" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="max-h-[60vh]">
+                  <SelectItem value="none">Не указан (Москва по умолчанию)</SelectItem>
+                  {getGroupedTimezoneOptions().map((group) => (
+                    <React.Fragment key={group.region}>
+                      <div className="px-2 py-1.5 text-caption-sm font-semibold text-muted-foreground">{group.label}</div>
+                      {group.options.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-caption-sm text-muted-foreground">Если не указать, до первого входа используется Москва; при первом входе таймзона определится автоматически</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateUserDialog(false)}>
@@ -1224,7 +1252,7 @@ const UsersManagementTable = () => {
           </DialogHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-1">
-              <Label htmlFor="edit-email" className="text-sm">Email</Label>
+              <Label htmlFor="edit-email" className="text-body-md">Email</Label>
               <Input
                 id="edit-email"
                 type="email"
@@ -1235,7 +1263,7 @@ const UsersManagementTable = () => {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="edit-last-name" className="text-sm">Фамилия</Label>
+                <Label htmlFor="edit-last-name" className="text-body-md">Фамилия</Label>
                 <Input
                   id="edit-last-name"
                   value={editUser?.last_name || ''}
@@ -1244,7 +1272,7 @@ const UsersManagementTable = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="edit-first-name" className="text-sm">Имя</Label>
+                <Label htmlFor="edit-first-name" className="text-body-md">Имя</Label>
                 <Input
                   id="edit-first-name"
                   value={editUser?.first_name || ''}
@@ -1253,7 +1281,7 @@ const UsersManagementTable = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="edit-middle-name" className="text-sm">Отчество</Label>
+                <Label htmlFor="edit-middle-name" className="text-body-md">Отчество</Label>
                 <Input
                   id="edit-middle-name"
                   value={editUser?.middle_name || ''}
@@ -1264,7 +1292,7 @@ const UsersManagementTable = () => {
             </div>
             
             <div className="space-y-1">
-              <Label htmlFor="edit-role" className="text-sm">Роль</Label>
+              <Label htmlFor="edit-role" className="text-body-md">Роль</Label>
               <Select
                 value={editUser?.role || 'employee'}
                 onValueChange={(value: any) => {
@@ -1284,7 +1312,7 @@ const UsersManagementTable = () => {
             </div>
             
             <div className="space-y-1">
-              <Label htmlFor="edit-position" className="text-sm">Должность</Label>
+              <Label htmlFor="edit-position" className="text-body-md">Должность</Label>
               <Select
                 value={editUser?.position_id || 'none'}
                 onValueChange={(value) => {
@@ -1307,7 +1335,7 @@ const UsersManagementTable = () => {
             </div>
             
             <div className="space-y-1">
-              <Label htmlFor="edit-grade" className="text-sm">Грейд</Label>
+              <Label htmlFor="edit-grade" className="text-body-md">Грейд</Label>
               <Select
                 value={editUser?.grade_id || 'none'}
                 onValueChange={(value) => setEditUser({ ...editUser, grade_id: value === 'none' ? null : value })}
@@ -1330,7 +1358,7 @@ const UsersManagementTable = () => {
             </div>
             
             <div className="space-y-1">
-              <Label htmlFor="edit-department" className="text-sm">Подразделение</Label>
+              <Label htmlFor="edit-department" className="text-body-md">Подразделение</Label>
               <Select
                 value={editUser?.department_id || 'none'}
                 onValueChange={(value) => {
@@ -1360,7 +1388,7 @@ const UsersManagementTable = () => {
             {/* Employees and managers can have managers */}
             {(editUser?.role === 'employee' || editUser?.role === 'manager') && (
               <div className="space-y-1">
-                <Label htmlFor="edit-manager" className="text-sm">Руководитель</Label>
+                <Label htmlFor="edit-manager" className="text-body-md">Руководитель</Label>
                 <Select
                   value={editUser?.manager_id || 'none'}
                   onValueChange={(value) => setEditUser({ ...editUser, manager_id: value === 'none' ? null : value })}
@@ -1381,7 +1409,34 @@ const UsersManagementTable = () => {
             )}
             
             <div className="space-y-1">
-              <Label htmlFor="edit-bitrix-user-id" className="text-sm">Bitrix User ID</Label>
+              <Label htmlFor="edit-timezone" className="text-body-md">Часовой пояс</Label>
+              <Select
+                value={editUser?.timezone || 'none'}
+                onValueChange={(value) => setEditUser({ ...editUser, timezone: value === 'none' ? '' : value })}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Часовой пояс" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="max-h-[60vh]">
+                  <SelectItem value="none">Не менять</SelectItem>
+                  {(() => {
+                    const fb = getFallbackOption(editUser?.timezone || '');
+                    return fb ? <SelectItem key={fb.value} value={fb.value}>{fb.label}</SelectItem> : null;
+                  })()}
+                  {getGroupedTimezoneOptions().map((group) => (
+                    <React.Fragment key={group.region}>
+                      <div className="px-2 py-1.5 text-caption-sm font-semibold text-muted-foreground">{group.label}</div>
+                      {group.options.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="edit-bitrix-user-id" className="text-body-md">Bitrix User ID</Label>
               <Input
                 id="edit-bitrix-user-id"
                 value={editUser?.bitrix_user_id || ''}
@@ -1407,7 +1462,7 @@ const UsersManagementTable = () => {
                   setEditUser({ ...editUser, bitrix_bot_enabled: checked });
                 }}
               />
-              <Label htmlFor="edit-bitrix-bot" className="text-sm">
+              <Label htmlFor="edit-bitrix-bot" className="text-body-md">
                 Bitrix Бот включён{!editUser?.bitrix_user_id ? ' (укажите Bitrix ID)' : ''}
               </Label>
             </div>
@@ -1418,7 +1473,7 @@ const UsersManagementTable = () => {
                 checked={editUser?.status || false}
                 onCheckedChange={(checked) => setEditUser({ ...editUser, status: checked })}
               />
-              <Label htmlFor="edit-status" className="text-sm">Активный</Label>
+              <Label htmlFor="edit-status" className="text-body-md">Активный</Label>
             </div>
           </div>
           <DialogFooter>
@@ -1446,7 +1501,7 @@ const UsersManagementTable = () => {
               <div className="space-y-6">
                 {/* Основная информация */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg border-b pb-2">Основная информация</h3>
+                  <h3 className="font-semibold text-body-lg border-b pb-2">Основная информация</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground">Email</Label>
@@ -1479,7 +1534,7 @@ const UsersManagementTable = () => {
 
                 {/* Роль и права */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg border-b pb-2">Роль и права доступа</h3>
+                  <h3 className="font-semibold text-body-lg border-b pb-2">Роль и права доступа</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground">Роль</Label>
@@ -1494,7 +1549,7 @@ const UsersManagementTable = () => {
 
                 {/* Организационная структура */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg border-b pb-2">Организационная структура</h3>
+                  <h3 className="font-semibold text-body-lg border-b pb-2">Организационная структура</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground">Должность</Label>
@@ -1521,7 +1576,7 @@ const UsersManagementTable = () => {
 
                 {/* Bitrix24 */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg border-b pb-2">Bitrix24</h3>
+                  <h3 className="font-semibold text-body-lg border-b pb-2">Bitrix24</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground">Bitrix User ID</Label>
@@ -1538,7 +1593,7 @@ const UsersManagementTable = () => {
 
                 {/* Карьерный трек */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg border-b pb-2">Карьерное развитие</h3>
+                  <h3 className="font-semibold text-body-lg border-b pb-2">Карьерное развитие</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground">Выбранный карьерный трек</Label>
@@ -1549,7 +1604,7 @@ const UsersManagementTable = () => {
 
                 {/* Системная информация */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg border-b pb-2">Системная информация</h3>
+                  <h3 className="font-semibold text-body-lg border-b pb-2">Системная информация</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground">Последний вход</Label>
@@ -1574,7 +1629,7 @@ const UsersManagementTable = () => {
                     </div>
                     <div>
                       <Label className="text-muted-foreground">ID пользователя</Label>
-                      <p className="font-mono text-xs">{viewUserData.id}</p>
+                      <p className="font-mono text-caption-sm">{viewUserData.id}</p>
                     </div>
                   </div>
                 </div>

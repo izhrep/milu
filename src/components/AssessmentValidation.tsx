@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle } from "@/components/icons";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AssessmentValidationProps {
@@ -17,9 +17,9 @@ export const AssessmentValidation: React.FC<AssessmentValidationProps> = ({
 
   if (isValid) {
     return (
-      <Alert className="bg-green-50 border-green-200">
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertDescription className="text-green-800">
+      <Alert className="bg-success/10 border-success/30">
+        <CheckCircle className="h-4 w-4 text-success" />
+        <AlertDescription className="text-success">
           Все обязательные требования выполнены
         </AlertDescription>
       </Alert>
@@ -27,15 +27,15 @@ export const AssessmentValidation: React.FC<AssessmentValidationProps> = ({
   }
 
   return (
-    <Alert className="bg-yellow-50 border-yellow-200">
-      <AlertCircle className="h-4 w-4 text-yellow-600" />
-      <AlertDescription className="text-yellow-800">
+    <Alert className="bg-warning/10 border-warning/30">
+      <AlertCircle className="h-4 w-4 text-warning" />
+      <AlertDescription className="text-warning">
         <strong>Обязательные требования для начала оценки:</strong>
         <ul className="mt-2 space-y-1 list-disc list-inside">
-          <li className={hasSupervisor ? 'text-green-700' : ''}>
+          <li className={hasSupervisor ? 'text-success' : ''}>
             {hasSupervisor ? '✓' : '✗'} Руководитель должен быть назначен оценивающим
           </li>
-          <li className={colleaguesCount >= minColleagues ? 'text-green-700' : ''}>
+          <li className={colleaguesCount >= minColleagues ? 'text-success' : ''}>
             {colleaguesCount >= minColleagues ? '✓' : '✗'} Минимум {minColleagues} коллега
             {colleaguesCount > 0 && ` (выбрано: ${colleaguesCount})`}
           </li>

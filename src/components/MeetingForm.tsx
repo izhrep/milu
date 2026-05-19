@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +16,8 @@ import { useMeetingTasks } from '@/hooks/useMeetingTasks';
 import { useMeetingFormAutoSave } from '@/hooks/useMeetingFormAutoSave';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Info, Lock, Loader2, Link as LinkIcon, History, Save, User, Briefcase, FileText, CalendarIcon, Pencil, CalendarClock, ArrowRight, Trash2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Info, Lock, Loader2, Link as LinkIcon, History, Save, User, Briefcase, FileText, CalendarIcon, Pencil, CalendarClock, ArrowRight, Trash2, CheckCircle2, AlertCircle, Clock } from "@/components/icons";
+import { LinkedText } from '@/components/ui/linked-text';
 import { DeleteMeetingDialog } from '@/components/DeleteMeetingDialog';
 import { MeetingSummaryHistory } from '@/components/MeetingSummaryHistory';
 import { MeetingSummaryThread } from '@/components/MeetingSummaryThread';
@@ -84,7 +86,9 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   const [summaryDraft, setSummaryDraft] = useState('');
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [draftRecoveryBanner, setDraftRecoveryBanner] = useState<string | null>(null);
+  const [summaryTab, setSummaryTab] = useState<'current' | 'history'>('current');
+  const queryClient = useQueryClient();
+  // draftRecoveryBanner removed — autosave is transparent to user
   const { user } = useAuth();
   const { hasPermission: canViewAllMeetings } = usePermission('meetings.view_all');
   const { hasPermission: canDeleteMeetings } = usePermission('meetings.delete');
@@ -110,6 +114,35 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   const isParticipant = !!meeting && (user?.id === meeting.employee_id || user?.id === meeting.manager_id);
   const isHrbpEdit = canEditSummaryDate && !isParticipant && !!meeting;
   const isHistorical = isHistoricalRaw && !isHrbpEdit;
+
+  // Check if a next meeting exists for this same pair (locks author editing)
+  const { data: hasNextMeeting } = useQuery({
+    queryKey: ['has-next-meeting', meeting?.employee_id, meeting?.manager_id, meetingId],
+    queryFn: async () => {
+      const refDate = meeting!.meeting_date || meeting!.created_at;
+      const { count, error } = await supabase
+        .from('one_on_one_meetings')
+        .select('id', { count: 'exact', head: true })
+        .eq('employee_id', meeting!.employee_id)
+        .eq('manager_id', meeting!.manager_id)
+        .neq('id', meetingId)
+        .gt('meeting_date', refDate);
+      if (error) {
+        // Fallback: try created_at if meeting_date comparison fails
+        const { count: c2, error: e2 } = await supabase
+          .from('one_on_one_meetings')
+          .select('id', { count: 'exact', head: true })
+          .eq('employee_id', meeting!.employee_id)
+          .eq('manager_id', meeting!.manager_id)
+          .neq('id', meetingId)
+          .gt('created_at', meeting!.created_at);
+        if (e2) throw e2;
+        return (c2 ?? 0) > 0;
+      }
+      return (count ?? 0) > 0;
+    },
+    enabled: !!meeting,
+  });
 
   const { data: originalManager } = useQuery({
     queryKey: ['user-name', meeting?.manager_id],
@@ -191,11 +224,14 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
 
   // --- Anti-clobber: hydrate mgr fields only on meetingId change ---
   const mgrInitializedRef = useRef<string | null>(null);
+  // Track whether draft recovery already applied mgr fields — prevents server hydration from overwriting
+  const mgrDraftAppliedRef = useRef(false);
   useEffect(() => {
     // Wait until the query has settled (not loading) before marking as initialized.
     // This handles both cases: managerFields exists (hydrate) and managerFields is null (new meeting).
     if (isMgrLoading || mgrInitializedRef.current === meetingId) return;
-    if (managerFields) {
+    // If draft recovery already applied mgr fields, skip server hydration
+    if (!mgrDraftAppliedRef.current && managerFields) {
       setMgrPraise(managerFields.mgr_praise || '');
       setMgrDevComment(managerFields.mgr_development_comment || '');
       setMgrNews(managerFields.mgr_news || '');
@@ -221,7 +257,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   const { views: summaryViews } = useMeetingSummaryViews(meetingId);
 
   // --- Anti-clobber: useForm with defaultValues + controlled reset ---
-  const { register, watch, setValue, formState: { errors }, reset: resetForm } = useForm<MeetingFormData>({
+  const { register, watch, getValues, setValue, formState: { errors }, reset: resetForm } = useForm<MeetingFormData>({
     resolver: zodResolver(meetingSchema),
     defaultValues: {
       meeting_link: '',
@@ -249,6 +285,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         meeting_summary: meeting.meeting_summary || '',
       });
       initializedRef.current = meetingId;
+      mgrDraftAppliedRef.current = false; // reset on meeting change
     }
   }, [meeting, meetingId, resetForm]);
 
@@ -274,11 +311,13 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
   const canEditSharedFields = !isHistorical && !isOverdue && !!meeting && meeting.status !== 'recorded';
   const canEditDateTime = isHrbpEdit || canEditSharedFields;
   const canReschedule = isOverdue && !meeting?.meeting_summary && !isHistorical;
-  // Summary is editable only if not yet saved OR user has HRBP override
+  // Summary is editable: HRBP override, or author when no next meeting exists
   const hasSavedSummary = !!meeting?.meeting_summary?.trim();
+  const isAuthor = !!user && !!meeting?.summary_saved_by && meeting.summary_saved_by === user.id;
+  const canAuthorEdit = isAuthor && !hasNextMeeting;
   const canEditSummary = isHrbpEdit
     ? true
-    : (!isHistorical && !!meeting && isMeetingStarted && !hasSavedSummary);
+    : (!isHistorical && !!meeting && isMeetingStarted && (!hasSavedSummary || canAuthorEdit));
 
   // Autosave enabled only for editable forms
   const autosaveEnabled = !!meeting && !isHistorical && (canEditEmployeeFields || canEditManagerFields || canEditDateTime);
@@ -302,16 +341,15 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     }
   }, [meeting, managerFields, meetingId]);
 
-  // Draft recovery on mount
+  // Silent draft recovery on mount — wait for both meeting AND managerFields to be loaded
   useEffect(() => {
     if (!meeting || initializedRef.current !== meetingId) return;
+    if (isMgrLoading) return;
     const mgrUpdatedAt = managerFields?.updated_at;
     const { hasDraft, drafts } = autoSave.recoverDrafts(meeting.updated_at, mgrUpdatedAt);
     if (!hasDraft) return;
 
-    const recoveredParts: string[] = [];
-
-    // Safe fields — skip if draft data matches server
+    // Safe fields — apply silently if different from server
     if (drafts.safe) {
       const sf = drafts.safe as unknown as Record<string, string>;
       const serverSafe: Record<string, string> = {
@@ -327,13 +365,10 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         Object.entries(sf).forEach(([key, val]) => {
           if (val !== undefined) setValue(key as keyof MeetingFormData, val);
         });
-        recoveredParts.push('поля сотрудника');
-      } else {
-        autoSave.clearAllDrafts(); // stale draft — clean up silently
       }
     }
 
-    // Mgr fields — skip if draft data matches server
+    // Mgr fields — apply silently if different from server
     if (drafts.mgr) {
       const mf = drafts.mgr as { mgr_praise?: string; mgr_development_comment?: string; mgr_news?: string };
       const serverMgr = {
@@ -349,32 +384,27 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         if (mf.mgr_praise !== undefined) setMgrPraise(mf.mgr_praise);
         if (mf.mgr_development_comment !== undefined) setMgrDevComment(mf.mgr_development_comment);
         if (mf.mgr_news !== undefined) setMgrNews(mf.mgr_news);
-        recoveredParts.push('блок руководителя');
+        mgrDraftAppliedRef.current = true;
       }
     }
 
-    // Date — skip if draft matches server meeting_date
+    // Date
     if (drafts.date) {
       const draftDate = drafts.date as string;
       if (draftDate !== (meeting.meeting_date || '')) {
         setValue('meeting_date', draftDate);
-        recoveredParts.push('дата/время');
       }
     }
 
+    // Summary
     if (drafts.summary) {
       const draftSummary = drafts.summary as string;
       if (draftSummary !== (meeting.meeting_summary || '')) {
         setSummaryDraft(draftSummary);
-        setIsEditingSummary(true); // Fix: show textarea so recovered text is visible
-        recoveredParts.push('итоги');
+        setIsEditingSummary(true);
       }
     }
-
-    if (recoveredParts.length > 0) {
-      setDraftRecoveryBanner(`Восстановлен черновик: ${recoveredParts.join(', ')}`);
-    }
-  }, [meetingId, meeting?.updated_at]);
+  }, [meetingId, meeting?.updated_at, isMgrLoading]);
 
   // --- Trigger autosave on field changes ---
   const watchedSafeFields = {
@@ -414,6 +444,27 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
       autoSave.debounceDateField(watchedDate);
     }
   }, [watchedDate, canEditDateTime, meetingId]);
+
+  // Flush drafts to localStorage on unmount/overlay close so debounce delay can't lose data
+  useEffect(() => {
+    return () => {
+      const currentValues = getValues();
+      autoSave.saveSafeDraft({
+        emp_mood: currentValues.emp_mood || '',
+        emp_successes: currentValues.emp_successes || '',
+        emp_problems: currentValues.emp_problems || '',
+        emp_news: currentValues.emp_news || '',
+        emp_questions: currentValues.emp_questions || '',
+        meeting_link: currentValues.meeting_link || '',
+      });
+      autoSave.saveMgrDraft(mgrFieldsObj);
+      autoSave.saveDateDraft(currentValues.meeting_date || '');
+      if (isEditingSummary) {
+        if (summaryDraft) autoSave.saveSummaryDraft(summaryDraft);
+        else autoSave.clearSummaryDraft();
+      }
+    };
+  }, [getValues, mgrFieldsJson, summaryDraft, isEditingSummary, meetingId]);
 
   // Summary draft to localStorage — save whenever editing, even if text is empty
   // (empty draft is valid: user may have cleared text intentionally)
@@ -488,6 +539,14 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
     setIsSavingSummary(true);
     try {
       await saveSummaryAsync({ meetingId, summary: summaryDraft.trim() });
+      // Optimistically update the meeting cache so read-only block renders immediately
+      queryClient.setQueryData(['meeting', meetingId], (old: any) => old ? ({
+        ...old,
+        meeting_summary: summaryDraft.trim(),
+        // Preserve original author — DB trigger prevents overwrite anyway
+        summary_saved_by: old.summary_saved_by ?? user?.id,
+        summary_saved_at: old.summary_saved_at ?? new Date().toISOString(),
+      }) : old);
       setIsEditingSummary(false);
       autoSave.clearSummaryDraft();
     } catch {
@@ -496,6 +555,32 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
       setIsSavingSummary(false);
     }
   };
+
+  // History count for tab badge — same pair (employee_id + manager_id), by meeting_date
+  const { data: historyEntries } = useQuery({
+    queryKey: ['meeting-summary-history', meeting?.employee_id, meeting?.manager_id, meetingId],
+    queryFn: async () => {
+      const refDate = meeting!.meeting_date || meeting!.created_at;
+      let query = supabase
+        .from('one_on_one_meetings')
+        .select('id, meeting_summary')
+        .eq('employee_id', meeting!.employee_id)
+        .eq('manager_id', meeting!.manager_id)
+        .neq('id', meetingId)
+        .not('meeting_summary', 'is', null);
+      // Earlier meetings of the same pair
+      if (meeting!.meeting_date) {
+        query = query.lt('meeting_date', refDate);
+      } else {
+        query = query.lt('created_at', meeting!.created_at);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).filter((m: any) => m.meeting_summary?.trim());
+    },
+    enabled: !!meeting,
+  });
+  const historyCount = historyEntries?.length || 0;
 
   if (isMeetingLoading || !meeting) {
     return (
@@ -516,45 +601,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
 
   return (
     <div className="space-y-6">
-      {/* Draft recovery banner */}
-      {draftRecoveryBanner && (
-        <Alert className="border-primary/30 bg-primary/5">
-          <Info className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>{draftRecoveryBanner}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="ml-2 h-6 text-xs"
-              onClick={() => {
-                autoSave.clearAllDrafts();
-                setDraftRecoveryBanner(null);
-                // Re-hydrate from server
-                if (meeting) {
-                  resetForm({
-                    meeting_link: meeting.meeting_link || '',
-                    meeting_date: meeting.meeting_date || '',
-                    emp_mood: meeting.emp_mood || '',
-                    emp_successes: meeting.emp_successes || '',
-                    emp_problems: meeting.emp_problems || '',
-                    emp_news: meeting.emp_news || '',
-                    emp_questions: meeting.emp_questions || '',
-                    meeting_summary: meeting.meeting_summary || '',
-                  });
-                  if (managerFields) {
-                    setMgrPraise(managerFields.mgr_praise || '');
-                    setMgrDevComment(managerFields.mgr_development_comment || '');
-                    setMgrNews(managerFields.mgr_news || '');
-                  }
-                }
-              }}
-            >
-              Отменить
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+
 
       {/* Historical banner */}
       {isHistorical && (
@@ -583,14 +630,14 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
             {getStatusLabel(meeting.status)}
           </Badge>
           {meeting.meeting_date && (
-            <span className="text-sm text-muted-foreground">
+            <span className="text-body-md text-muted-foreground">
               {formatMeetingDateFull(meeting.meeting_date, user?.timezone)}
             </span>
           )}
         </div>
         {/* Autosave status indicator */}
         {autoSave.aggregatedStatus !== 'idle' && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-caption-sm text-muted-foreground">
             {autoSave.aggregatedStatus === 'saving' && (
               <><Loader2 className="h-3 w-3 animate-spin" /> Сохраняется...</>
             )}
@@ -609,10 +656,10 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
         <CardContent className="pt-4 space-y-3">
           <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-start">
             <div className="space-y-1.5">
-              <Label htmlFor="meeting_date" className="text-xs text-muted-foreground flex items-center gap-1 h-4">
+              <Label htmlFor="meeting_date" className="text-caption-sm text-muted-foreground flex items-center gap-1 h-4">
                 {isOverdue && <Lock className="h-3 w-3 text-destructive/60" />}
                 Дата и время *
-                <span className="text-[10px]">({getTimezoneOffsetLabel(getEffectiveTimezone(user?.timezone))})</span>
+                <span className="text-helpertext-xs">({getTimezoneOffsetLabel(getEffectiveTimezone(user?.timezone))})</span>
               </Label>
               <div className="flex gap-2">
                 {(() => {
@@ -686,12 +733,12 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                 })()}
               </div>
               {isOverdue && !isHrbpEdit && (
-                <p className="text-xs text-muted-foreground/80 flex items-center gap-1 mt-1">
+                <p className="text-caption-sm text-muted-foreground/80 flex items-center gap-1 mt-1">
                   <Info className="h-3 w-3 shrink-0" />
                   Дата встречи прошла. Чтобы назначить новое время, используйте «Перенести».
                 </p>
               )}
-              <p className="text-xs text-destructive min-h-[1rem]">
+              <p className="text-caption-sm text-destructive min-h-[1rem]">
                 {(() => {
                   const skipPast = !canEditDateTime;
                   const raw = watch('meeting_date') || '';
@@ -706,7 +753,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1 h-4">
+              <Label className="text-caption-sm text-muted-foreground flex items-center gap-1 h-4">
                 <LinkIcon className="h-3 w-3" /> Ссылка
               </Label>
               {canEditSharedFields ? (
@@ -718,16 +765,16 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                     className={cn("bg-background h-9", errors.meeting_link && "border-destructive")}
                   />
                   {errors.meeting_link && (
-                    <p className="text-xs text-destructive">{errors.meeting_link.message}</p>
+                    <p className="text-caption-sm text-destructive">{errors.meeting_link.message}</p>
                   )}
                 </>
               ) : watch('meeting_link') ? (
                 <a href={watch('meeting_link')!} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline truncate max-w-[200px]">
+                  className="inline-flex items-center gap-1 text-body-md text-primary hover:underline truncate max-w-[200px]">
                   {watch('meeting_link')}
                 </a>
               ) : (
-                <span className="text-sm text-muted-foreground">—</span>
+                <span className="text-body-md text-muted-foreground">—</span>
               )}
             </div>
           </div>
@@ -757,7 +804,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
                 {rescheduleHistory.map((r) => {
                   const authorName = rescheduleAuthors?.[r.rescheduled_by] || '';
                   return (
-                    <p key={r.id} className="text-xs text-muted-foreground leading-relaxed flex items-center gap-1 flex-wrap">
+                    <p key={r.id} className="text-caption-sm text-muted-foreground leading-relaxed flex items-center gap-1 flex-wrap">
                       <span>{formatMeetingDateTimeShort(r.previous_date, user?.timezone)}</span>
                       <ArrowRight className="h-3 w-3 shrink-0" />
                       <span className="font-medium text-foreground">{formatMeetingDateTimeShort(r.new_date, user?.timezone)}</span>
@@ -792,19 +839,19 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
       {/* Employee block */}
       <Card className="border-[hsl(var(--zone-employee-border))] bg-[hsl(var(--zone-employee))]">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
+          <CardTitle className="text-body-md flex items-center gap-2">
             <User className="h-4 w-4 text-primary/60" />
             Блок сотрудника
           </CardTitle>
           {isManager && !isHistorical && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-caption-sm text-muted-foreground mt-1">
               Эти поля заполняет сотрудник. Доступны только для чтения.
             </p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Настроение / самочувствие</Label>
+            <Label className="text-caption-sm text-muted-foreground">Настроение / самочувствие</Label>
             <ExpandableTextarea
               className={canEditEmployeeFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', watch('emp_mood') ? 'text-foreground' : 'text-muted-foreground')}
               {...register('emp_mood')}
@@ -816,7 +863,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Успехи и достижения</Label>
+            <Label className="text-caption-sm text-muted-foreground">Успехи и достижения</Label>
             <ExpandableTextarea
               className={canEditEmployeeFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', watch('emp_successes') ? 'text-foreground' : 'text-muted-foreground')}
               {...register('emp_successes')}
@@ -828,7 +875,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Текущие сложности</Label>
+            <Label className="text-caption-sm text-muted-foreground">Текущие сложности</Label>
             <ExpandableTextarea
               className={canEditEmployeeFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', watch('emp_problems') ? 'text-foreground' : 'text-muted-foreground')}
               {...register('emp_problems')}
@@ -840,7 +887,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Новости</Label>
+            <Label className="text-caption-sm text-muted-foreground">Новости</Label>
             <ExpandableTextarea
               className={canEditEmployeeFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', watch('emp_news') ? 'text-foreground' : 'text-muted-foreground')}
               {...register('emp_news')}
@@ -852,7 +899,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Вопросы к руководителю</Label>
+            <Label className="text-caption-sm text-muted-foreground">Вопросы к руководителю</Label>
             <ExpandableTextarea
               className={canEditEmployeeFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', watch('emp_questions') ? 'text-foreground' : 'text-muted-foreground')}
               {...register('emp_questions')}
@@ -869,14 +916,14 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
       {(isManager || isHrbpEdit) && (
         <Card className="border-border/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-body-md flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
               Блок руководителя
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Похвала / позитивная обратная связь</Label>
+              <Label className="text-caption-sm text-muted-foreground">Похвала / позитивная обратная связь</Label>
               <ExpandableTextarea
                 className={canEditManagerFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', mgrPraise ? 'text-foreground' : 'text-muted-foreground')}
                 value={mgrPraise}
@@ -888,7 +935,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Комментарий по развитию</Label>
+              <Label className="text-caption-sm text-muted-foreground">Комментарий по развитию</Label>
               <ExpandableTextarea
                 className={canEditManagerFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', mgrDevComment ? 'text-foreground' : 'text-muted-foreground')}
                 value={mgrDevComment}
@@ -900,7 +947,7 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Новости руководителя</Label>
+              <Label className="text-caption-sm text-muted-foreground">Новости руководителя</Label>
               <ExpandableTextarea
                 className={canEditManagerFields ? 'bg-white border-[hsl(var(--field-border))] shadow-sm' : cn('bg-muted/30 border-border/50', mgrNews ? 'text-foreground' : 'text-muted-foreground')}
                 value={mgrNews}
@@ -916,133 +963,192 @@ export const MeetingForm: React.FC<MeetingFormProps> = ({ meetingId, isManager: 
 
       {/* Meeting summary */}
       <Card className="border-border/50">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
+        <CardHeader className="pb-0">
+          <CardTitle className="text-body-md flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             Итоги встречи — резюме
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Primary CTA when meeting started, no summary, not editing */}
-          {isMeetingStarted && !meeting.meeting_summary && !isEditingSummary && canEditSummary && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-4 flex items-center justify-between gap-3">
-              <p className="text-sm text-foreground/80">Зафиксируйте ключевые итоги встречи</p>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="shrink-0"
-                onClick={() => { setSummaryDraft(summaryDraft || ''); setIsEditingSummary(true); }}
-              >
-                <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Добавить итоги
-              </Button>
-            </div>
-          )}
 
-          {/* Inline editing textarea */}
-          {isMeetingStarted && isEditingSummary && canEditSummary && (
-            <div className="space-y-2">
-              <ExpandableTextarea
-                className="bg-white border-[hsl(var(--field-border))] shadow-sm"
-                value={summaryDraft}
-                onChange={(e) => setSummaryDraft(e.target.value)}
-                placeholder="Зафиксируйте ключевые итоги встречи..."
-                maxCollapsedRows={6}
-                maxExpandedRows={20}
-                autoFocus
-              />
-              <div className="flex items-center gap-2">
-                <Button type="button" variant={(summaryDirty && isSummaryValid) ? 'default' : 'outline'} size="sm" onClick={handleSaveSummary} disabled={!summaryDirty || !isSummaryValid || isSavingSummary}>
-                  {isSavingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  {isSavingSummary ? 'Сохранение...' : 'Сохранить итоги'}
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setSummaryDraft(''); setIsEditingSummary(false); autoSave.clearSummaryDraft(); }} disabled={isSavingSummary}>
-                  Отмена
-                </Button>
-              </div>
-            </div>
-          )}
+        {/* Tabs */}
+        <div className="flex gap-0 border-b border-border/50 mx-4 mt-3">
+          <button
+            className={cn("px-4 py-2 text-body-md font-medium border-b-2 -mb-px transition-colors",
+              summaryTab === 'current'
+                ? "text-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+                : "text-muted-foreground border-transparent hover:text-foreground"
+            )}
+            onClick={() => setSummaryTab('current')}
+          >
+            Текущая встреча
+          </button>
+          <button
+            className={cn("px-4 py-2 text-body-md font-medium border-b-2 -mb-px transition-colors",
+              summaryTab === 'history'
+                ? "text-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+                : "text-muted-foreground border-transparent hover:text-foreground"
+            )}
+            onClick={() => setSummaryTab('history')}
+          >
+            История
+            {historyCount > 0 && (
+              <span className="ml-1.5 text-helpertext-xs font-semibold text-white bg-muted-foreground/50 min-w-[18px] h-[18px] rounded-full inline-flex items-center justify-center px-1">
+                {historyCount}
+              </span>
+            )}
+          </button>
+        </div>
 
-          {isMeetingStarted && !meeting.meeting_summary && !isEditingSummary && !canEditSummary && (
-            <p className="text-sm text-muted-foreground italic">Итоги не заполнены</p>
-          )}
-
-          {/* Saved summary — text, meta, view status, thread */}
-          {hasSavedSummary && (
-            <div className="space-y-3">
-              {/* Summary text */}
-              <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">
-                {meeting.meeting_summary}
-              </p>
-
-              {/* Meta line: author name · date + edit button */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[11px] text-muted-foreground">
-                  {summaryAuthorName || 'Автор'}
-                  {meeting.summary_saved_at && ` · ${formatMeetingDateFull(meeting.summary_saved_at, user?.timezone)}`}
-                </p>
-                {canEditSummary && !isEditingSummary && (
+        <CardContent className="space-y-4 pt-4">
+          {/* === Tab: Текущая встреча === */}
+          {summaryTab === 'current' && (
+            <>
+              {/* Primary CTA when meeting started, no summary, not editing */}
+              {isMeetingStarted && !meeting.meeting_summary && !isEditingSummary && canEditSummary && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-4 flex items-center justify-between gap-3">
+                  <p className="text-body-md text-foreground/80">Зафиксируйте ключевые итоги встречи</p>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="default"
                     size="sm"
-                    className="h-5 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-                    onClick={() => { setSummaryDraft(meeting.meeting_summary || ''); setIsEditingSummary(true); }}
+                    className="shrink-0"
+                    onClick={() => { setSummaryDraft(summaryDraft || ''); setIsEditingSummary(true); }}
                   >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Изменить
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Добавить итоги
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* View status */}
-              <div className="space-y-1">
-                {(() => {
-                  const participants = [meeting.employee_id, meeting.manager_id].filter(id => id !== meeting.summary_saved_by);
-                  return participants.map(pid => {
-                    const view = summaryViews.find(v => v.user_id === pid);
-                    const name = view?.user_name || getParticipantName(pid);
-                    if (view) {
+              {/* Inline editing textarea */}
+              {isMeetingStarted && isEditingSummary && canEditSummary && (
+                <div className="space-y-2">
+                  <ExpandableTextarea
+                    className="bg-white border-[hsl(var(--field-border))] shadow-sm"
+                    value={summaryDraft}
+                    onChange={(e) => setSummaryDraft(e.target.value)}
+                    placeholder="Зафиксируйте ключевые итоги встречи..."
+                    maxCollapsedRows={6}
+                    maxExpandedRows={20}
+                    autoFocus
+                  />
+                   <div className="flex items-center gap-2">
+                    <Button type="button" variant={(summaryDirty && isSummaryValid) ? 'default' : 'outline'} size="sm" onClick={handleSaveSummary} disabled={!summaryDirty || !isSummaryValid || isSavingSummary}>
+                      {isSavingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      {isSavingSummary ? 'Сохранение...' : 'Сохранить итоги'}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setSummaryDraft(''); setIsEditingSummary(false); autoSave.clearSummaryDraft(); }} disabled={isSavingSummary}>
+                      Отмена
+                    </Button>
+                  </div>
+                  {!meeting.meeting_summary && (
+                    <p className="flex items-center gap-1.5 text-caption-sm text-muted-foreground/70 mt-1">
+                      <Lock className="h-3 w-3 flex-shrink-0" />
+                      После сохранения изменить итоги сможете только вы — до планирования следующей встречи
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isMeetingStarted && !meeting.meeting_summary && !isEditingSummary && !canEditSummary && (
+                <p className="text-body-md text-muted-foreground italic">Итоги не заполнены</p>
+              )}
+
+              {/* Saved summary — text, meta, view status, thread */}
+              {hasSavedSummary && !isEditingSummary && (
+                <div className="space-y-3">
+                  {/* Summary text in read-only block */}
+                  <div className="rounded-lg border border-border/50 bg-muted/10 px-4 py-3">
+                    <p className="text-body-md text-foreground whitespace-pre-line leading-relaxed">
+                      <LinkedText text={meeting.meeting_summary!} />
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap mt-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        {summaryAuthorName || 'Автор'}
+                        {meeting.summary_saved_at && ` · ${formatMeetingDateFull(meeting.summary_saved_at, user?.timezone)}`}
+                      </p>
+                      {canEditSummary && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                          onClick={() => { setSummaryDraft(meeting.meeting_summary || ''); setIsEditingSummary(true); }}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Изменить
+                        </Button>
+                      )}
+                      {isAuthor && hasNextMeeting && !isHrbpEdit && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground/50 cursor-default">
+                                <Lock className="h-3 w-3" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-caption-sm max-w-[220px]">
+                              Итоги заблокированы — запланирована следующая встреча
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* View status — show other participant by name */}
+                  <div className="space-y-1">
+                    {(() => {
+                      const otherParticipantId = meeting.summary_saved_by === meeting.employee_id
+                        ? meeting.manager_id
+                        : meeting.employee_id;
+                      const view = summaryViews.find(v => v.user_id === otherParticipantId);
+                      const name = view?.user_name || getParticipantName(otherParticipantId);
+                      if (view) {
+                        return (
+                          <p className="text-caption-sm text-muted-foreground flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3 text-primary/60" />
+                            {name} ознакомился · {formatMeetingDateFull(view.viewed_at, user?.timezone)}
+                          </p>
+                        );
+                      }
                       return (
-                        <p key={pid} className="text-xs text-muted-foreground flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-primary/60" />
-                          {name} ознакомился · {formatMeetingDateFull(view.viewed_at, user?.timezone)}
+                        <p className="text-caption-sm text-muted-foreground/60 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {name} ещё не просматривал итоги
                         </p>
                       );
-                    }
-                    return (
-                      <p key={pid} className="text-xs text-muted-foreground/60 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {name} ещё не просматривал итоги
-                      </p>
-                    );
-                  });
-                })()}
-              </div>
+                    })()}
+                  </div>
 
-              {/* Thread — messenger for current meeting */}
-              <MeetingSummaryThread
-                meetingId={meetingId}
-                isParticipant={isParticipant}
-              />
-            </div>
+                  {/* Thread — messenger for current meeting */}
+                  <MeetingSummaryThread
+                    meetingId={meetingId}
+                    managerId={meeting.manager_id}
+                    isParticipant={isParticipant}
+                  />
+                </div>
+              )}
+
+              {!isMeetingStarted && !hasSavedSummary && !isEditingSummary && (
+                <p className="flex items-center gap-1.5 text-body-md text-muted-foreground py-2">
+                  <Lock className="h-4 w-4 shrink-0" />
+                  {isHistorical
+                    ? 'Итоги не были заполнены'
+                    : 'Итоги встречи можно заполнить только после начала встречи'}
+                </p>
+              )}
+            </>
           )}
 
-          {/* History of past meetings — separate section */}
-          {meeting && (
+          {/* === Tab: История === */}
+          {summaryTab === 'history' && meeting && (
             <MeetingSummaryHistory
               employeeId={meeting.employee_id}
+              managerId={meeting.manager_id}
               currentMeetingId={meetingId}
-              currentMeetingCreatedAt={meeting.created_at}
+              currentMeetingDate={meeting.meeting_date || meeting.created_at}
             />
-          )}
-
-          {!isMeetingStarted && !isHistorical && (
-            <p className="flex items-center gap-1.5 text-sm text-muted-foreground py-2">
-              <Lock className="h-4 w-4 shrink-0" />
-              Итоги встречи можно заполнить только после начала встречи
-            </p>
           )}
         </CardContent>
       </Card>

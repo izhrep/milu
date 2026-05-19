@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Users, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Shield, CheckCircle, XCircle } from "@/components/icons";
 
 interface RoleStats {
   role: string;
@@ -30,12 +30,12 @@ export const RolePermissionsStats: React.FC<RolePermissionsStatsProps> = ({ role
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Всего пользователей</CardTitle>
+            <CardTitle className="text-body-md font-medium">Всего пользователей</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-heading-3 font-bold">{totalUsers}</div>
+            <p className="text-caption-sm text-muted-foreground">
               С назначенными ролями
             </p>
           </CardContent>
@@ -43,12 +43,12 @@ export const RolePermissionsStats: React.FC<RolePermissionsStatsProps> = ({ role
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Активных ролей</CardTitle>
+            <CardTitle className="text-body-md font-medium">Активных ролей</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalActiveRoles}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-heading-3 font-bold">{totalActiveRoles}</div>
+            <p className="text-caption-sm text-muted-foreground">
               Из {roleStats.length} доступных
             </p>
           </CardContent>
@@ -56,12 +56,12 @@ export const RolePermissionsStats: React.FC<RolePermissionsStatsProps> = ({ role
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Среднее прав на роль</CardTitle>
+            <CardTitle className="text-body-md font-medium">Среднее прав на роль</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Math.round(avgPermissions)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-heading-3 font-bold">{Math.round(avgPermissions)}</div>
+            <p className="text-caption-sm text-muted-foreground">
               Прав доступа
             </p>
           </CardContent>
@@ -85,15 +85,15 @@ export const RolePermissionsStats: React.FC<RolePermissionsStatsProps> = ({ role
                 <div key={stat.role} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{stat.icon}</span>
+                      <span className="text-heading-4">{stat.icon}</span>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{stat.label}</span>
-                          <Badge variant={stat.variant} className="text-xs">
+                          <Badge variant={stat.variant} className="text-caption-sm">
                             {stat.role}
                           </Badge>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-caption-sm text-muted-foreground">
                           {stat.userCount} {stat.userCount === 1 ? 'пользователь' : 'пользователей'}
                         </div>
                       </div>
@@ -102,7 +102,7 @@ export const RolePermissionsStats: React.FC<RolePermissionsStatsProps> = ({ role
                       <div className="font-semibold">
                         {stat.permissionsCount} / {stat.totalPermissions}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-caption-sm text-muted-foreground">
                         {percentage.toFixed(0)}% прав
                       </div>
                     </div>

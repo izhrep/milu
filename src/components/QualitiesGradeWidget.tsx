@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserGradeQualities } from '@/hooks/useUserGradeQualities';
-import { Award } from 'lucide-react';
+import { Award } from "@/components/icons";
 
 export const QualitiesGradeWidget = () => {
   const { qualities, loading, error } = useUserGradeQualities();
@@ -12,7 +12,7 @@ export const QualitiesGradeWidget = () => {
       <Card className="border-0 shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-brand-pink" />
+            <Award className="h-5 w-5 text-accent" />
             Качества
           </CardTitle>
         </CardHeader>
@@ -30,12 +30,12 @@ export const QualitiesGradeWidget = () => {
       <Card className="border-0 shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-brand-pink" />
+            <Award className="h-5 w-5 text-accent" />
             Качества
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-text-secondary">Ошибка загрузки данных</p>
+          <p className="text-body-md text-muted-foreground">Ошибка загрузки данных</p>
         </CardContent>
       </Card>
     );
@@ -46,12 +46,12 @@ export const QualitiesGradeWidget = () => {
       <Card className="border-0 shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-brand-pink" />
+            <Award className="h-5 w-5 text-accent" />
             Качества
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-text-secondary">
+          <p className="text-body-md text-muted-foreground">
             Качества не назначены для вашего грейда
           </p>
         </CardContent>
@@ -63,7 +63,7 @@ export const QualitiesGradeWidget = () => {
     <Card className="border-0 shadow-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-brand-pink" />
+          <Award className="h-5 w-5 text-accent" />
           Качества по грейду
         </CardTitle>
       </CardHeader>
@@ -77,11 +77,11 @@ export const QualitiesGradeWidget = () => {
           return (
             <div key={quality.quality_id} className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-text-primary">
+                <span className="text-body-md font-medium text-foreground">
                   {quality.quality_name}
                 </span>
-                <div className="flex items-center gap-2 text-xs text-text-secondary">
-                  <span className={currentLevel ? 'text-brand-teal font-semibold' : ''}>
+                <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
+                  <span className={currentLevel ? 'text-accent font-semibold' : ''}>
                     {currentLevel ? currentLevel.toFixed(1) : 'не оценено'}
                   </span>
                   <span>/</span>
@@ -91,13 +91,13 @@ export const QualitiesGradeWidget = () => {
               <div className="relative">
                 <Progress value={progressPercent} className="h-2" />
                 <div
-                  className="absolute top-0 h-2 w-0.5 bg-brand-pink"
+                  className="absolute top-0 h-2 w-0.5 bg-accent"
                   style={{ left: `${targetPercent}%` }}
                   title={`Целевой уровень: ${targetLevel}`}
                 />
               </div>
               {quality.last_assessed && (
-                <p className="text-xs text-text-secondary">
+                <p className="text-caption-sm text-muted-foreground">
                   Последняя оценка:{' '}
                   {new Date(quality.last_assessed).toLocaleDateString('ru-RU')}
                 </p>

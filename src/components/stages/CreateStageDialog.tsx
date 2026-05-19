@@ -154,19 +154,19 @@ export const CreateStageDialog: React.FC<CreateStageDialogProps> = ({ open, onOp
                   checked={createDiagnostic}
                   onCheckedChange={(checked) => setCreateDiagnostic(checked as boolean)}
                 />
-                <Label htmlFor="diagnostic" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                <Label htmlFor="diagnostic" className="text-body-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Создать подэтап "Диагностика"
                 </Label>
               </div>
 
               {createDiagnostic && (
                 <div className="ml-6 space-y-3 border-l pl-4">
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-caption-sm text-muted-foreground">
                     Будут использованы даты и период родительского этапа
                   </p>
                   {approvedTemplates.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-sm">Шаблон шкал и правил диагностики</Label>
+                      <Label className="text-body-md">Шаблон шкал и правил диагностики</Label>
                       <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите шаблон" />
@@ -182,7 +182,7 @@ export const CreateStageDialog: React.FC<CreateStageDialogProps> = ({ open, onOp
                     </div>
                   )}
                   {approvedTemplates.length === 0 && (
-                    <p className="text-xs text-destructive">
+                    <p className="text-caption-sm text-destructive">
                       Нет утверждённых шаблонов. Будет использован legacy-режим.
                     </p>
                   )}
@@ -195,14 +195,14 @@ export const CreateStageDialog: React.FC<CreateStageDialogProps> = ({ open, onOp
                   checked={createMeetings}
                   onCheckedChange={(checked) => setCreateMeetings(checked as boolean)}
                 />
-                <Label htmlFor="meetings" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                <Label htmlFor="meetings" className="text-body-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Создать подэтап «Встречи one-to-one»
                 </Label>
               </div>
 
               {createMeetings && (
                 <div className="ml-6 space-y-3 border-l pl-4">
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-caption-sm text-muted-foreground">
                     Будут использованы даты и период родительского этапа
                   </p>
                 </div>

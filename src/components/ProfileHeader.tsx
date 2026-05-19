@@ -37,11 +37,11 @@ const ProfileHeader = ({ userData }: ProfileHeaderProps) => {
         <div className="self-stretch flex min-w-60 w-full items-center gap-[40px_150px] flex-1 shrink basis-[0%] my-auto max-md:max-w-full">
           <div className="self-stretch flex min-w-60 items-center gap-5 my-auto max-md:max-w-full">
             <div className="self-stretch flex min-w-60 flex-col items-stretch justify-center my-auto pt-2.5">
-              <div className="flex gap-2.5 text-[34px] text-[#202020] font-semibold leading-none">
-                <h1 className="text-[#202020]">{getFullName(userData) || 'Загрузка...'}</h1>
+              <div className="flex gap-2.5 text-[34px] text-foreground font-semibold leading-none">
+                <h1 className="text-foreground">{getFullName(userData) || 'Загрузка...'}</h1>
               </div>
-              <div className="flex items-center gap-5 text-sm font-normal mt-2.5">
-                <div className="text-[#8D999C] leading-none self-stretch my-auto">
+              <div className="flex items-center gap-5 text-body-md font-normal mt-2.5">
+                <div className="text-muted-foreground/70 leading-none self-stretch my-auto">
                   {userData?.positions?.name || 'Должность не указана'}
                 </div>
                 {companyName && (
@@ -50,11 +50,11 @@ const ProfileHeader = ({ userData }: ProfileHeaderProps) => {
                   </Badge>
                 )}
                 {userData?.departments?.name && (
-                  <Badge variant="outline" className="bg-brand-orange/10 text-brand-orange border-brand-orange/20">
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                     {userData.departments.name}
                   </Badge>
                 )}
-                <div className="text-[#FF8934] leading-none opacity-80 self-stretch my-auto">
+                <div className="text-warning leading-none opacity-80 self-stretch my-auto">
                   👨‍💻 {userData?.status || 'Статус не указан'}
                 </div>
               </div>

@@ -36,40 +36,40 @@ export const GradeSkillsQualitiesView = ({ gradeId }: GradeSkillsQualitiesViewPr
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Навыки</CardTitle>
+          <CardTitle className="text-body-base">Навыки</CardTitle>
         </CardHeader>
         <CardContent>
           {gradeSkills && gradeSkills.length > 0 ? (
             <div className="space-y-2">
               {gradeSkills.map((item: any) => (
-                <div key={item.skill_id} className="flex justify-between items-center p-2 border rounded text-sm">
+                <div key={item.skill_id} className="flex justify-between items-center p-2 border rounded text-body-md">
                   <span>{item.skills?.name}</span>
                   <Badge variant="secondary">Уровень: {item.target_level}</Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Навыки не назначены</p>
+            <p className="text-body-md text-muted-foreground">Навыки не назначены</p>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Качества</CardTitle>
+          <CardTitle className="text-body-base">Качества</CardTitle>
         </CardHeader>
         <CardContent>
           {gradeQualities && gradeQualities.length > 0 ? (
             <div className="space-y-2">
               {gradeQualities.map((item: any) => (
-                <div key={item.quality_id} className="flex justify-between items-center p-2 border rounded text-sm">
+                <div key={item.quality_id} className="flex justify-between items-center p-2 border rounded text-body-md">
                   <span>{item.qualities?.name}</span>
                   <Badge variant="secondary">Уровень: {item.target_level}</Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Качества не назначены</p>
+            <p className="text-body-md text-muted-foreground">Качества не назначены</p>
           )}
         </CardContent>
       </Card>

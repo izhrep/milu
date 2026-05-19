@@ -466,7 +466,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
           {/* Фильтры */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Тип данных</label>
+              <label className="text-body-md font-medium mb-2 block">Тип данных</label>
               <Select value={dataTypeFilter} onValueChange={(value: any) => {
                 setDataTypeFilter(value);
                 setCompetencyFilter('all');
@@ -483,7 +483,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Роль</label>
+              <label className="text-body-md font-medium mb-2 block">Роль</label>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -500,7 +500,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Компетенция</label>
+              <label className="text-body-md font-medium mb-2 block">Компетенция</label>
               <Select value={competencyFilter} onValueChange={setCompetencyFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -528,7 +528,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
           {/* Hard Skills */}
           {(dataTypeFilter === 'all' || dataTypeFilter === 'skills') && filteredSkillResults.length > 0 && (
             <div className="space-y-4">
-              {competencyFilter === 'all' && <h3 className="text-lg font-semibold">Hard Skills</h3>}
+              {competencyFilter === 'all' && <h3 className="text-body-lg font-semibold">Hard Skills</h3>}
               {filteredSkillResults.map(skill => (
                 <HorizontalBarChart
                   key={skill.competency_id}
@@ -543,7 +543,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
           {/* Soft Skills */}
           {(dataTypeFilter === 'all' || dataTypeFilter === 'qualities') && filteredQualityResults.length > 0 && (
             <div className="space-y-4">
-              {competencyFilter === 'all' && <h3 className="text-lg font-semibold">Soft Skills</h3>}
+              {competencyFilter === 'all' && <h3 className="text-body-lg font-semibold">Soft Skills</h3>}
               {filteredQualityResults.map(quality => (
                 <HorizontalBarChart
                   key={quality.competency_id}
@@ -586,7 +586,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <span>{skill.name}</span>
-                        {skill.category && <Badge variant="secondary" className="text-xs">{skill.category}</Badge>}
+                        {skill.category && <Badge variant="secondary" className="text-caption-sm">{skill.category}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -633,7 +633,7 @@ export const AssessmentDetailsReport: React.FC<AssessmentDetailsReportProps> = (
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <span>{quality.name}</span>
-                        {quality.category && <Badge variant="secondary" className="text-xs">{quality.category}</Badge>}
+                        {quality.category && <Badge variant="secondary" className="text-caption-sm">{quality.category}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">

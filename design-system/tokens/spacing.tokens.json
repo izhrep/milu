@@ -1,0 +1,23 @@
+{
+  "spacing": {
+    "scale": {
+      "xs":  { "value": "0.25rem", "px": 4 },
+      "sm":  { "value": "0.5rem",  "px": 8 },
+      "md":  { "value": "0.75rem", "px": 12 },
+      "lg":  { "value": "1rem",    "px": 16 },
+      "xl":  { "value": "1.5rem",  "px": 24 },
+      "2xl": { "value": "2rem",    "px": 32 },
+      "3xl": { "value": "3rem",    "px": 48 }
+    },
+    "semantic": {
+      "field.gap":       "{spacing.sm}",
+      "form.gap":        "{spacing.lg}",
+      "card.padding":    "{spacing.xl}",
+      "section.gap.sm":  "{spacing.xl}",
+      "section.gap.md":  "{spacing.2xl}",
+      "section.gap.lg":  "{spacing.3xl}",
+      "page.padding":    "{spacing.xl}",
+      "stack.gap":       "{spacing.md}"
+    }
+  }
+}

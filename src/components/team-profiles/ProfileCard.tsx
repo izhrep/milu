@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Users, FileText } from 'lucide-react';
+import { Users, FileText } from "@/components/icons";
 import {
   ManagementProfile,
   computeProfileStatus,
@@ -47,44 +47,44 @@ const ProfileCard = ({ employee, profile, onSave, onSaveAndNext, getManagerName 
       {/* System profile (readonly) */}
       <Card className="border-0 shadow-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className="text-body-lg flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
             Системный профиль
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-body-md">
             <div>
-              <span className="text-text-secondary">ФИО</span>
-              <p className="font-medium text-text-primary">{fullName || '—'}</p>
+              <span className="text-muted-foreground">ФИО</span>
+              <p className="font-medium text-foreground">{fullName || '—'}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Статус сотрудника</span>
-              <p className="font-medium text-text-primary">{(employee as any).status || 'Активен'}</p>
+              <span className="text-muted-foreground">Статус сотрудника</span>
+              <p className="font-medium text-foreground">{(employee as any).status || 'Активен'}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Должность</span>
-              <p className="font-medium text-text-primary">{employee.positions?.name || '—'}</p>
+              <span className="text-muted-foreground">Должность</span>
+              <p className="font-medium text-foreground">{employee.positions?.name || '—'}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Подразделение</span>
-              <p className="font-medium text-text-primary">{(employee as any).departments?.name || '—'}</p>
+              <span className="text-muted-foreground">Подразделение</span>
+              <p className="font-medium text-foreground">{(employee as any).departments?.name || '—'}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Руководитель</span>
-              <p className="font-medium text-text-primary">{getManagerName(employee.manager_id || null)}</p>
+              <span className="text-muted-foreground">Руководитель</span>
+              <p className="font-medium text-foreground">{getManagerName(employee.manager_id || null)}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Дата начала работы</span>
-              <p className="font-medium text-text-primary">{employee.hire_date || '—'}</p>
+              <span className="text-muted-foreground">Дата начала работы</span>
+              <p className="font-medium text-foreground">{employee.hire_date || '—'}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Email</span>
-              <p className="font-medium text-text-primary">{employee.email || '—'}</p>
+              <span className="text-muted-foreground">Email</span>
+              <p className="font-medium text-foreground">{employee.email || '—'}</p>
             </div>
             <div>
-              <span className="text-text-secondary">Табельный номер</span>
-              <p className="font-medium text-text-primary">{(employee as any).employee_number || '—'}</p>
+              <span className="text-muted-foreground">Табельный номер</span>
+              <p className="font-medium text-foreground">{(employee as any).employee_number || '—'}</p>
             </div>
           </div>
         </CardContent>
@@ -94,15 +94,15 @@ const ProfileCard = ({ employee, profile, onSave, onSaveAndNext, getManagerName 
       <Card className="border-0 shadow-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-body-lg flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               Управленческий профиль
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={`text-xs ${profileStatusColors[status]}`}>
+              <Badge variant="outline" className={`text-caption-sm ${profileStatusColors[status]}`}>
                 {profileStatusLabels[status]}
               </Badge>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-caption-sm">
                 {taskStatus}
               </Badge>
             </div>
@@ -112,8 +112,8 @@ const ProfileCard = ({ employee, profile, onSave, onSaveAndNext, getManagerName 
           {!isEditing && !profile ? (
             // Empty state
             <div className="text-center py-8">
-              <FileText className="h-10 w-10 text-text-tertiary mx-auto mb-3" />
-              <p className="text-text-secondary mb-4">
+              <FileText className="h-10 w-10 text-muted-foreground/70 mx-auto mb-3" />
+              <p className="text-muted-foreground mb-4">
                 По сотруднику еще не зафиксировано текущее управленческое состояние
               </p>
               <Button onClick={() => setIsEditing(true)}>

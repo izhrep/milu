@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut } from "@/components/icons";
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { decryptUserData, getFullName } from '@/lib/userDataDecryption';
@@ -68,12 +68,12 @@ const UserMenu = () => {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">{displayName}</p>
-            {userRole && <p className="text-xs text-muted-foreground">Роль: {userRole}</p>}
+            <p className="text-body-md font-medium">{displayName}</p>
+            {userRole && <p className="text-caption-sm text-muted-foreground">Роль: {userRole}</p>}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+        <DropdownMenuItem onClick={handleLogout} className="text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           Выйти
         </DropdownMenuItem>

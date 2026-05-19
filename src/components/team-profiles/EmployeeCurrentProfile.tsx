@@ -1,7 +1,7 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Calendar, User, DollarSign, TrendingUp, FileText } from 'lucide-react';
+import { Briefcase, Calendar, User, DollarSign, TrendingUp, FileText } from "@/components/icons";
 
 interface Props {
   employee: { id: string; name: string; position: string };
@@ -13,8 +13,8 @@ const Field: React.FC<{ icon: React.ReactNode; label: string; children: React.Re
       {icon}
     </div>
     <div className="min-w-0 flex-1">
-      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-      <div className="text-sm font-medium text-foreground">{children}</div>
+      <p className="text-caption-sm text-muted-foreground mb-0.5">{label}</p>
+      <div className="text-body-md font-medium text-foreground">{children}</div>
     </div>
   </div>
 );
@@ -25,7 +25,7 @@ const EmployeeCurrentProfile: React.FC<Props> = ({ employee }) => {
       {/* Main info */}
       <div className="lg:col-span-2 space-y-4">
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <h3 className="text-body-md font-semibold text-foreground mb-4 flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary" />
             Основная информация
           </h3>
@@ -36,7 +36,7 @@ const EmployeeCurrentProfile: React.FC<Props> = ({ employee }) => {
             {employee.position}
           </Field>
           <Field icon={<Briefcase className="w-4 h-4 text-primary" />} label="Текущий проект / клиент">
-            <Badge variant="secondary" className="text-xs">Останкино казна</Badge>
+            <Badge variant="secondary" className="text-caption-sm">Останкино казна</Badge>
           </Field>
           <Field icon={<User className="w-4 h-4 text-primary" />} label="Текущая роль">
             Старший аналитик
@@ -56,20 +56,20 @@ const EmployeeCurrentProfile: React.FC<Props> = ({ employee }) => {
       {/* Side summary */}
       <div className="space-y-4">
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <h3 className="text-body-md font-semibold text-foreground mb-3 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-primary" />
             Последние изменения
           </h3>
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
               <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
               <span>Смена проекта — 2 нед. назад</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
               <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />
               <span>Повышение зарплаты — 1 мес. назад</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-caption-sm text-muted-foreground">
               <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />
               <span>Назначение на роль — 3 мес. назад</span>
             </div>
@@ -77,19 +77,19 @@ const EmployeeCurrentProfile: React.FC<Props> = ({ employee }) => {
         </div>
 
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <h3 className="text-body-md font-semibold text-foreground mb-3 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-primary" />
             Навыки (summary)
           </h3>
           <div className="space-y-2">
             {['SQL', 'Python', 'Аналитика данных'].map(skill => (
               <div key={skill} className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{skill}</span>
+                <span className="text-caption-sm text-muted-foreground">{skill}</span>
                 <Skeleton className="h-2 w-16 rounded-full" />
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground/60 mt-3 italic">
+          <p className="text-helpertext-xs text-muted-foreground/60 mt-3 italic">
             Подробнее во вкладке «Навыки»
           </p>
         </div>

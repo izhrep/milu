@@ -21,15 +21,15 @@ const Calendar = () => {
     let classes = "flex min-h-[30px] w-[30px] items-center justify-center rounded-[100px]";
     
     if (isToday) {
-      classes += " bg-[#6717FF] text-white";
+      classes += " bg-chart-3 text-white";
     } else if (isSpecialDate) {
-      classes += " bg-[#F8B5E5] text-[#030527]";
+      classes += " bg-chart-3 text-foreground";
     } else if (isBordered) {
-      classes += " border border-solid border-[#6717FF] text-[#030527]";
+      classes += " border border-solid border-chart-3 text-foreground";
     } else if (isNextMonth) {
-      classes += " text-[#B8C2CC]";
+      classes += " text-muted-foreground/70";
     } else {
-      classes += " text-[#030527]";
+      classes += " text-foreground";
     }
     
     return classes;
@@ -41,15 +41,15 @@ const Calendar = () => {
   };
 
   return (
-    <div className="shadow-[0_3.5px_25.5px_0_rgba(0,0,0,0.10)] w-full bg-white px-6 py-5 rounded-[20px] max-md:px-5">
+    <div className="shadow-card w-full bg-white px-6 py-5 rounded-[20px] max-md:px-5">
       <header className="flex w-full items-center gap-[40px_92px] justify-between">
-        <h2 className="text-[#030527] text-center text-sm font-medium leading-none self-stretch my-auto">
+        <h2 className="text-foreground text-center text-body-md font-medium leading-none self-stretch my-auto">
           {currentMonth}
         </h2>
         <div className="self-stretch flex items-center gap-2 my-auto">
           <button 
             onClick={() => navigateMonth('prev')}
-            className="items-center self-stretch flex gap-2 w-6 h-6 bg-[#F7F8FA] my-auto p-1.5 rounded-[40px] hover:bg-gray-200 transition-colors"
+            className="items-center self-stretch flex gap-2 w-6 h-6 bg-muted my-auto p-1.5 rounded-[40px] hover:bg-border transition-colors"
             aria-label="Previous month"
           >
             <img
@@ -60,7 +60,7 @@ const Calendar = () => {
           </button>
           <button 
             onClick={() => navigateMonth('next')}
-            className="items-center self-stretch flex gap-2 w-6 h-6 bg-[#F7F8FA] my-auto p-1.5 rounded-[40px] hover:bg-gray-200 transition-colors"
+            className="items-center self-stretch flex gap-2 w-6 h-6 bg-muted my-auto p-1.5 rounded-[40px] hover:bg-border transition-colors"
             aria-label="Next month"
           >
             <img
@@ -72,11 +72,11 @@ const Calendar = () => {
         </div>
       </header>
       
-      <div className="w-full text-sm text-[#030527] whitespace-nowrap text-center leading-none mt-[19px]">
+      <div className="w-full text-body-md text-foreground whitespace-nowrap text-center leading-none mt-[19px]">
         <div className="flex w-full items-center gap-[15px] font-medium justify-between">
           {weekDays.map((day, index) => (
             <div key={index} className="self-stretch flex min-h-[30px] items-center justify-center w-[23px] my-auto rounded-[100px]">
-              <div className="text-[#030527] self-stretch w-4 my-auto">{day}</div>
+              <div className="text-foreground self-stretch w-4 my-auto">{day}</div>
             </div>
           ))}
         </div>

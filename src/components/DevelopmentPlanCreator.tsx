@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Loader2, Sparkles, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle2, XCircle } from "@/components/icons";
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -189,10 +189,10 @@ export const DevelopmentPlanCreator: React.FC<DevelopmentPlanCreatorProps> = ({
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-500';
-      case 'medium': return 'text-yellow-500';
-      case 'low': return 'text-green-500';
-      default: return 'text-gray-500';
+      case 'high': return 'text-destructive';
+      case 'medium': return 'text-warning';
+      case 'low': return 'text-success';
+      default: return 'text-muted-foreground';
     }
   };
 
@@ -221,7 +221,7 @@ export const DevelopmentPlanCreator: React.FC<DevelopmentPlanCreatorProps> = ({
         <div className="space-y-4">
           {generatedTasks.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-text-secondary mb-4">
+              <p className="text-muted-foreground mb-4">
                 Нажмите кнопку для генерации задач развития с помощью ИИ
               </p>
               <Button onClick={handleGenerate} disabled={loading}>
@@ -256,29 +256,29 @@ export const DevelopmentPlanCreator: React.FC<DevelopmentPlanCreatorProps> = ({
                         {selectedTasks.has(index) ? (
                           <CheckCircle2 className="w-5 h-5 text-primary" />
                         ) : (
-                          <XCircle className="w-5 h-5 text-text-tertiary" />
+                          <XCircle className="w-5 h-5 text-muted-foreground/70" />
                         )}
                       </div>
                       <div className="flex-1 space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-text-primary">{task.title}</h4>
-                          <span className={`text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                          <h4 className="font-semibold text-foreground">{task.title}</h4>
+                          <span className={`text-caption-sm font-medium ${getPriorityColor(task.priority)}`}>
                             {getPriorityText(task.priority)}
                           </span>
                         </div>
-                        <div className="text-sm space-y-1">
-                          <p className="text-text-secondary">
+                        <div className="text-body-md space-y-1">
+                          <p className="text-muted-foreground">
                             <span className="font-medium">Цель:</span> {task.goal}
                           </p>
-                          <p className="text-text-secondary">
+                          <p className="text-muted-foreground">
                             <span className="font-medium">Как выполнить:</span> {task.how_to}
                           </p>
-                          <p className="text-text-secondary">
+                          <p className="text-muted-foreground">
                             <span className="font-medium">Результат:</span> {task.measurable_result}
                           </p>
                         </div>
-                        <div className="flex gap-2 text-xs">
-                          <span className="px-2 py-1 bg-surface-secondary rounded">
+                        <div className="flex gap-2 text-caption-sm">
+                          <span className="px-2 py-1 bg-muted rounded">
                             {task.competency_type === 'skill' ? 'Hard Skill' : 'Soft Skill'}: {task.competency_name}
                           </span>
                         </div>

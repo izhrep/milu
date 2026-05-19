@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTasks } from '@/hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Play, Edit, Users as UsersIcon, Video, Eye } from 'lucide-react';
+import { Calendar, Play, Edit, Users as UsersIcon, Video, Eye } from "@/components/icons";
 import { toast } from 'sonner';
 import { PeerSelectionButton } from './PeerSelectionButton';
 import { ManagerRespondentApproval } from './ManagerRespondentApproval';
@@ -193,8 +193,8 @@ export const TaskList: React.FC<TaskListProps> = ({ userId }) => {
         <div className="w-12 h-12 rounded-full bg-accent/60 flex items-center justify-center mb-3">
           <Calendar className="w-6 h-6 text-primary" />
         </div>
-        <p className="text-base font-medium text-foreground">Сейчас активных задач нет</p>
-        <p className="text-sm text-muted-foreground mt-1">Все задачи выполнены — отличная работа!</p>
+        <p className="text-body-base font-medium text-foreground">Сейчас активных задач нет</p>
+        <p className="text-body-md text-muted-foreground mt-1">Все задачи выполнены — отличная работа!</p>
       </div>
     );
   }
@@ -250,9 +250,9 @@ export const TaskList: React.FC<TaskListProps> = ({ userId }) => {
             <div className="flex flex-col gap-3">
               <div className="flex-1">
                 <h4 className="font-medium">{displayTitle}</h4>
-                <p className="text-sm text-muted-foreground mt-1">{taskDescription}</p>
+                <p className="text-body-md text-muted-foreground mt-1">{taskDescription}</p>
                 {task.deadline && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 mt-2 text-caption-sm text-muted-foreground">
                     <Calendar size={14} />
                     <span>Срок: {formatDate(task.deadline)}</span>
                   </div>

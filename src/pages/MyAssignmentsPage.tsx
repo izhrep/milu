@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardCheck, Users, Clock, CheckCircle, Filter } from 'lucide-react';
+import { ClipboardCheck, Users, Clock, CheckCircle, Filter } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { useSurvey360Assignments } from '@/hooks/useSurvey360Assignments';
 import { useAssignmentDraftStatus } from '@/hooks/useAssignmentDraftStatus';
@@ -44,14 +44,14 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-              <Users className="w-6 h-6 text-purple-600" />
+            <div className="w-12 h-12 bg-chart-3/20 rounded-full flex items-center justify-center">
+              <Users className="w-6 h-6 text-chart-3" />
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">
+              <h3 className="font-semibold text-foreground">
                 Оценка 360° для сотрудника
               </h3>
-              <p className="text-sm text-text-secondary">
+              <p className="text-body-md text-muted-foreground">
                 Назначена: {new Date(assignment.assigned_date).toLocaleDateString('ru-RU', {
                   year: 'numeric',
                   month: 'long',
@@ -63,7 +63,7 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
           <div className="flex items-center gap-4">
             {assignment.status === 'pending' || assignment.status === 'approved' ? (
               <>
-                <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">
                   <Clock className="w-3 h-3 mr-1" />
                   Ожидает
                 </Badge>
@@ -76,7 +76,7 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
                 </Button>
               </>
             ) : (
-              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+              <Badge variant="outline" className="text-success border-success/30 bg-success/10">
                 <CheckCircle className="w-3 h-3 mr-1" />
                 Завершено
               </Badge>
@@ -121,10 +121,10 @@ export default function MyAssignmentsPage() {
 
   if (survey360Loading || skillLoading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка...</p>
         </div>
       </div>
     );
@@ -135,8 +135,8 @@ export default function MyAssignmentsPage() {
       <Breadcrumbs />
       
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Мои задания</h1>
-        <p className="text-text-secondary mt-2">
+        <h1 className="text-heading-2 font-bold text-foreground">Мои задания</h1>
+        <p className="text-muted-foreground mt-2">
           Все назначенные вам оценки и их статусы
         </p>
       </div>
@@ -145,45 +145,45 @@ export default function MyAssignmentsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">
+            <CardTitle className="text-body-md font-medium text-muted-foreground">
               Всего 360°
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-text-primary">{stats.total360}</div>
+            <div className="text-heading-3 font-bold text-foreground">{stats.total360}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">
+            <CardTitle className="text-body-md font-medium text-muted-foreground">
               Ожидает 360°
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{stats.pending360}</div>
+            <div className="text-heading-3 font-bold text-warning">{stats.pending360}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">
+            <CardTitle className="text-body-md font-medium text-muted-foreground">
               Всего навыков
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-text-primary">{stats.totalSkills}</div>
+            <div className="text-heading-3 font-bold text-foreground">{stats.totalSkills}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">
+            <CardTitle className="text-body-md font-medium text-muted-foreground">
               Ожидает навыков
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{stats.pendingSkills}</div>
+            <div className="text-heading-3 font-bold text-warning">{stats.pendingSkills}</div>
           </CardContent>
         </Card>
       </div>
@@ -232,7 +232,7 @@ export default function MyAssignmentsPage() {
         <TabsContent value="360" className="space-y-4">
           {filtered360.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center text-text-secondary">
+              <CardContent className="p-6 text-center text-muted-foreground">
                 Нет заданий по оценке 360°
               </CardContent>
             </Card>
@@ -258,7 +258,7 @@ export default function MyAssignmentsPage() {
         <TabsContent value="skills" className="space-y-4">
           {filteredSkills.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center text-text-secondary">
+              <CardContent className="p-6 text-center text-muted-foreground">
                 Нет заданий по оценке навыков
               </CardContent>
             </Card>
@@ -268,14 +268,14 @@ export default function MyAssignmentsPage() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <ClipboardCheck className="w-6 h-6 text-blue-600" />
+                      <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
+                        <ClipboardCheck className="w-6 h-6 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-text-primary">
+                        <h3 className="font-semibold text-foreground">
                           Оценка навыков для сотрудника
                         </h3>
-                        <p className="text-sm text-text-secondary">
+                        <p className="text-body-md text-muted-foreground">
                           Назначена: {new Date(assignment.assigned_date).toLocaleDateString('ru-RU', {
                             year: 'numeric',
                             month: 'long',
@@ -287,7 +287,7 @@ export default function MyAssignmentsPage() {
                     <div className="flex items-center gap-4">
                       {assignment.status === 'отправлен запрос' ? (
                         <>
-                          <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                          <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">
                             <Clock className="w-3 h-3 mr-1" />
                             Ожидает
                           </Badge>
@@ -298,7 +298,7 @@ export default function MyAssignmentsPage() {
                           </Button>
                         </>
                       ) : (
-                        <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                        <Badge variant="outline" className="text-success border-success/30 bg-success/10">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Завершено
                         </Badge>

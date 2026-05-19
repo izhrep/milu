@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft } from "@/components/icons";
 
 interface ReversePreviewTableProps {
   min: number;
@@ -20,7 +20,7 @@ export const ReversePreviewTable: React.FC<ReversePreviewTableProps> = ({ min, m
 
   return (
     <div className="mt-2 rounded border border-border overflow-hidden">
-      <table className="w-full text-xs">
+      <table className="w-full text-caption-sm">
         <thead>
           <tr className="bg-muted/60">
             <th className="px-2 py-1 text-left text-muted-foreground font-medium">Балл ответа</th>

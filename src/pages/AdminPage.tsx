@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Users, Briefcase, Building2, Trophy, BookOpen, Target, 
   MapPin, Package, Zap, FileText, Settings, GraduationCap, Pencil, Trash, Plus, Trash2
-} from 'lucide-react';
+} from "@/components/icons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +22,7 @@ import { AdminSidebar } from '@/components/AdminSidebar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UsersTableAdmin } from '@/components/UsersTableAdmin';
-import { Calendar } from 'lucide-react';
+import { Calendar } from "@/components/icons";
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -84,8 +84,8 @@ const AdminPage = () => {
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <div>
-                <h1 className="text-xl font-semibold">Справочники</h1>
-                <p className="text-sm text-muted-foreground">Управление справочными данными системы</p>
+                <h1 className="text-heading-4 font-semibold">Справочники</h1>
+                <p className="text-body-md text-muted-foreground">Управление справочными данными системы</p>
               </div>
             </div>
           </header>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { decryptUserData, getFullName, type DecryptedUserData } from '@/lib/userDataDecryption';
 import { supabase } from '@/integrations/supabase/client';
@@ -370,10 +370,10 @@ const SkillSurveyQuestionsPage = () => {
 
   if (loading || !assignmentData || !evaluatedUser) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка данных...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка данных...</p>
         </div>
       </div>
     );
@@ -385,10 +385,10 @@ const SkillSurveyQuestionsPage = () => {
         <Breadcrumbs />
         <div className="min-h-[400px] flex items-center justify-center">
           <div className="text-center">
-            <p className="text-text-secondary">Нет доступных вопросов для этой должности</p>
+            <p className="text-muted-foreground">Нет доступных вопросов для этой должности</p>
             <button 
               onClick={() => navigate('/development')}
-              className="mt-4 text-brand-purple hover:text-brand-purple/90"
+              className="mt-4 text-accent hover:text-accent/90"
             >
               Вернуться назад
             </button>
@@ -415,19 +415,19 @@ const SkillSurveyQuestionsPage = () => {
       <div className="flex items-center mb-8">
         <button 
           onClick={() => navigate('/development')}
-          className="mr-4 p-2 hover:bg-surface-tertiary rounded-lg transition-colors"
+          className="mr-4 p-2 hover:bg-card-tertiary rounded-lg transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-text-secondary" />
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <p className="text-sm text-text-secondary">Обратно к разделу «Мое развитие»</p>
-          <h1 className="text-2xl font-bold text-text-primary">
+          <p className="text-body-md text-muted-foreground">Обратно к разделу «Мое развитие»</p>
+          <h1 className="text-heading-3 font-bold text-foreground">
             {isSelfAssessment ? 'Самооценка профессиональных навыков' : `Оценка навыков сотрудника: ${getFullName(evaluatedUser)}`}
           </h1>
         </div>
       </div>
 
-      <p className="text-text-secondary mb-8 leading-relaxed">
+      <p className="text-muted-foreground mb-8 leading-relaxed">
         {isSelfAssessment 
           ? 'На этой странице вы оцениваете свои профессиональные навыки. Данный метод позволяет выявить сильные стороны, определить зоны роста и составить персональный план развития.'
           : `Вы оцениваете профессиональные навыки сотрудника ${getFullName(evaluatedUser)}. Ваша оценка поможет сформировать объективное представление о компетенциях сотрудника.`
@@ -435,25 +435,25 @@ const SkillSurveyQuestionsPage = () => {
       </p>
 
       {/* Progress Bar */}
-      <div className="bg-surface-primary rounded-2xl p-6 border border-border mb-8">
+      <div className="bg-card-primary rounded-2xl p-6 border border-border mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-text-primary">Прогресс прохождения</span>
-          <span className="text-sm text-text-secondary">{currentQuestionIndex + 1} из {questions.length}</span>
+          <span className="text-body-md font-medium text-foreground">Прогресс прохождения</span>
+          <span className="text-body-md text-muted-foreground">{currentQuestionIndex + 1} из {questions.length}</span>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
 
       {/* Profile Section */}
-      <div className="flex items-center justify-between mb-8 bg-surface-primary rounded-2xl p-6 border border-border">
+      <div className="flex items-center justify-between mb-8 bg-card-primary rounded-2xl p-6 border border-border">
         <div className="flex items-center">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink flex items-center justify-center mr-4">
-            <span className="text-white font-semibold text-lg">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-accent to-accent flex items-center justify-center mr-4">
+            <span className="text-white font-semibold text-body-lg">
               {getFullName(evaluatedUser)?.charAt(0) || 'U'}
             </span>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-text-primary">{getFullName(evaluatedUser)}</h2>
-            <p className="text-text-secondary">
+            <h2 className="text-heading-4 font-bold text-foreground">{getFullName(evaluatedUser)}</h2>
+            <p className="text-muted-foreground">
               {(evaluatedUser as any).positions?.name || 'Сотрудник'} 
               {(evaluatedUser as any).grades?.name && ` • ${(evaluatedUser as any).grades?.name}`}
             </p>
@@ -462,22 +462,22 @@ const SkillSurveyQuestionsPage = () => {
       </div>
 
       {/* Question Card */}
-      <div className="bg-surface-primary rounded-2xl p-8 border border-border mb-8">
+      <div className="bg-card-primary rounded-2xl p-8 border border-border mb-8">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-text-primary mb-2">
-            Вопрос {currentQuestionIndex + 1}<span className="text-text-secondary">/{questions.length}</span>
+          <h2 className="text-heading-3 font-bold text-foreground mb-2">
+            Вопрос {currentQuestionIndex + 1}<span className="text-muted-foreground">/{questions.length}</span>
           </h2>
-          <p className="text-brand-teal font-medium">
+          <p className="text-accent font-medium">
             {currentQuestion.hard_skills?.name}
           </p>
         </div>
 
         <div className="text-center mb-8">
-          <h3 className="text-xl font-semibold text-text-primary mb-4">
+          <h3 className="text-heading-4 font-semibold text-foreground mb-4">
             {currentQuestion.question_text}
           </h3>
           {currentQuestion.hard_skills?.description && (
-            <p className="text-text-secondary text-sm">{currentQuestion.hard_skills.description}</p>
+            <p className="text-muted-foreground text-body-md">{currentQuestion.hard_skills.description}</p>
           )}
         </div>
 
@@ -489,15 +489,15 @@ const SkillSurveyQuestionsPage = () => {
               onClick={() => updateAnswer(currentQuestion.id, option.id, answers[currentQuestion.id]?.comment)}
               className={`w-full text-left p-4 rounded-xl border transition-colors ${
                 answers[currentQuestion.id]?.answer_option_id === option.id
-                  ? 'bg-brand-teal/10 border-brand-teal text-text-primary'
-                  : 'bg-surface-secondary border-border text-text-secondary hover:bg-surface-tertiary'
+                  ? 'bg-accent/10 border-accent text-foreground'
+                  : 'bg-muted border-border text-muted-foreground hover:bg-card-tertiary'
               }`}
             >
               <div className="flex items-center">
                 <span className="font-semibold mr-3">{option.numeric_value}.</span>
                 <div>
                   <div className="font-medium">{option.title}</div>
-                  <div className="text-sm text-text-secondary">{option.description}</div>
+                  <div className="text-body-md text-muted-foreground">{option.description}</div>
                 </div>
               </div>
             </button>

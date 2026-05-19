@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { importSoftSkillAnswers } from '@/scripts/importSoftSkillAnswers';
 import { toast } from 'sonner';
-import { Loader2, Upload, CheckCircle2 } from 'lucide-react';
+import { Loader2, Upload, CheckCircle2 } from "@/components/icons";
 
 export default function ImportSoftSkillAnswersPage() {
   const [isImporting, setIsImporting] = useState(false);
@@ -37,12 +37,12 @@ export default function ImportSoftSkillAnswersPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <h3 className="font-semibold">Категории для импорта:</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+            <ul className="list-disc list-inside space-y-1 text-body-md text-muted-foreground">
               <li>Управление ожиданиями и рисками</li>
               <li>Адаптивность и гибкость</li>
               <li>Инициативность и проактивность</li>
             </ul>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-body-md text-muted-foreground mt-2">
               Категория "Четкость и ясность коммуникации" уже существует в базе данных.
             </p>
           </div>
@@ -73,7 +73,7 @@ export default function ImportSoftSkillAnswersPage() {
             </Button>
 
             {isCompleted && (
-              <p className="text-sm text-center text-muted-foreground">
+              <p className="text-body-md text-center text-muted-foreground">
                 Данные успешно импортированы. Вы можете проверить результат на странице управления категориями ответов.
               </p>
             )}

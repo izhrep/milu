@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Download, Upload, FileSpreadsheet, Search, Loader2, Users, User, Eye, Check, X } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, Search, Loader2, Users, User, Eye, Check, X } from "@/components/icons";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -848,7 +848,7 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
               </div>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-body-md text-muted-foreground mt-2">
             Загрузите заполненный Excel-файл. В столбце "Ваш ответ" укажите номер выбранного варианта.
           </p>
         </CardContent>
@@ -913,7 +913,7 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
               <User className="h-5 w-5" />
               Респонденты
               {selectedParticipantUser && (
-                <span className="text-sm font-normal text-muted-foreground">
+                <span className="text-body-md font-normal text-muted-foreground">
                   для {getFullName(selectedParticipantUser)}
                 </span>
               )}
@@ -1030,19 +1030,19 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
               {/* Summary */}
               <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                 <div>
-                  <p className="text-sm text-muted-foreground">Оцениваемый</p>
+                  <p className="text-body-md text-muted-foreground">Оцениваемый</p>
                   <p className="font-medium">{previewData.evaluatedUserName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Респондент</p>
+                  <p className="text-body-md text-muted-foreground">Респондент</p>
                   <p className="font-medium">{previewData.evaluatingUserName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Тип оценки</p>
+                  <p className="text-body-md text-muted-foreground">Тип оценки</p>
                   <p className="font-medium">{getAssignmentTypeLabel(previewData.assignmentType)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Всего ответов</p>
+                  <p className="text-body-md text-muted-foreground">Всего ответов</p>
                   <div className="flex gap-2">
                     <Badge variant="success">{previewData.validCount} корректных</Badge>
                     {previewData.errorCount > 0 && (
@@ -1069,15 +1069,15 @@ export const OfflineSurveyManager: React.FC<OfflineSurveyManagerProps> = ({
                     {previewData.rows.map((row, idx) => (
                       <TableRow key={idx} className={!row.isValid ? 'bg-destructive/10' : ''}>
                         <TableCell>{idx + 1}</TableCell>
-                        <TableCell className="text-sm">{row.competency}</TableCell>
-                        <TableCell className="text-sm max-w-[200px] truncate">{row.questionText}</TableCell>
+                        <TableCell className="text-body-md">{row.competency}</TableCell>
+                        <TableCell className="text-body-md max-w-[200px] truncate">{row.questionText}</TableCell>
                         <TableCell>{row.answerText}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                        <TableCell className="text-body-md text-muted-foreground max-w-[150px] truncate">
                           {row.comment || '—'}
                         </TableCell>
                         <TableCell>
                           {row.isValid ? (
-                            <Check className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4 text-success" />
                           ) : (
                             <X className="h-4 w-4 text-destructive" />
                           )}

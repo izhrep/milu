@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
 import { LinkedText } from '@/components/ui/linked-text';
-import { History, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react';
+import { MessageSquare, ChevronDown, ChevronRight } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { formatMeetingDateFull } from '@/lib/meetingDateFormat';
 import { useMeetingSummaryCommentCounts } from '@/hooks/useMeetingSummaryThread';
@@ -14,8 +13,9 @@ const TRUNCATE_LIMIT = 200;
 
 interface MeetingSummaryHistoryProps {
   employeeId: string;
+  managerId: string;
   currentMeetingId: string;
-  currentMeetingCreatedAt: string;
+  currentMeetingDate: string;
 }
 
 interface HistoryEntry {
@@ -23,30 +23,36 @@ interface HistoryEntry {
   meeting_date: string | null;
   meeting_summary: string;
   summary_saved_by: string | null;
+  manager_id: string;
+  employee_id: string;
   created_at: string;
 }
 
 export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
   employeeId,
+  managerId,
   currentMeetingId,
-  currentMeetingCreatedAt,
+  currentMeetingDate,
 }) => {
   const { user } = useAuth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [threadOpenIds, setThreadOpenIds] = useState<Set<string>>(new Set());
 
   const { data: history } = useQuery({
-    queryKey: ['meeting-summary-history', employeeId, currentMeetingId],
+    queryKey: ['meeting-summary-history', employeeId, managerId, currentMeetingId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('one_on_one_meetings')
-        .select('id, meeting_date, meeting_summary, summary_saved_by, created_at')
+        .select('id, meeting_date, meeting_summary, summary_saved_by, manager_id, employee_id, created_at')
         .eq('employee_id', employeeId)
+        .eq('manager_id', managerId)
         .neq('id', currentMeetingId)
-        .lt('created_at', currentMeetingCreatedAt)
-        .not('meeting_summary', 'is', null)
-        .order('created_at', { ascending: true });
+        .not('meeting_summary', 'is', null);
 
+      // Use meeting_date for ordering if available
+      query = query.lt('meeting_date', currentMeetingDate)
+        .order('meeting_date', { ascending: true });
+
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []).filter((m: any) => m.meeting_summary?.trim()) as HistoryEntry[];
     },
@@ -88,28 +94,13 @@ export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
     });
   };
 
-  const toggleThread = (id: string) => {
-    setThreadOpenIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
   return (
-    <div className="mt-2 pt-3 border-t border-border/30">
-      <div className="flex items-center gap-1.5 mb-2">
-        <History className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">История итогов прошлых встреч</span>
-      </div>
-      <ScrollArea className="max-h-[300px] rounded-md border border-border/50 bg-muted/10">
+    <div>
+      <ScrollArea className="max-h-[400px] rounded-md border border-border/50 bg-muted/10">
         <div className="divide-y divide-border/40">
           {displayed.map((entry) => {
             const isExpanded = expandedIds.has(entry.id);
             const isLong = entry.meeting_summary.length > TRUNCATE_LIMIT;
-            const displayText = isLong && !isExpanded
-              ? entry.meeting_summary.slice(0, TRUNCATE_LIMIT) + '…'
-              : entry.meeting_summary;
 
             const dateStr = entry.meeting_date
               ? formatMeetingDateFull(entry.meeting_date, user?.timezone)
@@ -117,49 +108,52 @@ export const MeetingSummaryHistory: React.FC<MeetingSummaryHistoryProps> = ({
 
             const authorName = entry.summary_saved_by && authors?.[entry.summary_saved_by];
             const threadCount = commentCounts?.[entry.id] || 0;
-            const isThreadOpen = threadOpenIds.has(entry.id);
 
             return (
               <div key={entry.id} className="px-3.5 py-3">
-                <p className="text-[11px] text-muted-foreground/80 leading-tight tracking-wide uppercase mb-1.5">
-                  Встреча №{entry.number} · {dateStr}
-                  {authorName && <span className="normal-case tracking-normal"> · {authorName}</span>}
-                </p>
-
-                <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">
-                  <LinkedText text={displayText} />
-                </p>
-                {isLong && (
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs text-primary/70 hover:text-primary mt-1"
-                    onClick={() => toggleExpand(entry.id)}
-                  >
-                    {isExpanded ? 'Свернуть' : 'Показать еще'}
-                  </Button>
-                )}
-
-                {/* Collapsible thread for historical entry */}
-                <div className="mt-2">
+                <div className="flex items-center gap-1.5 mb-1.5">
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => toggleThread(entry.id)}
+                    className="p-0 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => toggleExpand(entry.id)}
                   >
-                    {isThreadOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                    <MessageSquare className="h-3 w-3" />
-                    <span>Обсуждение этих итогов{threadCount > 0 ? ` · ${threadCount}` : ''}</span>
+                    {isExpanded
+                      ? <ChevronDown className="h-3.5 w-3.5" />
+                      : <ChevronRight className="h-3.5 w-3.5" />}
                   </button>
-                  {isThreadOpen && (
-                    <MeetingSummaryThread
-                      meetingId={entry.id}
-                      isParticipant={false}
-                      readOnly
-                    />
-                  )}
+                  <p className="text-[11px] text-muted-foreground/80 leading-tight tracking-wide uppercase">
+                    Встреча №{entry.number} · {dateStr}
+                    {authorName && <span className="normal-case tracking-normal"> · {authorName}</span>}
+                  </p>
                 </div>
+
+                {!isExpanded && (
+                  <p className="text-body-md text-foreground whitespace-pre-line leading-relaxed pl-5">
+                    <LinkedText text={entry.meeting_summary.slice(0, TRUNCATE_LIMIT) + (isLong ? '…' : '')} />
+                  </p>
+                )}
+
+                {isExpanded && (
+                  <div className="pl-5">
+                    <p className="text-body-md text-foreground whitespace-pre-line leading-relaxed">
+                      <LinkedText text={entry.meeting_summary} />
+                    </p>
+
+                    {/* Thread inside expanded view */}
+                    <div className="mt-3">
+                      <div className="flex items-center gap-1 text-caption-sm text-muted-foreground mb-1">
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Обсуждение{threadCount > 0 ? ` · ${threadCount}` : ''}</span>
+                      </div>
+                      <MeetingSummaryThread
+                        meetingId={entry.id}
+                        isParticipant={false}
+                        readOnly
+                        hideHeader
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

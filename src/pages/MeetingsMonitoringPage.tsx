@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermission } from '@/hooks/usePermission';
 import { useSubordinateTree } from '@/hooks/useSubordinateTree';
@@ -21,10 +21,10 @@ import {
 import { ru } from 'date-fns/locale';
 import { formatMeetingDateShort, formatMeetingDateOnly } from '@/lib/meetingDateFormat';
 import {
-  AlertTriangle, CheckCircle, Clock, MinusCircle, Users,
+  AlertTriangle, CheckCircle, CheckCircle2, Clock, MinusCircle, Users,
   CalendarClock, TrendingUp, Search, List, Network,
   ChevronDown, ChevronRight, X,
-} from 'lucide-react';
+} from "@/components/icons";
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const REGULARITY_THRESHOLD_DAYS = 35;
@@ -69,6 +69,14 @@ const PRIORITY_ORDER: Record<MonitoringStatus, number> = {
   overdue: 0, awaiting_summary: 1, scheduled: 2, not_in_cycle: 3, ok: 4,
 };
 
+function pluralizeEmployees(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} сотрудник`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${count} сотрудника`;
+  return `${count} сотрудников`;
+}
+
 // Re-export from shared utility for local use
 import { getEffectiveMeetingStatus } from '@/lib/meetingStatus';
 
@@ -97,7 +105,7 @@ const getStatusConfig = (status: MonitoringStatus) => {
     case 'overdue':
       return { label: 'Просрочено', badgeClass: 'bg-destructive/10 text-destructive border-destructive/20', icon: <AlertTriangle className="h-3 w-3" /> };
     case 'not_in_cycle':
-      return { label: 'Цикл встреч не начат', badgeClass: 'bg-muted text-muted-foreground border-border text-xs whitespace-nowrap', icon: <MinusCircle className="h-3 w-3" /> };
+      return { label: 'Цикл встреч не начат', badgeClass: 'bg-muted text-muted-foreground border-border text-caption-sm whitespace-nowrap', icon: <MinusCircle className="h-3 w-3" /> };
     case 'awaiting_summary':
       return { label: 'Ожидает итогов', badgeClass: 'bg-warning/10 text-warning border-warning/20', icon: <Clock className="h-3 w-3" /> };
     case 'scheduled':
@@ -461,6 +469,9 @@ const MeetingsMonitoringPage = () => {
             monitoringStatus: es,
             meetingId: m.id,
             meetingDate: mDate,
+            meetingEmployeeId: m.employee_id,
+            meetingManagerId: m.manager_id,
+            meetingSummarySavedBy: m.summary_saved_by,
           });
         });
       } else {
@@ -554,27 +565,77 @@ const MeetingsMonitoringPage = () => {
     });
   }, [filteredRows]);
 
-  /* Grouped by manager for structure view */
-  const groupedByManager = useMemo(() => {
-    const groups = new Map<string, { managerId: string; managerName: string; members: DisplayRow[] }>();
+  /* Hierarchical tree for structure view */
+  interface TreeNode {
+    managerId: string;
+    managerName: string;
+    directMembers: DisplayRow[];
+    childManagers: TreeNode[];
+    totalCount: number;
+  }
+
+  const managerTree = useMemo<TreeNode[]>(() => {
+    const childrenByMgr = new Map<string, DisplayRow[]>();
     filteredRows.forEach(row => {
       const mgrId = row.manager_id || '__none__';
-      if (!groups.has(mgrId)) {
-        groups.set(mgrId, {
-          managerId: mgrId,
-          managerName: row.managerName || 'Без руководителя',
-          members: [],
-        });
-      }
-      groups.get(mgrId)!.members.push(row);
+      if (!childrenByMgr.has(mgrId)) childrenByMgr.set(mgrId, []);
+      childrenByMgr.get(mgrId)!.push(row);
     });
-    return Array.from(groups.values()).sort((a, b) => {
-      const aActions = a.members.filter(m => isActionRequired(m.monitoringStatus)).length;
-      const bActions = b.members.filter(m => isActionRequired(m.monitoringStatus)).length;
+
+    const employeeIdsInSet = new Set(filteredRows.map(r => r.employeeId));
+
+    const buildNode = (mgrId: string, name: string): TreeNode => {
+      const direct = childrenByMgr.get(mgrId) || [];
+      const subManagers = direct.filter(m => childrenByMgr.has(m.employeeId));
+      const subManagerIds = new Set(subManagers.map(m => m.employeeId));
+      const childManagers = subManagers.map(m =>
+        buildNode(m.employeeId, formatUserName(m))
+      );
+      // Leaf members = direct members who are NOT themselves managers in this set
+      const leafMembers = direct.filter(m => !subManagerIds.has(m.employeeId));
+      const node: TreeNode = {
+        managerId: mgrId,
+        managerName: name,
+        directMembers: leafMembers,
+        childManagers,
+        totalCount: 0,
+      };
+      node.totalCount = leafMembers.length + childManagers.reduce((s, c) => s + c.totalCount, 0);
+      return node;
+    };
+
+    const rootMgrIds: string[] = [];
+    for (const mgrId of childrenByMgr.keys()) {
+      if (mgrId === '__none__') continue;
+      if (!employeeIdsInSet.has(mgrId)) rootMgrIds.push(mgrId);
+    }
+
+    const roots: TreeNode[] = rootMgrIds.map(mgrId => {
+      const name = allUsersMap?.get(mgrId) || '—';
+      return buildNode(mgrId, name);
+    });
+
+    if (childrenByMgr.has('__none__')) {
+      roots.push({
+        managerId: '__none__',
+        managerName: 'Без руководителя',
+        directMembers: childrenByMgr.get('__none__')!,
+        childManagers: [],
+        totalCount: childrenByMgr.get('__none__')!.length,
+      });
+    }
+
+    roots.sort((a, b) => {
+      if (a.managerId === '__none__') return 1;
+      if (b.managerId === '__none__') return -1;
+      const aActions = a.directMembers.filter(m => isActionRequired(m.monitoringStatus)).length;
+      const bActions = b.directMembers.filter(m => isActionRequired(m.monitoringStatus)).length;
       if (aActions !== bActions) return bActions - aActions;
       return a.managerName.localeCompare(b.managerName);
     });
-  }, [filteredRows]);
+
+    return roots;
+  }, [filteredRows, allUsersMap]);
 
   /* ─── KPI from employee-level data (filtered by same criteria) ─── */
   const kpi = useMemo(() => {
@@ -663,11 +724,11 @@ const MeetingsMonitoringPage = () => {
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">Мониторинг встреч one-to-one</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Регулярность и статусы встреч по сотрудникам</p>
+          <h1 className="text-heading-4 md:text-heading-3 font-bold text-foreground">Мониторинг встреч one-to-one</h1>
+          <p className="text-caption-sm text-muted-foreground mt-0.5">Регулярность и статусы встреч по сотрудникам</p>
         </div>
         <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-[180px] h-8 text-xs bg-background">
+          <SelectTrigger className="w-[180px] h-8 text-caption-sm bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -679,12 +740,12 @@ const MeetingsMonitoringPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">Загрузка...</div>
+        <div className="text-center py-12 text-muted-foreground text-body-md">Загрузка...</div>
       ) : (
         <>
           {/* ═══ Upper block: Employees by status ═══ */}
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Сотрудники по статусу</p>
+            <p className="text-caption-sm font-medium text-muted-foreground uppercase tracking-wide px-1">Сотрудники по статусу</p>
             <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
               <KpiCard icon={<Users className="h-3.5 w-3.5" />} label="Всего" value={kpi.total} />
               <KpiCard icon={<CheckCircle className="h-3.5 w-3.5" />} label="В норме" value={kpi.ok} accent="text-success" />
@@ -697,8 +758,8 @@ const MeetingsMonitoringPage = () => {
 
           {/* ═══ Lower block: Meetings in period ═══ */}
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Встречи за период</p>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-xs text-muted-foreground">
+            <p className="text-caption-sm font-medium text-muted-foreground uppercase tracking-wide px-1">Встречи за период</p>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-caption-sm text-muted-foreground">
               <span className="font-medium text-foreground">{period.label}:</span>
               <span>Всего: <strong className="text-foreground">{meetingAggregates.total}</strong></span>
               <span>Зафиксировано: <strong className="text-foreground">{meetingAggregates.recorded}</strong></span>
@@ -717,7 +778,7 @@ const MeetingsMonitoringPage = () => {
               <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-caption-sm font-semibold transition-all ${
                     viewMode === 'list'
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -728,7 +789,7 @@ const MeetingsMonitoringPage = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('structure')}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-caption-sm font-semibold transition-all ${
                     viewMode === 'structure'
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -745,7 +806,7 @@ const MeetingsMonitoringPage = () => {
                   placeholder="Поиск по сотруднику…"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs"
+                  className="h-8 pl-8 text-caption-sm"
                 />
               </div>
             </div>
@@ -753,7 +814,7 @@ const MeetingsMonitoringPage = () => {
             {/* Row 2: Filters */}
             <div className="flex flex-wrap items-center gap-2">
               <Select value={statusFilter} onValueChange={v => setStatusFilter(v as MonitoringStatus | 'all')}>
-                <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs bg-background">
+                <SelectTrigger className="h-8 w-auto min-w-[140px] text-caption-sm bg-background">
                   <SelectValue placeholder="Статус" />
                 </SelectTrigger>
                 <SelectContent>
@@ -773,7 +834,7 @@ const MeetingsMonitoringPage = () => {
                     <button
                       key={opt.value}
                       onClick={() => setSubordinationFilter(opt.value)}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      className={`px-2.5 py-1 rounded text-caption-sm font-medium transition-colors ${
                         subordinationFilter === opt.value
                           ? 'bg-background text-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
@@ -789,14 +850,14 @@ const MeetingsMonitoringPage = () => {
                 variant={actionOnly ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setActionOnly(v => !v)}
-                className="h-8 text-xs"
+                className="h-8 text-caption-sm"
               >
                 Только требующие действий
               </Button>
 
               {managerOptions.length > 1 && (
                 <Select value={managerFilter} onValueChange={setManagerFilter}>
-                  <SelectTrigger className="h-8 w-auto min-w-[160px] text-xs bg-background">
+                  <SelectTrigger className="h-8 w-auto min-w-[160px] text-caption-sm bg-background">
                     <SelectValue placeholder="Менеджер" />
                   </SelectTrigger>
                   <SelectContent>
@@ -809,7 +870,7 @@ const MeetingsMonitoringPage = () => {
               )}
 
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-muted-foreground gap-1">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-caption-sm text-muted-foreground gap-1">
                   <X className="h-3 w-3" /> Сбросить
                 </Button>
               )}
@@ -820,7 +881,7 @@ const MeetingsMonitoringPage = () => {
           <Card className="border-border/50">
             <CardContent className="p-0">
               {filteredRows.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
+                <div className="text-center py-8 text-muted-foreground text-body-md">
                   {hasActiveFilters ? 'Нет сотрудников по заданным фильтрам' : 'Нет сотрудников для мониторинга'}
                 </div>
               ) : viewMode === 'list' ? (
@@ -854,7 +915,8 @@ const MeetingsMonitoringPage = () => {
                 />
               ) : (
                 <StructureView
-                  groups={groupedByManager}
+                  tree={managerTree}
+                  summaryViewsBatch={summaryViewsBatch}
                   isMobile={isMobile}
                   isAdminOrHr={isAdminOrHr}
                   currentUserId={user?.id}
@@ -917,6 +979,7 @@ const ListView: React.FC<{
             allUsersMap={allUsersMap}
             allUsers={allUsers}
             timezone={timezone}
+            summaryViewsBatch={summaryViewsBatch}
             onActionClick={onActionClick}
           />
         ))}
@@ -926,15 +989,8 @@ const ListView: React.FC<{
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/60 bg-muted/40">
-            <th className="text-left pl-4 pr-2 py-2 font-medium text-xs text-muted-foreground uppercase tracking-wide w-[30%]">Сотрудник</th>
-            <th className="text-left px-2 py-2 font-medium text-xs text-muted-foreground uppercase tracking-wide w-[18%]">Статус</th>
-            <th className="text-left px-2 py-2 font-medium text-xs text-muted-foreground uppercase tracking-wide w-[28%]">Контекст встречи</th>
-            <th className="text-left pl-2 pr-4 py-2 font-medium text-xs text-muted-foreground uppercase tracking-wide w-[24%]">Следующее действие</th>
-          </tr>
-        </thead>
+      <table className="w-full text-body-md">
+        <MonitoringTableHead />
         <tbody>
           {rows.map(row => (
             <RowDesktop
@@ -956,12 +1012,34 @@ const ListView: React.FC<{
   );
 };
 
+/* Shared table header — used in both List and Structure views */
+const MonitoringTableHead: React.FC = () => (
+  <thead>
+    <tr className="border-b border-border/60 bg-muted/40">
+      <th className="text-left pl-4 pr-2 py-2 font-medium text-caption-sm text-muted-foreground uppercase tracking-wide w-[26%]">Сотрудник</th>
+      <th className="text-left px-2 py-2 font-medium text-caption-sm text-muted-foreground uppercase tracking-wide w-[14%]">Статус</th>
+      <th className="text-left px-2 py-2 font-medium text-caption-sm text-muted-foreground uppercase tracking-wide w-[14%]">Просмотр итогов</th>
+      <th className="text-left px-2 py-2 font-medium text-caption-sm text-muted-foreground uppercase tracking-wide w-[24%]">Контекст встречи</th>
+      <th className="text-left pl-2 pr-4 py-2 font-medium text-caption-sm text-muted-foreground uppercase tracking-wide w-[22%]">Следующее действие</th>
+    </tr>
+  </thead>
+);
+
 /* ═══════════════════════════════════════════
-   Structure View
+   Structure View (hierarchical tree)
    ═══════════════════════════════════════════ */
 
+interface TreeNode {
+  managerId: string;
+  managerName: string;
+  directMembers: DisplayRow[];
+  childManagers: TreeNode[];
+  totalCount: number;
+}
+
 const StructureView: React.FC<{
-  groups: { managerId: string; managerName: string; members: DisplayRow[] }[];
+  tree: TreeNode[];
+  summaryViewsBatch?: Record<string, Array<{ user_id: string; viewed_at: string }>>;
   isMobile: boolean;
   isAdminOrHr: boolean;
   currentUserId?: string;
@@ -969,78 +1047,121 @@ const StructureView: React.FC<{
   allUsers: BasicUser[];
   timezone?: string;
   onActionClick?: (row: DisplayRow) => void;
-}> = ({ groups, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
+}> = ({ tree, summaryViewsBatch, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
+  if (isMobile) {
+    return (
+      <div className="divide-y divide-border/40">
+        {tree.map(node => (
+          <ManagerTreeNode
+            key={node.managerId}
+            node={node}
+            level={0}
+            isMobile
+            isAdminOrHr={isAdminOrHr}
+            currentUserId={currentUserId}
+            allUsersMap={allUsersMap}
+            allUsers={allUsers}
+            timezone={timezone}
+            summaryViewsBatch={summaryViewsBatch}
+            onActionClick={onActionClick}
+          />
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className="divide-y divide-border/40">
-      {groups.map(group => (
-        <ManagerGroup
-          key={group.managerId}
-          group={group}
-          isMobile={isMobile}
-          isAdminOrHr={isAdminOrHr}
-          currentUserId={currentUserId}
-          allUsersMap={allUsersMap}
-          allUsers={allUsers}
-          timezone={timezone}
-          onActionClick={onActionClick}
-        />
-      ))}
+    <div className="overflow-x-auto">
+      <table className="w-full text-body-md">
+        <MonitoringTableHead />
+        <tbody>
+          {tree.map(node => (
+            <ManagerTreeNode
+              key={node.managerId}
+              node={node}
+              level={0}
+              isMobile={false}
+              isAdminOrHr={isAdminOrHr}
+              currentUserId={currentUserId}
+              allUsersMap={allUsersMap}
+              allUsers={allUsers}
+              timezone={timezone}
+              summaryViewsBatch={summaryViewsBatch}
+              onActionClick={onActionClick}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
 
-const ManagerGroup: React.FC<{
-  group: { managerId: string; managerName: string; members: DisplayRow[] };
+const ManagerTreeNode: React.FC<{
+  node: TreeNode;
+  level: number;
   isMobile: boolean;
   isAdminOrHr: boolean;
   currentUserId?: string;
   allUsersMap?: Map<string, string>;
   allUsers: BasicUser[];
   timezone?: string;
+  summaryViewsBatch?: Record<string, Array<{ user_id: string; viewed_at: string }>>;
   onActionClick?: (row: DisplayRow) => void;
-}> = ({ group, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, onActionClick }) => {
+}> = ({ node, level, isMobile, isAdminOrHr, currentUserId, allUsersMap, allUsers, timezone, summaryViewsBatch, onActionClick }) => {
   const [open, setOpen] = useState(true);
-  const actionCount = group.members.filter(m => isActionRequired(m.monitoringStatus)).length;
-  const okCount = group.members.filter(m => m.monitoringStatus === 'ok').length;
-  const totalCount = group.members.length;
-  const sortedMembers = [...group.members].sort((a, b) => {
+
+  const allMembersFlat = useMemo(() => {
+    const acc: DisplayRow[] = [];
+    const collect = (n: TreeNode) => {
+      acc.push(...n.directMembers);
+      n.childManagers.forEach(collect);
+    };
+    collect(node);
+    return acc;
+  }, [node]);
+
+  const actionCount = allMembersFlat.filter(m => isActionRequired(m.monitoringStatus)).length;
+  const overdueCount = allMembersFlat.filter(m => m.monitoringStatus === 'overdue').length;
+
+  const sortedDirect = [...node.directMembers].sort((a, b) => {
     const diff = PRIORITY_ORDER[a.monitoringStatus] - PRIORITY_ORDER[b.monitoringStatus];
     if (diff !== 0) return diff;
     return (b.daysSinceLast ?? 999) - (a.daysSinceLast ?? 999);
   });
 
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger asChild>
-        <button className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left">
-          {open
-            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          }
-          <span className="font-semibold text-sm text-foreground">{group.managerName}</span>
-          <span className="text-xs text-muted-foreground">
-            {totalCount} {totalCount === 1 ? 'строка' : totalCount < 5 ? 'строки' : 'строк'}
+  const headerPadLeft = level * 24 + 16;
+
+  const headerContent = (
+    <div
+      className="flex items-center gap-2 py-2 pr-4 bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+      style={{ paddingLeft: `${headerPadLeft}px` }}
+      onClick={() => setOpen(o => !o)}
+    >
+      {open
+        ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      }
+      <span className="font-semibold text-body-md text-foreground">{node.managerName}</span>
+      <span className="text-caption-sm text-muted-foreground">
+        {pluralizeEmployees(node.totalCount)}
+      </span>
+      {overdueCount > 0 && (
+        <div className="ml-auto flex items-center gap-3 text-[11px]">
+          <span className="font-medium text-destructive flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {overdueCount} {overdueCount === 1 ? 'просрочена' : overdueCount < 5 ? 'просрочены' : 'просрочено'}
           </span>
-          <div className="ml-auto flex items-center gap-3 text-[11px]">
-            {actionCount > 0 && (
-              <span className="font-medium text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                {actionCount} требует действий
-              </span>
-            )}
-            {okCount > 0 && (
-              <span className="text-success flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" />
-                {okCount} в норме
-              </span>
-            )}
-          </div>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        {isMobile ? (
-          <div className="divide-y divide-border/30">
-            {sortedMembers.map(row => (
+        </div>
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div>
+        {headerContent}
+        {open && (
+          <>
+            {sortedDirect.map(row => (
               <RowMobileCard
                 key={row.rowKey}
                 row={row}
@@ -1051,31 +1172,71 @@ const ManagerGroup: React.FC<{
                 allUsers={allUsers}
                 indent
                 timezone={timezone}
+                summaryViewsBatch={summaryViewsBatch}
                 onActionClick={onActionClick}
               />
             ))}
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <tbody>
-              {sortedMembers.map(row => (
-                <RowDesktop
-                  key={row.rowKey}
-                  row={row}
-                  isAdminOrHr={isAdminOrHr}
-                  currentUserId={currentUserId}
-                  allUsersMap={allUsersMap}
-                  allUsers={allUsers}
-                  indentLevel={1}
-                  timezone={timezone}
-                  onActionClick={onActionClick}
-                />
-              ))}
-            </tbody>
-          </table>
+            {node.childManagers.map(child => (
+              <ManagerTreeNode
+                key={child.managerId}
+                node={child}
+                level={level + 1}
+                isMobile
+                isAdminOrHr={isAdminOrHr}
+                currentUserId={currentUserId}
+                allUsersMap={allUsersMap}
+                allUsers={allUsers}
+                timezone={timezone}
+                summaryViewsBatch={summaryViewsBatch}
+                onActionClick={onActionClick}
+              />
+            ))}
+          </>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    );
+  }
+
+  // Desktop — render as table rows so columns align with the shared <thead>
+  return (
+    <>
+      <tr>
+        <td colSpan={5} className="p-0">{headerContent}</td>
+      </tr>
+      {open && (
+        <>
+          {sortedDirect.map(row => (
+            <RowDesktop
+              key={row.rowKey}
+              row={row}
+              isAdminOrHr={isAdminOrHr}
+              currentUserId={currentUserId}
+              allUsersMap={allUsersMap}
+              allUsers={allUsers}
+              indentLevel={level + 1}
+              timezone={timezone}
+              summaryViewsBatch={summaryViewsBatch}
+              onActionClick={onActionClick}
+            />
+          ))}
+          {node.childManagers.map(child => (
+            <ManagerTreeNode
+              key={child.managerId}
+              node={child}
+              level={level + 1}
+              isMobile={false}
+              isAdminOrHr={isAdminOrHr}
+              currentUserId={currentUserId}
+              allUsersMap={allUsersMap}
+              allUsers={allUsers}
+              timezone={timezone}
+              summaryViewsBatch={summaryViewsBatch}
+              onActionClick={onActionClick}
+            />
+          ))}
+        </>
+      )}
+    </>
   );
 };
 
@@ -1100,19 +1261,22 @@ const RowDesktop: React.FC<{
   const canClick = isProblematic && !!getActionIntent(row);
   const okAction = getOkActionText(row);
 
-  // View status for ok rows with summary
-  const viewStatusText = useMemo(() => {
-    if (row.monitoringStatus !== 'ok' || !row.meetingId || !row.meetingSummarySavedBy || !summaryViewsBatch) return null;
+  // View status for ok rows with summary — also computes the other-party name
+  const { viewStatusText, otherPartyName } = useMemo(() => {
+    if (!row.meetingId || !row.meetingSummarySavedBy || !summaryViewsBatch) {
+      return { viewStatusText: null as null | 'viewed' | 'not_viewed', otherPartyName: null as null | string };
+    }
     const views = summaryViewsBatch[row.meetingId] || [];
-    // Who should have viewed? The other participant (not the author)
     const otherParticipantId = row.meetingSummarySavedBy === row.meetingEmployeeId
       ? row.meetingManagerId
       : row.meetingEmployeeId;
-    if (!otherParticipantId) return null;
+    if (!otherParticipantId) {
+      return { viewStatusText: null, otherPartyName: null };
+    }
     const view = views.find(v => v.user_id === otherParticipantId);
-    if (view) return 'Ознакомлен';
-    return 'Не просмотрено';
-  }, [row, summaryViewsBatch]);
+    const name = allUsersMap?.get(otherParticipantId) || null;
+    return { viewStatusText: view ? 'viewed' : 'not_viewed', otherPartyName: name };
+  }, [row, summaryViewsBatch, allUsersMap]);
 
   return (
     <tr
@@ -1120,19 +1284,14 @@ const RowDesktop: React.FC<{
         row.monitoringStatus === 'overdue' ? 'bg-destructive/[0.03]' : ''
       }`}
     >
-      <td className={`pr-2 py-2.5 ${indentLevel > 0 ? 'pl-10' : 'pl-4'}`}>
+      <td className="pr-2 py-2.5" style={{ paddingLeft: `${indentLevel * 24 + 16}px` }}>
         <div className="font-medium text-foreground">{formatUserName(row)}</div>
         {subText && (
           <div className="text-[11px] text-muted-foreground/70 leading-snug mt-0.5">{subText}</div>
         )}
         {row.lastSummarySavedBy && (
           <div className="text-[11px] text-muted-foreground/50 leading-snug">
-            Итоги: {row.lastSummarySavedBy}
-            {viewStatusText && (
-              <span className={`ml-1.5 ${viewStatusText === 'Ознакомлен' ? 'text-primary/60' : 'text-warning/70'}`}>
-                · {viewStatusText}
-              </span>
-            )}
+            Записал(а): {row.lastSummarySavedBy}
           </div>
         )}
       </td>
@@ -1141,8 +1300,25 @@ const RowDesktop: React.FC<{
           {cfg.icon}{cfg.label}
         </Badge>
       </td>
-      <td className="px-2 py-2.5 text-xs text-muted-foreground">{getContextText(row, timezone)}</td>
-      <td className={`pl-2 pr-4 py-2.5 text-xs ${getActionClass(row.monitoringStatus)}`}>
+      <td className="px-2 py-2.5">
+        {!row.lastSummarySavedBy ? (
+          <span className="text-caption-sm text-muted-foreground/40">—</span>
+        ) : viewStatusText === 'viewed' ? (
+          <span className="inline-flex items-center gap-1 text-caption-sm text-success">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {otherPartyName ? `${otherPartyName} ознакомился` : 'Ознакомлен'}
+          </span>
+        ) : viewStatusText === 'not_viewed' ? (
+          <span className="inline-flex items-center gap-1 text-caption-sm text-warning">
+            <Clock className="w-3.5 h-3.5" />
+            {otherPartyName ? `${otherPartyName} не просмотрел` : 'Не просмотрено'}
+          </span>
+        ) : (
+          <span className="text-caption-sm text-muted-foreground/40">—</span>
+        )}
+      </td>
+      <td className="px-2 py-2.5 text-caption-sm text-muted-foreground">{getContextText(row, timezone)}</td>
+      <td className={`pl-2 pr-4 py-2.5 text-caption-sm ${getActionClass(row.monitoringStatus)}`}>
         {canClick ? (
           <button
             type="button"
@@ -1194,8 +1370,9 @@ const RowMobileCard: React.FC<{
   allUsers: BasicUser[];
   indent?: boolean;
   timezone?: string;
+  summaryViewsBatch?: Record<string, Array<{ user_id: string; viewed_at: string }>>;
   onActionClick?: (row: DisplayRow) => void;
-}> = ({ row, showManager, isAdminOrHr, currentUserId, allUsersMap, allUsers, indent, timezone, onActionClick }) => {
+}> = ({ row, showManager, isAdminOrHr, currentUserId, allUsersMap, allUsers, indent, timezone, summaryViewsBatch, onActionClick }) => {
   const cfg = getStatusConfig(row.monitoringStatus);
   const isProblematic = isActionRequired(row.monitoringStatus);
   const canClick = isProblematic && !!getActionIntent(row);
@@ -1204,20 +1381,51 @@ const RowMobileCard: React.FC<{
     ? getSubordinationText(row, isAdminOrHr, currentUserId, allUsersMap, allUsers)
     : '';
 
+  const { viewStatusText, otherPartyName } = useMemo(() => {
+    if (!row.meetingId || !row.meetingSummarySavedBy || !summaryViewsBatch) {
+      return { viewStatusText: null as null | 'viewed' | 'not_viewed', otherPartyName: null as null | string };
+    }
+    const views = summaryViewsBatch[row.meetingId] || [];
+    const otherParticipantId = row.meetingSummarySavedBy === row.meetingEmployeeId
+      ? row.meetingManagerId
+      : row.meetingEmployeeId;
+    if (!otherParticipantId) return { viewStatusText: null, otherPartyName: null };
+    const view = views.find(v => v.user_id === otherParticipantId);
+    const name = allUsersMap?.get(otherParticipantId) || null;
+    return { viewStatusText: view ? 'viewed' : 'not_viewed', otherPartyName: name };
+  }, [row, summaryViewsBatch, allUsersMap]);
+
   return (
     <div className={`px-3 py-2.5 space-y-1 ${indent ? 'pl-6' : ''} ${row.monitoringStatus === 'overdue' ? 'bg-destructive/5' : ''}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-sm text-foreground truncate">{formatUserName(row)}</span>
+        <span className="font-medium text-body-md text-foreground truncate">{formatUserName(row)}</span>
         <Badge variant="outline" className={`shrink-0 gap-1 text-[11px] px-2 py-0.5 ${cfg.badgeClass}`}>
           {cfg.icon}{cfg.label}
         </Badge>
       </div>
       {subText && <p className="text-[11px] text-muted-foreground/70">{subText}</p>}
-      <p className="text-xs text-muted-foreground">{getContextText(row, timezone)}</p>
+      {row.lastSummarySavedBy && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+          <span className="text-muted-foreground/50">Записал(а): {row.lastSummarySavedBy}</span>
+          {viewStatusText === 'viewed' && (
+            <span className="inline-flex items-center gap-0.5 text-success">
+              <CheckCircle2 className="w-3 h-3" />
+              {otherPartyName ? `${otherPartyName} ознакомился` : 'Ознакомлен'}
+            </span>
+          )}
+          {viewStatusText === 'not_viewed' && (
+            <span className="inline-flex items-center gap-0.5 text-warning">
+              <Clock className="w-3 h-3" />
+              {otherPartyName ? `${otherPartyName} не просмотрел` : 'Не просмотрено'}
+            </span>
+          )}
+        </div>
+      )}
+      <p className="text-caption-sm text-muted-foreground">{getContextText(row, timezone)}</p>
       {canClick ? (
         <button
           type="button"
-          className={`text-xs ${getActionClass(row.monitoringStatus)} hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded`}
+          className={`text-caption-sm ${getActionClass(row.monitoringStatus)} hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded`}
           onClick={(e) => {
             e.stopPropagation();
             onActionClick?.(row);
@@ -1227,10 +1435,10 @@ const RowMobileCard: React.FC<{
         </button>
       ) : okAction ? (
         <div className="space-y-0.5">
-          <p className={`text-xs ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
+          <p className={`text-caption-sm ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
           <button
             type="button"
-            className="text-xs text-primary hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+            className="text-caption-sm text-primary hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
             onClick={(e) => {
               e.stopPropagation();
               onActionClick?.(row);
@@ -1240,7 +1448,7 @@ const RowMobileCard: React.FC<{
           </button>
         </div>
       ) : (
-        <p className={`text-xs ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
+        <p className={`text-caption-sm ${getActionClass(row.monitoringStatus)}`}>→ {getActionText(row.monitoringStatus)}</p>
       )}
     </div>
   );
@@ -1257,7 +1465,7 @@ const KpiCard: React.FC<{ icon: React.ReactNode; label: string; value: number; a
         <span className={accent || 'text-muted-foreground'}>{icon}</span>
         <span className="text-[11px] text-muted-foreground leading-tight">{label}</span>
       </div>
-      <div className={`text-xl font-bold leading-tight ${accent || 'text-foreground'}`}>{value}</div>
+      <div className={`text-heading-4 font-bold leading-tight ${accent || 'text-foreground'}`}>{value}</div>
     </CardContent>
   </Card>
 );

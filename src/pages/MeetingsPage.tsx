@@ -4,7 +4,7 @@ import { useMinuteTick } from '@/hooks/useMinuteTick';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Plus, Clock, CheckCircle, FileText, History, CalendarClock, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Clock, CheckCircle, FileText, History, CalendarClock, Trash2 } from "@/components/icons";
 import { RescheduleMeetingDialog } from '@/components/RescheduleMeetingDialog';
 import { useOneOnOneMeetings } from '@/hooks/useOneOnOneMeetings';
 import { useSubordinates } from '@/hooks/useSubordinates';
@@ -493,7 +493,7 @@ const MeetingsPage = () => {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Встречи one-to-one</h1>
+          <h1 className="text-heading-2 font-bold text-foreground">Встречи one-to-one</h1>
           <p className="text-muted-foreground mt-1"><p className="text-muted-foreground mt-1">Планирование и история встреч с лидом</p></p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
@@ -644,7 +644,7 @@ const MeetingsPage = () => {
                 {/* Manager filter — only for manager+1 */}
                 {hasIndirectReports && (
                   <>
-                    <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Лид:</label>
+                    <label className="text-body-md font-medium text-muted-foreground whitespace-nowrap">Лид:</label>
                     <Select value={selectedManagerFilter} onValueChange={setSelectedManagerFilter}>
                       <SelectTrigger className="w-64">
                         <SelectValue placeholder="Выберите лида" />
@@ -664,7 +664,7 @@ const MeetingsPage = () => {
                     </Select>
                   </>
                 )}
-                <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Сотрудник:</label>
+                <label className="text-body-md font-medium text-muted-foreground whitespace-nowrap">Сотрудник:</label>
                 <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                   <SelectTrigger className="w-64">
                     <SelectValue placeholder="Выберите сотрудника" />
@@ -712,7 +712,7 @@ const MeetingsPage = () => {
             ) : (
             <>
             <div className="flex items-center gap-3 flex-wrap">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Лид:</label>
+              <label className="text-body-md font-medium text-muted-foreground whitespace-nowrap">Лид:</label>
               <Select value={selectedAllManagerFilter} onValueChange={setSelectedAllManagerFilter}>
                 <SelectTrigger className="w-64">
                   <SelectValue placeholder={allEmployeesLoading ? 'Загрузка...' : 'Выберите лида'} />
@@ -725,7 +725,7 @@ const MeetingsPage = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Сотрудник:</label>
+              <label className="text-body-md font-medium text-muted-foreground whitespace-nowrap">Сотрудник:</label>
               <Select value={selectedAllEmployeeId} onValueChange={setSelectedAllEmployeeId}>
                 <SelectTrigger className="w-64">
                   <SelectValue placeholder={!selectedAllManagerFilter ? 'Сначала выберите руководителя' : 'Выберите сотрудника'} />

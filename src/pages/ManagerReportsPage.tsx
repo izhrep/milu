@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, TrendingUp, FileText } from 'lucide-react';
+import { Users, ChevronRight, TrendingUp, FileText } from "@/components/icons";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
@@ -108,30 +108,30 @@ const ManagerReportsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-purple mx-auto"></div>
-          <p className="mt-4 text-text-secondary">Загрузка...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="items-stretch border shadow-[2px_4px_16px_0_rgba(248,248,248,0.06)_inset,0_54px_32px_-16px_rgba(5,5,5,0.05),0_24px_24px_-16px_rgba(5,5,5,0.09),0_6px_12px_0_rgba(5,5,5,0.10),0_4px_4px_-4px_rgba(5,5,5,0.10),0_0.5px_1.5px_-4px_rgba(5,5,5,0.50)] flex overflow-hidden flex-wrap rounded-[32px] border-solid border-[rgba(255,255,255,0.40)]">
+    <div className="items-stretch border shadow-lg flex overflow-hidden flex-wrap rounded-[32px] border-solid border-background/40">
       <Sidebar />
       
       <div className="flex-1 max-w-6xl mx-auto p-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text-primary mb-2">Отчёты по подчинённым</h1>
-          <p className="text-text-secondary">Результаты оценок ваших сотрудников</p>
+          <h1 className="text-heading-2 font-bold text-foreground mb-2">Отчёты по подчинённым</h1>
+          <p className="text-muted-foreground">Результаты оценок ваших сотрудников</p>
         </div>
 
         {employees.length === 0 ? (
           <Card className="p-12 text-center">
-            <Users className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-text-primary mb-2">Нет подчинённых</h3>
-            <p className="text-text-secondary">У вас пока нет подчинённых сотрудников</p>
+            <Users className="w-16 h-16 text-muted-foreground/70 mx-auto mb-4" />
+            <h3 className="text-heading-4 font-semibold text-foreground mb-2">Нет подчинённых</h3>
+            <p className="text-muted-foreground">У вас пока нет подчинённых сотрудников</p>
           </Card>
         ) : (
           <div className="space-y-4">
@@ -139,32 +139,32 @@ const ManagerReportsPage = () => {
               <Card key={employee.id} className="p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-text-primary mb-1">
+                    <h3 className="text-body-lg font-semibold text-foreground mb-1">
                       {getFullName(employee)}
                     </h3>
                     {employee.position_name && (
-                      <p className="text-sm text-text-secondary mb-3">{employee.position_name}</p>
+                      <p className="text-body-md text-muted-foreground mb-3">{employee.position_name}</p>
                     )}
                     
                     <div className="flex gap-2">
                       {employee.has_skill_results ? (
-                        <Badge variant="default" className="bg-green-100 text-green-800">
+                        <Badge variant="default" className="bg-success/20 text-success">
                           <FileText className="w-3 h-3 mr-1" />
                           Навыки
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-gray-500">
+                        <Badge variant="outline" className="text-muted-foreground">
                           Нет оценки навыков
                         </Badge>
                       )}
                       
                       {employee.has_360_results ? (
-                        <Badge variant="default" className="bg-purple-100 text-purple-800">
+                        <Badge variant="default" className="bg-chart-3/20 text-chart-3">
                           <TrendingUp className="w-3 h-3 mr-1" />
                           360°
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-gray-500">
+                        <Badge variant="outline" className="text-muted-foreground">
                           Нет оценки 360°
                         </Badge>
                       )}

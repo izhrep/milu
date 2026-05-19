@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from "@/components/icons";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -151,8 +151,8 @@ export function ImportGradesData() {
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary mb-2">Импорт грейдов</h2>
-          <p className="text-text-secondary">
+          <h2 className="text-heading-3 font-bold text-foreground mb-2">Импорт грейдов</h2>
+          <p className="text-muted-foreground">
             Загрузите Excel-файл с данными о грейдах, должностях и требованиях к навыкам
           </p>
         </div>
@@ -184,10 +184,10 @@ export function ImportGradesData() {
                 />
                 <label htmlFor="grades-file-upload" className="cursor-pointer">
                   <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm text-text-secondary mb-2">
+                  <p className="text-body-md text-muted-foreground mb-2">
                     {file ? file.name : 'Нажмите для выбора файла или перетащите его сюда'}
                   </p>
-                  <p className="text-xs text-text-tertiary">Excel (.xlsx, .xls)</p>
+                  <p className="text-caption-sm text-muted-foreground/70">Excel (.xlsx, .xls)</p>
                 </label>
               </div>
 
@@ -245,7 +245,7 @@ export function ImportGradesData() {
                       </TableBody>
                     </Table>
                     {parsedData.length > 20 && (
-                      <p className="text-xs text-text-tertiary mt-2 text-center">
+                      <p className="text-caption-sm text-muted-foreground/70 mt-2 text-center">
                         Показаны первые 20 из {parsedData.length} записей
                       </p>
                     )}
@@ -287,9 +287,9 @@ export function ImportGradesData() {
           </DialogContent>
         </Dialog>
 
-        <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+        <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-body-md">
           <p className="font-medium">Формат файла:</p>
-          <ul className="list-disc list-inside space-y-1 text-text-secondary">
+          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
             <li>Столбцы: Название грейда, Уровень грейда, Должность, Тип навыка, Skill, Уровень навыка</li>
             <li>Тип навыка должен быть "Hard" или "Soft"</li>
             <li>Уровни навыков: Hard Skills (0-4), Soft Skills (0-5)</li>

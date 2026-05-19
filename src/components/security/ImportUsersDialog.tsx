@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, XCircle, Loader2 } from "@/components/icons";
 
 interface ImportUsersDialogProps {
   open: boolean;
@@ -334,7 +334,7 @@ const ImportUsersDialog: React.FC<ImportUsersDialogProps> = ({ open, onOpenChang
                 className="max-w-xs mx-auto"
               />
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-body-md text-muted-foreground">
               <p className="font-medium mb-2">Ожидаемые столбцы:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Фамилия (обязательно)</li>
@@ -356,7 +356,7 @@ const ImportUsersDialog: React.FC<ImportUsersDialogProps> = ({ open, onOpenChang
               <Badge variant="outline" className="gap-1">
                 Всего: {parsedUsers.length}
               </Badge>
-              <Badge variant="default" className="gap-1 bg-green-600">
+              <Badge variant="default" className="gap-1 bg-success">
                 <CheckCircle2 className="h-3 w-3" />
                 Валидных: {validCount}
               </Badge>
@@ -413,13 +413,13 @@ const ImportUsersDialog: React.FC<ImportUsersDialogProps> = ({ open, onOpenChang
                       <TableCell>
                         {user.status === 'pending' ? (
                           <Badge variant="outline" className="gap-1">
-                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            <CheckCircle2 className="h-3 w-3 text-success" />
                             Готов
                           </Badge>
                         ) : (
                           <div className="flex items-start gap-1">
                             <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                            <span className="text-xs text-destructive">
+                            <span className="text-caption-sm text-destructive">
                               {user.errors.join('; ')}
                             </span>
                           </div>
@@ -436,8 +436,8 @@ const ImportUsersDialog: React.FC<ImportUsersDialogProps> = ({ open, onOpenChang
         {step === 'importing' && (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-lg font-medium">Выполняется импорт пользователей...</p>
-            <p className="text-sm text-muted-foreground">Это может занять некоторое время</p>
+            <p className="text-body-lg font-medium">Выполняется импорт пользователей...</p>
+            <p className="text-body-md text-muted-foreground">Это может занять некоторое время</p>
           </div>
         )}
 
@@ -447,7 +447,7 @@ const ImportUsersDialog: React.FC<ImportUsersDialogProps> = ({ open, onOpenChang
               <Badge variant="outline" className="gap-1">
                 Всего: {report.total}
               </Badge>
-              <Badge variant="default" className="gap-1 bg-green-600">
+              <Badge variant="default" className="gap-1 bg-success">
                 <CheckCircle2 className="h-3 w-3" />
                 Успешно: {report.success}
               </Badge>
@@ -473,18 +473,18 @@ const ImportUsersDialog: React.FC<ImportUsersDialogProps> = ({ open, onOpenChang
                   {report.results.map((result, idx) => (
                     <TableRow 
                       key={idx} 
-                      className={result.status === 'error' ? 'bg-destructive/10' : 'bg-green-50 dark:bg-green-950/20'}
+                      className={result.status === 'error' ? 'bg-destructive/10' : 'bg-success/10 dark:bg-success/20'}
                     >
                       <TableCell>{result.rowNumber}</TableCell>
                       <TableCell>{result.email}</TableCell>
                       <TableCell>
                         {result.status === 'success' ? (
-                          <Badge variant="default" className="bg-green-600">Успешно</Badge>
+                          <Badge variant="default" className="bg-success">Успешно</Badge>
                         ) : (
                           <Badge variant="destructive">Ошибка</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">{result.message}</TableCell>
+                      <TableCell className="text-body-md">{result.message}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

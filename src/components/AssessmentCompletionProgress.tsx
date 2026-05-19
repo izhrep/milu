@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock } from 'lucide-react';
+import { CheckCircle, Circle, Clock } from "@/components/icons";
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { isCompleted } from '@/lib/statusMapper';
@@ -40,9 +40,9 @@ export const AssessmentCompletionProgress: React.FC<AssessmentCompletionProgress
 
   const getStatusIcon = (status: string) => {
     if (isCompleted(status)) {
-      return <CheckCircle className="w-5 h-5 text-green-600" />;
+      return <CheckCircle className="w-5 h-5 text-success" />;
     }
-    return <Circle className="w-5 h-5 text-gray-400" />;
+    return <Circle className="w-5 h-5 text-muted-foreground/70" />;
   };
 
   return (
@@ -55,7 +55,7 @@ export const AssessmentCompletionProgress: React.FC<AssessmentCompletionProgress
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-body-md">
             <span className="text-muted-foreground">Завершено</span>
             <span className="font-medium">{completedCount} из {totalCount}</span>
           </div>
@@ -63,14 +63,14 @@ export const AssessmentCompletionProgress: React.FC<AssessmentCompletionProgress
         </div>
 
         {!isComplete && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-sm text-yellow-800">
+          <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
+            <p className="text-body-md text-warning">
               <strong>Требования для просмотра отчёта:</strong>
             </p>
-            <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+            <ul className="text-body-md text-warning mt-2 space-y-1">
               <li className="flex items-center gap-2">
                 {hasSelfAssessment ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-success" />
                 ) : (
                   <Circle className="w-4 h-4" />
                 )}
@@ -78,7 +78,7 @@ export const AssessmentCompletionProgress: React.FC<AssessmentCompletionProgress
               </li>
               <li className="flex items-center gap-2">
                 {hasSupervisorAssessment ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-success" />
                 ) : (
                   <Circle className="w-4 h-4" />
                 )}
@@ -86,7 +86,7 @@ export const AssessmentCompletionProgress: React.FC<AssessmentCompletionProgress
               </li>
               <li className="flex items-center gap-2">
                 {colleagueCount >= 1 ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-success" />
                 ) : (
                   <Circle className="w-4 h-4" />
                 )}
@@ -97,24 +97,24 @@ export const AssessmentCompletionProgress: React.FC<AssessmentCompletionProgress
         )}
 
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold">Статусы респондентов</h4>
+          <h4 className="text-body-md font-semibold">Статусы респондентов</h4>
           <div className="space-y-2">
             {respondents.map((respondent) => (
               <div
                 key={respondent.id}
-                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-2 bg-muted rounded-lg"
               >
                 <div className="flex items-center gap-3">
                   {getStatusIcon(respondent.status)}
                   <div>
-                    <p className="text-sm font-medium">{respondent.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-body-md font-medium">{respondent.name}</p>
+                    <p className="text-caption-sm text-muted-foreground">
                       {getTypeLabel(respondent.type)}
                     </p>
                   </div>
                 </div>
                 {respondent.completed_at && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-caption-sm text-muted-foreground">
                     {new Date(respondent.completed_at).toLocaleDateString('ru-RU')}
                   </span>
                 )}

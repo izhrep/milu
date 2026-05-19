@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, TrendingUp, Target, Award } from 'lucide-react';
+import { Trophy, TrendingUp, Target, Award } from "@/components/icons";
 import { useUserSkills } from '@/hooks/useUserSkills';
 import { useUserQualities } from '@/hooks/useUserQualities';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,7 +29,7 @@ export const DashboardStats = () => {
       {stats.map((stat) => (
         <Card key={stat.title} className="border-0 shadow-card overflow-hidden">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary flex items-center justify-between">
+            <CardTitle className="text-body-md font-medium text-muted-foreground flex items-center justify-between">
               {stat.title}
               <div className={`p-2 rounded-lg ${stat.gradient}`}>
                 <stat.icon className="h-4 w-4 text-white" />
@@ -37,7 +37,7 @@ export const DashboardStats = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-text-primary">{stat.value}</div>
+            <div className="text-heading-2 font-bold text-foreground">{stat.value}</div>
           </CardContent>
         </Card>
       ))}

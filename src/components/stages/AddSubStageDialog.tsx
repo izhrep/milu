@@ -119,7 +119,7 @@ export const AddSubStageDialog = ({ open, onOpenChange, parentStageId, hasDiagno
             )}
 
             {hasDiagnostic && hasMeetings && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-md text-muted-foreground">
                 Все подэтапы уже созданы для этого этапа
               </p>
             )}

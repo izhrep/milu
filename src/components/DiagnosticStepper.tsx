@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, User, ClipboardList, BarChart3 } from 'lucide-react';
+import { Check, User, ClipboardList, BarChart3 } from "@/components/icons";
 import { useDiagnosticStages } from '@/hooks/useDiagnosticStages';
 
 interface DiagnosticStepperProps {
@@ -63,7 +63,7 @@ export const DiagnosticStepper: React.FC<DiagnosticStepperProps> = ({ userId }) 
                   )}
                 </div>
                 <span
-                  className={`text-sm font-medium text-center ${
+                  className={`text-body-md font-medium text-center ${
                     isActive
                       ? 'text-primary'
                       : isCompleted
@@ -90,7 +90,7 @@ export const DiagnosticStepper: React.FC<DiagnosticStepperProps> = ({ userId }) 
 
       {currentStep === 'assessment' && completionPercentage > 0 && (
         <div className="mt-4">
-          <div className="flex justify-between text-sm mb-2">
+          <div className="flex justify-between text-body-md mb-2">
             <span className="text-muted-foreground">Прогресс выполнения</span>
             <span className="font-medium">{Math.round(completionPercentage)}%</span>
           </div>

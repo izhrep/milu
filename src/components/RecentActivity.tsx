@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Clock } from 'lucide-react';
+import { Clock } from "@/components/icons";
 
 interface Activity {
   id: string;
@@ -38,22 +38,22 @@ export const RecentActivity = () => {
   return (
     <Card className="border-0 shadow-card">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Последняя активность</CardTitle>
+        <CardTitle className="text-body-lg font-semibold">Последняя активность</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {mockActivities.map((activity) => (
             <div key={activity.id} className="flex items-start gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-brand-purple text-white text-sm">
+                <AvatarFallback className="bg-accent text-white text-body-md">
                   {activity.user.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-text-primary">
+                <p className="text-body-md text-foreground">
                   <span className="font-medium">{activity.user}</span> {activity.action}
                 </p>
-                <div className="flex items-center gap-1 mt-1 text-xs text-text-secondary">
+                <div className="flex items-center gap-1 mt-1 text-caption-sm text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   {activity.time}
                 </div>

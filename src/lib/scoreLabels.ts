@@ -123,9 +123,9 @@ export const getScoreColor = (score: number, maxScore: number = 5): string => {
 // Цвета фона для оценок
 export const getScoreBgColor = (score: number, maxScore: number = 5): string => {
   const percentage = (score / maxScore) * 100;
-  if (percentage < 30) return 'bg-red-50 border-red-200';
-  if (percentage < 50) return 'bg-orange-50 border-orange-200';
-  if (percentage < 70) return 'bg-yellow-50 border-yellow-200';
-  if (percentage < 85) return 'bg-green-50 border-green-200';
-  return 'bg-emerald-50 border-emerald-200';
+  if (percentage < 30) return 'bg-destructive/10 border-destructive/30';
+  if (percentage < 50) return 'bg-warning/10 border-warning/30';
+  if (percentage < 70) return 'bg-warning/10 border-warning/30';
+  if (percentage < 85) return 'bg-success/10 border-success/30';
+  return 'bg-success/10 border-success/30';
 };

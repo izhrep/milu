@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, MessageSquare, User, Users, Crown } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, User, Users, Crown } from "@/components/icons";
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getQualityScoreLabel, getScoreColor, getScoreBgColor, type ScaleConfig } from '@/lib/scoreLabels';
@@ -60,13 +60,13 @@ export const ExpandableQualityCard: React.FC<ExpandableQualityCardProps> = ({
   return (
     <Card className="overflow-hidden">
       <div
-        className={`p-6 cursor-pointer hover:bg-surface-secondary/50 transition-colors ${getScoreBgColor(average_score, 4)}`}
+        className={`p-6 cursor-pointer hover:bg-muted/50 transition-colors ${getScoreBgColor(average_score, 4)}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-lg font-semibold text-text-primary">{quality_name}</h3>
+              <h3 className="text-body-lg font-semibold text-foreground">{quality_name}</h3>
               {category && (
                 <Badge variant="secondary">
                   {category}
@@ -74,30 +74,30 @@ export const ExpandableQualityCard: React.FC<ExpandableQualityCardProps> = ({
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-6 text-body-md">
               <div className="flex items-center gap-2">
-                <span className="text-text-secondary">Общая оценка:</span>
-                <span className={`font-bold text-lg ${getScoreColor(average_score, 4)}`}>
+                <span className="text-muted-foreground">Общая оценка:</span>
+                <span className={`font-bold text-body-lg ${getScoreColor(average_score, 4)}`}>
                   {average_score.toFixed(1)}
                 </span>
-                <span className="text-text-tertiary text-xs">
+                <span className="text-muted-foreground/70 text-caption-sm">
                   ({getQualityScoreLabel(average_score, scaleConfig)})
                 </span>
               </div>
               {self_score !== undefined && (
-                <div className="flex items-center gap-1 text-text-secondary">
+                <div className="flex items-center gap-1 text-muted-foreground">
                   <User className="w-4 h-4" />
                   <span>{self_score.toFixed(1)}</span>
                 </div>
               )}
               {supervisor_score !== undefined && (
-                <div className="flex items-center gap-1 text-text-secondary">
+                <div className="flex items-center gap-1 text-muted-foreground">
                   <Crown className="w-4 h-4" />
                   <span>{supervisor_score.toFixed(1)}</span>
                 </div>
               )}
               {colleague_score !== undefined && (
-                <div className="flex items-center gap-1 text-text-secondary">
+                <div className="flex items-center gap-1 text-muted-foreground">
                   <Users className="w-4 h-4" />
                   <span>{colleague_score.toFixed(1)}</span>
                 </div>
@@ -112,27 +112,27 @@ export const ExpandableQualityCard: React.FC<ExpandableQualityCardProps> = ({
               </Badge>
             )}
             {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-text-secondary" />
+              <ChevronUp className="w-5 h-5 text-muted-foreground" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-text-secondary" />
+              <ChevronDown className="w-5 h-5 text-muted-foreground" />
             )}
           </div>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="border-t border-border p-6 space-y-6 bg-surface">
+        <div className="border-t border-border p-6 space-y-6 bg-card">
           {quality_description && (
             <div>
-              <h4 className="font-semibold text-text-primary mb-2">Описание</h4>
-              <p className="text-text-secondary text-sm leading-relaxed">{quality_description}</p>
+              <h4 className="font-semibold text-foreground mb-2">Описание</h4>
+              <p className="text-muted-foreground text-body-md leading-relaxed">{quality_description}</p>
             </div>
           )}
 
           {behavioral_indicators && (
             <div>
-              <h4 className="font-semibold text-text-primary mb-2">Поведенческие индикаторы</h4>
-              <div className="text-text-secondary text-sm leading-relaxed whitespace-pre-line">
+              <h4 className="font-semibold text-foreground mb-2">Поведенческие индикаторы</h4>
+              <div className="text-muted-foreground text-body-md leading-relaxed whitespace-pre-line">
                 {behavioral_indicators}
               </div>
             </div>

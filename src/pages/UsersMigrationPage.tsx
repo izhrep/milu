@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, XCircle } from "@/components/icons";
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -163,8 +163,8 @@ export default function UsersMigrationPage() {
       <Breadcrumbs />
 
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-text-primary">Миграция пользователей</h1>
-        <p className="text-text-secondary mt-1">
+        <h1 className="text-heading-2 font-bold text-foreground">Миграция пользователей</h1>
+        <p className="text-muted-foreground mt-1">
           Пересоздание пользователей с шифрованием через внешний API (кроме EMP011)
         </p>
       </div>
@@ -258,7 +258,7 @@ export default function UsersMigrationPage() {
                     <TableCell className="font-medium">{user.employee_number}</TableCell>
                     <TableCell>{user.last_name}</TableCell>
                     <TableCell>{user.first_name}</TableCell>
-                    <TableCell className="text-text-secondary">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
                       <Badge variant={user.status ? 'default' : 'secondary'}>
                         {user.status ? 'Активен' : 'Неактивен'}
@@ -295,7 +295,7 @@ export default function UsersMigrationPage() {
                   <TableRow key={index}>
                     <TableCell>
                       {result.status === 'success' ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <CheckCircle className="h-5 w-5 text-success" />
                       ) : (
                         <XCircle className="h-5 w-5 text-destructive" />
                       )}

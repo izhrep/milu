@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Users } from 'lucide-react';
+import { Users } from "@/components/icons";
 import { ColleagueSelectionDialog } from './ColleagueSelectionDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';

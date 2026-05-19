@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Plus, Pencil, Archive, CheckCircle, ChevronDown, ChevronUp, ExternalLink, Info, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Archive, CheckCircle, ChevronDown, ChevronUp, ExternalLink, Info, Loader2 } from "@/components/icons";
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   useDiagnosticConfigTemplates,
@@ -151,28 +151,28 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg flex flex-col max-h-[85vh]">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg">{isEdit ? 'Редактировать шаблон' : 'Новый шаблон конфигурации'}</DialogTitle>
+          <DialogTitle className="text-body-lg">{isEdit ? 'Редактировать шаблон' : 'Новый шаблон конфигурации'}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1 -mr-1">
           {/* Основное */}
           <div className="space-y-2.5">
             <div>
-              <Label className="text-xs text-muted-foreground">Название</Label>
+              <Label className="text-caption-sm text-muted-foreground">Название</Label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Шаблон v1" className="mt-1 h-9" />
               {!nameValid && name !== '' && (
-                <p className="text-xs text-destructive mt-0.5">Обязательное поле</p>
+                <p className="text-caption-sm text-destructive mt-0.5">Обязательное поле</p>
               )}
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Описание</Label>
+              <Label className="text-caption-sm text-muted-foreground">Описание</Label>
               <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Опционально" className="mt-1 h-9" />
             </div>
           </div>
 
           {/* Раздел: Шкалы и правила */}
           <div className="pt-1">
-            <h3 className="text-sm font-semibold text-foreground mb-3">Шкалы и правила опросника диагностики</h3>
+            <h3 className="text-body-md font-semibold text-foreground mb-3">Шкалы и правила опросника диагностики</h3>
             <div className="space-y-3">
               <HardSkillsScaleCard
                 enabled={hardEnabled} onEnabledChange={setHardEnabled}
@@ -194,9 +194,9 @@ const TemplateFormDialog: React.FC<TemplateFormDialogProps> = ({ open, onOpenCha
 
           {/* Условный инфо-блок — только если реверс включён */}
           {(hardReversed || softReversed) && (
-            <Alert className="border-amber-200 bg-amber-50 p-2.5">
-              <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <AlertDescription className="text-xs text-amber-700 ml-2">
+            <Alert className="border-warning/30 bg-warning/10 p-2.5">
+              <Info className="h-4 w-4 text-warning flex-shrink-0" />
+              <AlertDescription className="text-caption-sm text-warning ml-2">
                 Реверс шкалы включён. Баллы ответа остаются прежними для респондента, но в аналитике и профиле компетенций направление инвертируется. Формула: итоговый балл = мин + макс − ответ.
               </AlertDescription>
             </Alert>
@@ -226,7 +226,7 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
   return (
     <TableRow>
       <TableCell colSpan={9} className="bg-muted/20 p-4">
-        <div className="space-y-4 text-sm">
+        <div className="space-y-4 text-body-md">
           {tpl.description && (
             <p className="text-muted-foreground">{tpl.description}</p>
           )}
@@ -234,7 +234,7 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Левый блок — Шкалы */}
             <div className="border border-border rounded-lg p-3 bg-card space-y-2">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Шкалы</h4>
+              <h4 className="text-caption-sm font-semibold text-muted-foreground uppercase tracking-wide">Шкалы</h4>
               <div>
                 <span className="text-muted-foreground">Hard-навыки: </span>
                 <span className="font-medium">{summary.hardSkillsLabel}</span>
@@ -248,16 +248,16 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
                 <span className="font-medium">{summary.softScaleLabel}</span>
               </div>
               {summary.reverseExplanation && (
-                <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2">
-                  <p className="text-xs font-medium text-amber-800 mb-1">⚠️ Реверс шкалы активен</p>
-                  <p className="text-xs text-amber-700">{summary.reverseExplanation}</p>
+                <div className="mt-2 rounded border border-warning/30 bg-warning/10 p-2">
+                  <p className="text-caption-sm font-medium text-warning mb-1">⚠️ Реверс шкалы активен</p>
+                  <p className="text-caption-sm text-warning">{summary.reverseExplanation}</p>
                 </div>
               )}
             </div>
 
             {/* Правый блок — Правила */}
             <div className="border border-border rounded-lg p-3 bg-card space-y-2">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Правила</h4>
+              <h4 className="text-caption-sm font-semibold text-muted-foreground uppercase tracking-wide">Правила</h4>
               <div>
                 <span className="text-muted-foreground">Комментарии: </span>
                 <span className="font-medium">{summary.commentsLabel}</span>
@@ -274,7 +274,7 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
 
           {/* Блок Johari */}
           <div className="border border-border rounded-lg p-3 bg-card space-y-2">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Окно Джохари</h4>
+            <h4 className="text-caption-sm font-semibold text-muted-foreground uppercase tracking-wide">Окно Джохари</h4>
             <p className="font-medium">{summary.johariLabel}</p>
           </div>
 
@@ -284,10 +284,10 @@ const TemplateDetails: React.FC<{ tpl: DiagnosticConfigTemplate; summary: Templa
           {/* Accordion: Подробнее */}
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="details" className="border-none">
-              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
+              <AccordionTrigger className="py-1 text-caption-sm text-muted-foreground hover:no-underline">
                 Подробнее о шаблоне
               </AccordionTrigger>
-              <AccordionContent className="text-xs text-muted-foreground pb-2">
+              <AccordionContent className="text-caption-sm text-muted-foreground pb-2">
                 {summary.detailsText}
               </AccordionContent>
             </AccordionItem>
@@ -365,7 +365,7 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
 
   const readinessBadge = (tplId: string, status: string) => {
     // Only show for drafts
-    if (status !== 'draft') return <span className="text-xs text-muted-foreground">—</span>;
+    if (status !== 'draft') return <span className="text-caption-sm text-muted-foreground">—</span>;
 
     const readiness = readinessMap.get(tplId);
     if (readiness === 'loading') {
@@ -373,27 +373,27 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
     }
     if (readiness === 'ready') {
       return (
-        <Badge variant="outline" className="text-xs border-green-300 text-green-700 bg-green-50">
+        <Badge variant="outline" className="text-caption-sm border-success/40 text-success bg-success/10">
           Готов
         </Badge>
       );
     }
     if (readiness === 'gaps') {
       return (
-        <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">
+        <Badge variant="outline" className="text-caption-sm border-warning/40 text-warning bg-warning/10">
           Есть пробелы
         </Badge>
       );
     }
-    return <span className="text-xs text-muted-foreground">Нет данных</span>;
+    return <span className="text-caption-sm text-muted-foreground">Нет данных</span>;
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Шкалы и правила диагностики</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-heading-4 font-semibold">Шкалы и правила диагностики</h2>
+          <p className="text-body-md text-muted-foreground">
             Настройка шкал оценки, реверсивной логики и параметров опросов.
             Варианты ответа редактируются на вкладке «Вопросы и ответы».
           </p>
@@ -403,7 +403,7 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
         </Button>
       </div>
 
-      {loading && <p className="text-muted-foreground text-sm">Загрузка...</p>}
+      {loading && <p className="text-muted-foreground text-body-md">Загрузка...</p>}
 
       {!loading && templates.length === 0 && (
         <p className="text-center text-muted-foreground py-8">
@@ -449,29 +449,29 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
                     <TableCell>
                       <div>
                         <span className="font-medium">{tpl.name}</span>
-                        <span className="text-muted-foreground text-xs ml-1.5">v{tpl.version}</span>
+                        <span className="text-muted-foreground text-caption-sm ml-1.5">v{tpl.version}</span>
                       </div>
                     </TableCell>
                     <TableCell>{statusBadge(tpl.status)}</TableCell>
                     <TableCell>{readinessBadge(tpl.id, tpl.status)}</TableCell>
                     <TableCell>
-                      <Badge variant={tpl.hard_skills_enabled ? 'default' : 'secondary'} className="text-xs">
+                      <Badge variant={tpl.hard_skills_enabled ? 'default' : 'secondary'} className="text-caption-sm">
                         {s.hardSkillsLabel}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-body-md text-muted-foreground">
                       {s.hardScaleLabel}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-body-md text-muted-foreground">
                       {s.softScaleLabel}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-body-md text-muted-foreground">
                       <div>{s.commentsLabel}</div>
                       {s.commentExceptions > 0 && (
-                        <div className="text-xs text-muted-foreground/70">Исключения: {s.commentExceptions}</div>
+                        <div className="text-caption-sm text-muted-foreground/70">Исключения: {s.commentExceptions}</div>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-body-md text-muted-foreground">
                       {s.openQuestionsLabel}
                     </TableCell>
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
@@ -498,7 +498,7 @@ export const DiagnosticConfigTemplatesManager: React.FC = () => {
                                 </span>
                               </TooltipTrigger>
                               {!canApprove && (
-                                <TooltipContent side="top" className="max-w-xs text-xs">
+                                <TooltipContent side="top" className="max-w-xs text-caption-sm">
                                   {hasGaps
                                     ? 'Не все группы ответов покрывают диапазон шкалы. Раскройте шаблон для подробностей.'
                                     : 'Проверка покрытия ещё не завершена. Подождите загрузки.'}

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Pencil, Trash, ChevronDown, ChevronUp } from "@/components/icons";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface CareerTrackStep {
@@ -190,7 +190,7 @@ export const CareerTracksManager = () => {
                           </CollapsibleTrigger>
                           <div>
                             <h3 className="font-semibold">{track.name}</h3>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-body-md text-muted-foreground">
                               {steps.length} {steps.length === 1 ? 'грейд' : steps.length < 5 ? 'грейда' : 'грейдов'}
                               {track.track_types && ` • ${track.track_types.name}`}
                               {track.positions && ` • ${track.positions.name}`}
@@ -211,7 +211,7 @@ export const CareerTracksManager = () => {
                   <CollapsibleContent>
                     <CardContent>
                       {track.description && (
-                        <p className="text-sm text-muted-foreground mb-4">{track.description}</p>
+                        <p className="text-body-md text-muted-foreground mb-4">{track.description}</p>
                       )}
                       {steps.length > 0 && (
                         <Table>

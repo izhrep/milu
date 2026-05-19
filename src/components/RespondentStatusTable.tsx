@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Clock, User, UserCheck, Users } from 'lucide-react';
+import { CheckCircle, Clock, User, UserCheck, Users } from "@/components/icons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { isCompleted } from '@/lib/statusMapper';
@@ -47,14 +47,14 @@ export const RespondentStatusTable: React.FC<RespondentStatusTableProps> = ({ re
   const getStatusBadge = (status: string) => {
     if (isCompleted(status)) {
       return (
-        <Badge className="bg-green-100 text-green-700 border-green-300">
+        <Badge className="bg-success/20 text-success border-success/40">
           <CheckCircle className="w-3 h-3 mr-1" />
           Завершено
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="text-yellow-700 border-yellow-300">
+      <Badge variant="outline" className="text-warning border-warning/40">
         <Clock className="w-3 h-3 mr-1" />
         Ожидается
       </Badge>
@@ -86,10 +86,10 @@ export const RespondentStatusTable: React.FC<RespondentStatusTableProps> = ({ re
               <TableCell className="font-medium">{respondent.name}</TableCell>
               <TableCell>{getTypeLabel(respondent.type)}</TableCell>
               <TableCell>{getStatusBadge(respondent.status)}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">
+              <TableCell className="text-body-md text-muted-foreground">
                 {new Date(respondent.assigned_date).toLocaleDateString('ru-RU')}
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
+              <TableCell className="text-body-md text-muted-foreground">
                 {respondent.completed_at
                   ? new Date(respondent.completed_at).toLocaleDateString('ru-RU')
                   : '—'}

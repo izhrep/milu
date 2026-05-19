@@ -1,0 +1,16 @@
+{
+  "border": {
+    "width": {
+      "1": {"value":"1px"},
+      "2": {"value":"2px"},
+      "6": {"value":"6px"},
+      "8": {"value":"8px"}
+    },
+    "semantic": {
+      "default":  {"width":"{border.width.1}","color":"{color.semantic.border}"},
+      "emphasis": {"width":"{border.width.2}","color":"{color.semantic.foreground.primary}"},
+      "focus":    {"width":"{border.width.2}","color":"{color.semantic.ring}"},
+      "field":    {"width":"{border.width.1}","color":"hsl(215 20% 68%)"}
+    }
+  }
+}

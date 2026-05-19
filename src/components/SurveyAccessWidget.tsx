@@ -7,7 +7,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useAssignmentDraftStatus } from '@/hooks/useAssignmentDraftStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, Users, CheckCircle2, XCircle, Play, Edit, AlertCircle } from 'lucide-react';
+import { Loader2, Users, CheckCircle2, XCircle, Play, Edit, AlertCircle } from "@/components/icons";
 import { ColleagueSelectionDialog } from './ColleagueSelectionDialog';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -476,30 +476,30 @@ export const SurveyAccessWidget = () => {
                   {hasExistingAssessment ? (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <span className="text-sm">Статус:</span>
+                        <span className="text-body-md">Статус:</span>
                         <Badge variant="default">Фидбэк по себе завершён</Badge>
                       </div>
 
                       <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-                        <div className="text-sm font-medium">Коллеги</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-body-md font-medium">Коллеги</div>
+                        <div className="text-body-md text-muted-foreground">
                           Выбрано коллег: {approvedColleaguesCount > 0 ? approvedColleaguesCount : selectedColleaguesCount}
                         </div>
                         {hasPendingApproval && !colleaguesApproved && (
-                          <div className="text-xs text-amber-600">Статус: Ожидает согласования</div>
+                          <div className="text-caption-sm text-warning">Статус: Ожидает согласования</div>
                         )}
                         {colleaguesApproved && (
-                          <div className="text-xs text-green-600">Статус: Согласовано</div>
+                          <div className="text-caption-sm text-success">Статус: Согласовано</div>
                         )}
                         {selectedColleaguesCount === 0 && !colleaguesApproved && (
-                          <div className="text-xs text-muted-foreground">Статус: Не выбраны</div>
+                          <div className="text-caption-sm text-muted-foreground">Статус: Не выбраны</div>
                         )}
                       </div>
 
                       {colleaguesDraft && (
                         <Alert className="bg-muted/50 border-muted">
                           <AlertDescription className="ml-2">
-                            <div className="text-sm">
+                            <div className="text-body-md">
                               Список отозван. Вы можете отредактировать коллег и отправить на утверждение заново.
                             </div>
                           </AlertDescription>
@@ -533,28 +533,28 @@ export const SurveyAccessWidget = () => {
                   ) : (
                     <div className="space-y-3">
                       <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-                        <div className="text-sm font-medium">Руководители</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-body-md font-medium">Руководители</div>
+                        <div className="text-body-md text-muted-foreground">
                           Выбрано руководителей: {managersCount}
                         </div>
                         {managersCount > 0 && (
-                          <div className="text-xs text-green-600">Согласовано (автоматически)</div>
+                          <div className="text-caption-sm text-success">Согласовано (автоматически)</div>
                         )}
                       </div>
 
                       <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-                        <div className="text-sm font-medium">Коллеги</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-body-md font-medium">Коллеги</div>
+                        <div className="text-body-md text-muted-foreground">
                           Выбрано коллег: {approvedColleaguesCount > 0 ? approvedColleaguesCount : selectedColleaguesCount}
                         </div>
                         {hasPendingApproval && !colleaguesApproved && (
-                          <div className="text-xs text-amber-600">Статус: Ожидает согласования</div>
+                          <div className="text-caption-sm text-warning">Статус: Ожидает согласования</div>
                         )}
                         {colleaguesApproved && (
-                          <div className="text-xs text-green-600">Статус: Согласовано</div>
+                          <div className="text-caption-sm text-success">Статус: Согласовано</div>
                         )}
                         {selectedColleaguesCount === 0 && !colleaguesApproved && (
-                          <div className="text-xs text-muted-foreground">Статус: Не выбраны</div>
+                          <div className="text-caption-sm text-muted-foreground">Статус: Не выбраны</div>
                         )}
                       </div>
 
@@ -562,7 +562,7 @@ export const SurveyAccessWidget = () => {
                         {colleaguesDraft && (
                           <Alert className="bg-muted/50 border-muted mb-2">
                             <AlertDescription className="ml-2">
-                              <div className="text-sm">
+                              <div className="text-body-md">
                                 Список отозван. Вы можете отредактировать коллег и отправить на утверждение заново.
                               </div>
                             </AlertDescription>
@@ -594,9 +594,9 @@ export const SurveyAccessWidget = () => {
                         </Button>
 
                         {(hasSoftSkillResults || hasHardSkillResults) ? (
-                          <Alert className="bg-green-50 border-green-200">
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            <AlertDescription className="ml-2 text-green-700">
+                          <Alert className="bg-success/10 border-success/30">
+                            <CheckCircle2 className="h-4 w-4 text-success" />
+                            <AlertDescription className="ml-2 text-success">
                               Фидбэк по себе завершён
                             </AlertDescription>
                           </Alert>
@@ -629,7 +629,7 @@ export const SurveyAccessWidget = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="font-medium">{task.title?.replace('Оценка подчинённого:', 'Обратная связь для твоего сотрудника:').replace('Обратная связь для сотрудника:', 'Обратная связь для твоего сотрудника:')}</span>
-                          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                          <p className="text-body-md text-muted-foreground mt-1">{task.description}</p>
                         </div>
                         <Badge variant="secondary">Ожидает</Badge>
                       </div>
@@ -673,7 +673,7 @@ export const SurveyAccessWidget = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="font-medium">Обратная связь для коллеги</span>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-body-md text-muted-foreground mt-1">
                             {getFullName(assignment.evaluated_user_id)}
                           </p>
                         </div>

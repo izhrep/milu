@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, UserCheck, Users, EyeOff } from 'lucide-react';
+import { User, UserCheck, Users, EyeOff } from "@/components/icons";
 
 export interface AssessmentComment {
   id: string;
@@ -68,7 +68,7 @@ export const CommentDisplay: React.FC<CommentDisplayProps> = ({
         <h4 className="font-semibold text-foreground">
           Комментарии по {competencyType === 'skill' ? 'навыку' : 'качеству'} "{competencyName}"
         </h4>
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant="secondary" className="text-caption-sm">
           {validComments.length}
         </Badge>
       </div>
@@ -83,7 +83,7 @@ export const CommentDisplay: React.FC<CommentDisplayProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {roleIcons[type]}
-                        <CardTitle className="text-sm font-medium">
+                        <CardTitle className="text-body-md font-medium">
                           {roleLabels[type]}
                         </CardTitle>
                       </div>
@@ -93,14 +93,14 @@ export const CommentDisplay: React.FC<CommentDisplayProps> = ({
                           Анонимно
                         </Badge>
                       ) : (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-caption-sm text-muted-foreground">
                           {comment.evaluatorName || 'Неизвестно'}
                         </span>
                       )}
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">
+                    <p className="text-body-md text-foreground whitespace-pre-wrap">
                       {comment.comment}
                     </p>
                   </CardContent>
